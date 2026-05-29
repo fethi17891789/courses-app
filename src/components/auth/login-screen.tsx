@@ -69,15 +69,9 @@ const roleDisplay: Record<Role, { shadow: string }> = {
 
 function GradientLayers({ activeRole, rtl = false }: { activeRole: Role; rtl?: boolean }) {
   const angle = rtl ? "225deg" : "135deg";
-  const prevRole = useRef(activeRole);
-  const roles = activeRole === prevRole.current
-    ? [activeRole]
-    : [prevRole.current, activeRole];
-  if (activeRole !== prevRole.current) prevRole.current = activeRole;
-
   return (
     <>
-      {roles.map((r) => (
+      {allRoles.map((r) => (
         <motion.div
           key={r}
           className="absolute inset-0 rounded-[inherit]"
@@ -456,11 +450,11 @@ function LoginScreenInner({
                                 background: active ? `${rt.primary}14` : "#faf8ff",
                                 color: active ? rt.primary : "#1e1b4b50",
                                 boxShadow: active
-                                  ? `0 3px 0 ${roleDisplay[r].shadow}`
-                                  : "0 2px 0 #e5e1f5",
+                                  ? `0 4px 0 ${roleDisplay[r].shadow}, 0 6px 12px -4px ${rt.shadowGlow}`
+                                  : "0 3px 0 #e5e1f5",
                               }}
                               whileTap={{
-                                y: 3,
+                                y: 4,
                                 boxShadow: "0 0px 0 transparent",
                                 transition: { duration: 0.08 },
                               }}
