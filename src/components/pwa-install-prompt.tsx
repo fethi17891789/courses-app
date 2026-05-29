@@ -64,7 +64,7 @@ export function PWAInstallPrompt() {
   useEffect(() => {
     if (isStandalone()) return;
 
-    const dismissed = sessionStorage.getItem("pwa-install-dismissed");
+    const dismissed = localStorage.getItem("pwa-install-dismissed");
     if (dismissed) return;
 
     let promptFired = false;
@@ -84,9 +84,16 @@ export function PWAInstallPrompt() {
         if (info) {
           setManualInfo(info);
           setBannerMode("manual");
+        } else {
+          setBannerMode("manual");
+          setManualInfo({
+            browser: "votre navigateur",
+            steps:
+              'Ouvrez le menu du navigateur, puis cherchez "Installer en tant qu\'application" ou "Ajouter a l\'ecran d\'accueil".',
+          });
         }
       }
-    }, 3000);
+    }, 2000);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
@@ -106,7 +113,7 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setBannerMode(null);
-    sessionStorage.setItem("pwa-install-dismissed", "1");
+    localStorage.setItem("pwa-install-dismissed", "1");
   };
 
   if (!bannerMode) return null;
