@@ -1,0 +1,35 @@
+{
+  "common": {
+    "appName": "كورسات",
+    "welcome": "مرحبا",
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "dashboard": "لوحة التحكم",
+    "students": "التلاميذ",
+    "groups": "الأفواج",
+    "attendance": "الحضور",
+    "payments": "الدفع",
+    "settings": "الإعدادات"
+  },
+  "auth": {
+    "tagline": "إدارة دروسك، ببساطة.",
+    "welcomeBack": "مرحبا بعودتك",
+    "getStarted": "أنشئ حسابك",
+    "loginSubtitle": "سجل دخولك للوصول إلى دروسك",
+    "signupSubtitle": "انضم إلى كورسات في ثوانٍ",
+    "login": "تسجيل الدخول",
+    "signup": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "fullName": "الاسم الكامل",
+    "phone": "الهاتف",
+    "iAmA": "أنا",
+    "role_prof": "أستاذ",
+    "role_eleve": "تلميذ",
+    "role_parent": "ولي",
+    "loginCta": "تسجيل الدخول",
+    "signupCta": "إنشاء حسابي",
+    "switchToSignup": "ليس لديك حساب؟",
+    "switchToLogin": "لديك حساب بالفعل؟"
+  }
+}

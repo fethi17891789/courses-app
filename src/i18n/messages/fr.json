@@ -1,0 +1,35 @@
+{
+  "common": {
+    "appName": "Courses",
+    "welcome": "Bienvenue",
+    "login": "Se connecter",
+    "logout": "Se déconnecter",
+    "dashboard": "Tableau de bord",
+    "students": "Élèves",
+    "groups": "Groupes",
+    "attendance": "Présence",
+    "payments": "Paiements",
+    "settings": "Paramètres"
+  },
+  "auth": {
+    "tagline": "La gestion de vos cours, simplifiée.",
+    "welcomeBack": "Content de vous revoir",
+    "getStarted": "Créez votre espace",
+    "loginSubtitle": "Connectez-vous pour accéder à vos cours",
+    "signupSubtitle": "Rejoignez Courses en quelques secondes",
+    "login": "Connexion",
+    "signup": "Inscription",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "fullName": "Nom complet",
+    "phone": "Téléphone",
+    "iAmA": "Je suis",
+    "role_prof": "Professeur",
+    "role_eleve": "Élève",
+    "role_parent": "Parent",
+    "loginCta": "Se connecter",
+    "signupCta": "Créer mon compte",
+    "switchToSignup": "Pas encore de compte ?",
+    "switchToLogin": "Déjà inscrit ?"
+  }
+}
