@@ -499,7 +499,6 @@ function LoginScreenInner({
           {/* submit */}
           <motion.button
             layout="position"
-            transition={{ layout: { duration: 0.35, ease: [0.4, 0, 0.2, 1] } }}
             whileTap={{
               y: 5,
               boxShadow: `0 0px 0 ${theme.shadow3d}, 0 2px 4px -2px ${theme.shadowGlow}`,
@@ -509,7 +508,7 @@ function LoginScreenInner({
             animate={{
               boxShadow: `0 5px 0 ${theme.shadow3d}, 0 10px 24px -6px ${theme.shadowGlow}`,
             }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.3, ease: "easeInOut", layout: { duration: 0.35, ease: [0.4, 0, 0.2, 1] } }}
           >
             <GradientLayers activeRole={role} rtl={isRtl} />
             <AnimatePresence mode="wait" initial={false}>
