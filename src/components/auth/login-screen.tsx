@@ -429,11 +429,11 @@ function LoginScreenInner({
                           const rt = themes[r];
                           const active = role === r;
                           return (
-                            <button
+                            <motion.button
                               key={r}
                               onClick={() => setRole(r)}
-                              className="rounded-xl border-2 py-2 text-xs font-extrabold transition-all duration-[80ms] active:translate-y-[3px]"
-                              style={{
+                              className="rounded-xl border-2 py-2 text-xs font-extrabold"
+                              animate={{
                                 borderColor: active ? rt.primary : "#ede9fe",
                                 background: active ? `${rt.primary}14` : "#faf8ff",
                                 color: active ? rt.primary : "#1e1b4b50",
@@ -441,24 +441,15 @@ function LoginScreenInner({
                                   ? `0 3px 0 ${roleDisplay[r].shadow}`
                                   : "0 2px 0 #e5e1f5",
                               }}
-                              onPointerDown={(e) => {
-                                e.currentTarget.style.boxShadow = "0 0px 0 transparent";
+                              whileTap={{
+                                y: 3,
+                                boxShadow: "0 0px 0 transparent",
+                                transition: { duration: 0.08 },
                               }}
-                              onPointerUp={(e) => {
-                                e.currentTarget.style.boxShadow =
-                                  role === r || r === role
-                                    ? `0 3px 0 ${roleDisplay[r].shadow}`
-                                    : "0 2px 0 #e5e1f5";
-                              }}
-                              onPointerLeave={(e) => {
-                                e.currentTarget.style.boxShadow =
-                                  role === r
-                                    ? `0 3px 0 ${roleDisplay[r].shadow}`
-                                    : "0 2px 0 #e5e1f5";
-                              }}
+                              transition={{ duration: 0.15, ease: "easeOut" }}
                             >
                               <FlipText locale={activeLocale}>{t(`role_${r}`)}</FlipText>
-                            </button>
+                            </motion.button>
                           );
                         })}
                       </div>
