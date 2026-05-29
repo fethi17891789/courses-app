@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { useState, useRef, useId } from "react";
+import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "framer-motion";
 import { NextIntlClientProvider, useLocale, useTranslations } from "next-intl";
 import frMessages from "@/i18n/messages/fr.json";
 import arMessages from "@/i18n/messages/ar.json";
@@ -69,9 +69,15 @@ const roleDisplay: Record<Role, { shadow: string }> = {
 
 function GradientLayers({ activeRole, rtl = false }: { activeRole: Role; rtl?: boolean }) {
   const angle = rtl ? "225deg" : "135deg";
+  const prevRole = useRef(activeRole);
+  const roles = activeRole === prevRole.current
+    ? [activeRole]
+    : [prevRole.current, activeRole];
+  if (activeRole !== prevRole.current) prevRole.current = activeRole;
+
   return (
     <>
-      {allRoles.map((r) => (
+      {roles.map((r) => (
         <motion.div
           key={r}
           className="absolute inset-0 rounded-[inherit]"
@@ -87,15 +93,16 @@ function GradientLayers({ activeRole, rtl = false }: { activeRole: Role; rtl?: b
 }
 
 function FlipText({ children, locale }: { children: string; locale: string }) {
+  const reduced = useReducedMotion();
   return (
     <span style={{ perspective: "600px" }} className="inline-flex">
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={`${locale}-${children}`}
-          initial={{ rotateY: 90, opacity: 0 }}
-          animate={{ rotateY: 0, opacity: 1 }}
-          exit={{ rotateY: -90, opacity: 0 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
+          initial={reduced ? { opacity: 0 } : { rotateY: 90, opacity: 0 }}
+          animate={reduced ? { opacity: 1 } : { rotateY: 0, opacity: 1 }}
+          exit={reduced ? { opacity: 0 } : { rotateY: -90, opacity: 0 }}
+          transition={{ duration: reduced ? 0.15 : 0.3, ease: "easeInOut" }}
           style={{ display: "inline-block" }}
         >
           {children}
@@ -143,6 +150,7 @@ function Field({
   theme: Theme;
   locale: string;
 }) {
+  const fieldId = useId();
   const [focused, setFocused] = useState(false);
   const [filled, setFilled] = useState(false);
   const floated = focused || filled;
@@ -165,7 +173,7 @@ function Field({
     >
       {/* animated accent line at bottom */}
       <motion.div
-        className="absolute bottom-0 left-0 right-0 h-[2px]"
+        className="absolute inset-x-0 bottom-0 h-[2px]"
         style={{ background: `linear-gradient(90deg, ${theme.gradientFrom}, ${theme.gradientTo})` }}
         initial={{ scaleX: 0 }}
         animate={{ scaleX: focused ? 1 : 0 }}
@@ -190,12 +198,16 @@ function Field({
       </div>
 
       <input
+        id={fieldId}
         type={type}
-        className="peer h-11 w-full rounded-xl bg-transparent text-[13px] font-semibold text-[#1e1b4b] outline-none"
+        aria-label={label}
+        className="peer h-11 w-full rounded-xl bg-transparent text-[13px] font-semibold text-[#1e1b4b] outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
         style={{
           paddingInlineStart: "2.5rem",
           paddingInlineEnd: "0.875rem",
           paddingTop: floated ? "0.75rem" : "0",
+          // @ts-expect-error -- focus-visible ring color
+          "--tw-ring-color": theme.primary,
         }}
         onFocus={() => setFocused(true)}
         onBlur={(e) => {
@@ -206,20 +218,21 @@ function Field({
       />
 
       {/* floating label */}
-      <motion.span
+      <motion.label
+        htmlFor={fieldId}
         className="pointer-events-none absolute font-bold"
         style={{ insetInlineStart: "2.5rem" }}
         animate={{
           top: floated ? "0.15rem" : "50%",
           y: floated ? 0 : "-50%",
           fontSize: floated ? "9px" : "13px",
-          color: focused ? theme.primary : "#1e1b4b50",
+          color: focused ? theme.primary : "#1e1b4b80",
           letterSpacing: floated ? "0.05em" : "0",
         }}
         transition={{ duration: 0.2, ease: "easeOut" }}
       >
         <FlipText locale={locale}>{label}</FlipText>
-      </motion.span>
+      </motion.label>
     </motion.div>
   );
 }
@@ -252,6 +265,7 @@ function LoginScreenInner({
   switchLocale: () => void;
 }) {
   const t = useTranslations("auth");
+  const reduced = useReducedMotion();
   const [mode, setMode] = useState<Mode>("login");
   const [role, setRole] = useState<Role>("prof");
   const changeSource = useRef<"mode" | "locale">("mode");
@@ -307,14 +321,14 @@ function LoginScreenInner({
               <h1 className="text-[22px] font-extrabold leading-tight text-white">
                 Courses
               </h1>
-              <p className="text-[13px] font-semibold text-white/50">
+              <p className="text-[13px] font-semibold text-white/70">
                 <FlipText locale={activeLocale}>{t("tagline")}</FlipText>
               </p>
             </motion.div>
             <motion.button
               layout
               onClick={handleSwitchLocale}
-              className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[12px] font-extrabold text-white transition-all duration-[80ms] active:translate-y-[2px]"
+              className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[12px] font-extrabold text-white transition-all duration-[80ms] active:translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
               style={{
                 boxShadow: "0 2px 0 rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3)",
               }}
@@ -351,22 +365,26 @@ function LoginScreenInner({
                 key={`${mode}-${activeLocale}`}
                 className="text-[18px] font-extrabold text-[#1e1b4b]"
                 initial={
-                  changeSource.current === "locale"
+                  reduced ? { opacity: 0 }
+                  : changeSource.current === "locale"
                     ? { rotateY: 90, opacity: 0 }
                     : { opacity: 0, y: 10, filter: "blur(4px)" }
                 }
                 animate={
-                  changeSource.current === "locale"
+                  reduced ? { opacity: 1 }
+                  : changeSource.current === "locale"
                     ? { rotateY: 0, opacity: 1 }
                     : { opacity: 1, y: 0, filter: "blur(0px)" }
                 }
                 exit={
-                  changeSource.current === "locale"
+                  reduced ? { opacity: 0 }
+                  : changeSource.current === "locale"
                     ? { rotateY: -90, opacity: 0 }
                     : { opacity: 0, y: -10, filter: "blur(4px)" }
                 }
                 transition={
-                  changeSource.current === "locale"
+                  reduced ? { duration: 0.15 }
+                  : changeSource.current === "locale"
                     ? { duration: 0.3, ease: "easeInOut" }
                     : { duration: 0.2, ease: "easeOut" }
                 }
@@ -387,7 +405,7 @@ function LoginScreenInner({
               <motion.button
                 key={m}
                 onClick={() => switchMode(m)}
-                className="relative z-10 rounded-lg py-2"
+                className="relative z-10 rounded-lg py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                 animate={{ color: mode === m ? "#ffffff" : theme.primary }}
                 transition={{ duration: 0.3 }}
               >
@@ -421,7 +439,7 @@ function LoginScreenInner({
                 >
                   <div className="flex flex-col gap-2.5 pb-2.5">
                     <div className="flex flex-col gap-1.5">
-                      <span className="text-[12px] font-bold text-[#1e1b4b]/50">
+                      <span className="text-[12px] font-bold text-[#1e1b4b]/60">
                         <FlipText locale={activeLocale}>{t("iAmA")}</FlipText>
                       </span>
                       <div className="grid grid-cols-3 gap-2">
@@ -432,7 +450,7 @@ function LoginScreenInner({
                             <motion.button
                               key={r}
                               onClick={() => setRole(r)}
-                              className="rounded-xl border-2 py-2 text-xs font-extrabold"
+                              className="rounded-xl border-2 py-2.5 text-xs font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                               animate={{
                                 borderColor: active ? rt.primary : "#ede9fe",
                                 background: active ? `${rt.primary}14` : "#faf8ff",
@@ -495,7 +513,7 @@ function LoginScreenInner({
               boxShadow: `0 0px 0 ${theme.shadow3d}, 0 2px 4px -2px ${theme.shadowGlow}`,
               transition: { duration: 0.08 },
             }}
-            className="relative mt-4 w-full overflow-hidden rounded-xl py-3 text-[14px] font-extrabold text-white"
+            className="relative mt-4 w-full overflow-hidden rounded-xl py-3 text-[14px] font-extrabold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             animate={{
               boxShadow: `0 5px 0 ${theme.shadow3d}, 0 10px 24px -6px ${theme.shadowGlow}`,
             }}
@@ -507,22 +525,26 @@ function LoginScreenInner({
                 key={`${mode}-${activeLocale}`}
                 className="relative z-10"
                 initial={
-                  changeSource.current === "locale"
+                  reduced ? { opacity: 0 }
+                  : changeSource.current === "locale"
                     ? { rotateY: 90, opacity: 0 }
                     : { opacity: 0, y: 8, filter: "blur(4px)" }
                 }
                 animate={
-                  changeSource.current === "locale"
+                  reduced ? { opacity: 1 }
+                  : changeSource.current === "locale"
                     ? { rotateY: 0, opacity: 1 }
                     : { opacity: 1, y: 0, filter: "blur(0px)" }
                 }
                 exit={
-                  changeSource.current === "locale"
+                  reduced ? { opacity: 0 }
+                  : changeSource.current === "locale"
                     ? { rotateY: -90, opacity: 0 }
                     : { opacity: 0, y: -8, filter: "blur(4px)" }
                 }
                 transition={
-                  changeSource.current === "locale"
+                  reduced ? { duration: 0.15 }
+                  : changeSource.current === "locale"
                     ? { duration: 0.3, ease: "easeInOut" }
                     : { duration: 0.2, ease: "easeOut" }
                 }
