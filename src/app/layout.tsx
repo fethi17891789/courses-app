@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Cairo } from "next/font/google";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -16,7 +17,15 @@ const cairo = Cairo({
 
 export const metadata: Metadata = {
   title: "Courses — Gestion de cours de soutien",
-  description: "Application de gestion de cours de soutien en Algérie",
+  description: "Application de gestion de cours de soutien en Algerie",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Courses",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({
@@ -30,7 +39,23 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${jakarta.variable} ${cairo.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <head>
+        <meta name="theme-color" content="#7c3aed" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+      </head>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <PWAInstallPrompt />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js');
+              }
+            `,
+          }}
+        />
+      </body>
     </html>
   );
 }
