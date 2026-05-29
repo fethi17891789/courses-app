@@ -130,7 +130,7 @@ const fieldIcons: Record<string, (color: string, filled: boolean) => React.React
   ),
 };
 
-const fieldLayoutTransition = { type: "spring" as const, stiffness: 200, damping: 28 };
+const layoutTransition = { type: "spring" as const, stiffness: 200, damping: 28 };
 
 function Field({
   label,
@@ -152,7 +152,7 @@ function Field({
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl border-2 transition-all duration-200 ease-out"
+      className="relative overflow-hidden rounded-xl border-2 duration-200 ease-out [transition-property:border-color,background-color,box-shadow,transform]"
       style={{
         borderColor: focused ? theme.primary : theme.inputBorder,
         backgroundColor: focused ? "#ffffff" : theme.inputBg,
@@ -172,7 +172,7 @@ function Field({
 
       <motion.div
         layout="position"
-        transition={fieldLayoutTransition}
+        transition={layoutTransition}
         className="pointer-events-none absolute top-1/2 -translate-y-1/2"
         style={{ insetInlineStart: "0.5rem" }}
       >
@@ -209,7 +209,7 @@ function Field({
 
       <motion.label
         layout="position"
-        transition={fieldLayoutTransition}
+        transition={layoutTransition}
         htmlFor={fieldId}
         className="pointer-events-none absolute font-bold transition-all duration-200 ease-out"
         style={{
@@ -302,8 +302,6 @@ function LoginScreenInner({
   const fontClass = isRtl
     ? "font-[family-name:var(--font-arabic)]"
     : "font-[family-name:var(--font-sans)]";
-
-  const layoutTransition = { type: "spring" as const, stiffness: 200, damping: 28 };
 
   function handleSwitchLocale() {
     changeSource.current = "locale";
