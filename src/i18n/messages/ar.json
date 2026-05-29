@@ -23,6 +23,7 @@
     "password": "كلمة المرور",
     "fullName": "الاسم الكامل",
     "phone": "الهاتف",
+    "activationKey": "مفتاح التفعيل",
     "iAmA": "أنا",
     "role_prof": "أستاذ",
     "role_eleve": "تلميذ",
@@ -30,6 +31,21 @@
     "loginCta": "تسجيل الدخول",
     "signupCta": "إنشاء حسابي",
     "switchToSignup": "ليس لديك حساب؟",
-    "switchToLogin": "لديك حساب بالفعل؟"
+    "switchToLogin": "لديك حساب بالفعل؟",
+    "loading": "جاري التحميل...",
+    "errorEmail": "عنوان بريد إلكتروني غير صالح",
+    "errorPassword": "يجب أن تحتوي كلمة المرور على 6 أحرف على الأقل",
+    "errorGeneric": "حدث خطأ. يرجى المحاولة مرة أخرى.",
+    "errorInvalidCredentials": "بريد إلكتروني أو كلمة مرور غير صحيحة",
+    "errorEmailTaken": "هذا البريد الإلكتروني مستخدم بالفعل",
+    "errorInvalidKey": "مفتاح التفعيل غير صالح",
+    "errorKeyUsed": "تم استخدام مفتاح التفعيل هذا بالفعل",
+    "errorMissingKey": "يرجى إدخال مفتاح التفعيل",
+    "signupSuccess": "تم إنشاء الحساب! تحقق من بريدك الإلكتروني للتأكيد."
+  },
+  "dashboard": {
+    "welcome": "مرحبا، {name}",
+    "title": "لوحة التحكم",
+    "logoutCta": "تسجيل الخروج"
   }
 }
