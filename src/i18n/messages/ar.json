@@ -67,5 +67,8 @@
     "upcoming": "الحصص القادمة",
     "noUpcoming": "لا شيء مبرمج اليوم",
     "viewCalendar": "عرض التقويم"
+  },
+  "settings": {
+    "logout": "تسجيل الخروج"
   }
 }

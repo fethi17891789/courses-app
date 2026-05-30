@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
-import { PageTransition } from "@/components/auth/page-transition";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { User } from "@supabase/supabase-js";
 
@@ -225,7 +222,6 @@ function QuizCard({
 
 export function DashboardContent({ user }: { user: User }) {
   const t = useTranslations("dashboard");
-  const router = useRouter();
   const fullName =
     user.user_metadata?.full_name || user.email?.split("@")[0] || "";
   const initials = fullName
@@ -234,27 +230,15 @@ export function DashboardContent({ user }: { user: User }) {
     .join("")
     .toUpperCase()
     .slice(0, 2);
-  const [transitioning, setTransitioning] = useState(false);
   const [pressed, setPressed] = useState<string | null>(null);
 
   const greetingKey = useMemo(() => getGreetingKey(), []);
-
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setTransitioning(true);
-  }
-
-  const handleTransitionComplete = useCallback(() => {
-    router.push("/login");
-    router.refresh();
-  }, [router]);
 
   return (
     <motion.main
       variants={stagger}
       initial="hidden"
-      animate={transitioning ? "hidden" : "show"}
+      animate="show"
       className="flex min-h-[100dvh] flex-col bg-[#f0ecff] font-[family-name:var(--font-sans)]"
     >
       {/* Header - compact, no big purple block */}
@@ -429,30 +413,10 @@ export function DashboardContent({ user }: { user: User }) {
           />
         </motion.div>
 
-        {/* Logout */}
-        <motion.div variants={fadeUp} className="mt-4">
-          <button
-            onClick={handleLogout}
-            className="w-full rounded-xl bg-white py-3 text-[14px] font-extrabold text-[#ef4444] transition-[transform,box-shadow] duration-[80ms] active:translate-y-[3px]"
-            style={{
-              boxShadow:
-                "0 4px 0 #fecaca, 0 8px 20px -6px rgba(239,68,68,0.12)",
-            }}
-          >
-            {t("logoutCta")}
-          </button>
-        </motion.div>
-
         <div className="h-28" />
       </div>
 
       <BottomNav active="home" />
-
-      <PageTransition
-        active={transitioning}
-        onComplete={handleTransitionComplete}
-        color="#ef4444"
-      />
     </motion.main>
   );
 }

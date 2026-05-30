@@ -1,15 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 
 type NavItem = {
   id: string;
+  route: string;
   icon: () => React.ReactNode;
 };
 
 const items: NavItem[] = [
   {
     id: "home",
+    route: "/dashboard",
     icon: () => (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9.5L12 3l9 6.5V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9.5z" />
@@ -19,6 +23,7 @@ const items: NavItem[] = [
   },
   {
     id: "groups",
+    route: "/groups",
     icon: () => (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -30,6 +35,7 @@ const items: NavItem[] = [
   },
   {
     id: "students",
+    route: "/students",
     icon: () => (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -41,6 +47,7 @@ const items: NavItem[] = [
   },
   {
     id: "payments",
+    route: "/payments",
     icon: () => (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="1" x2="12" y2="23" />
@@ -50,6 +57,7 @@ const items: NavItem[] = [
   },
   {
     id: "settings",
+    route: "/settings",
     icon: () => (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -61,12 +69,17 @@ const items: NavItem[] = [
 
 export function BottomNav({
   active = "home",
-  onNavigate,
 }: {
   active?: string;
-  onNavigate?: (id: string) => void;
 }) {
   const [pressedId, setPressedId] = useState<string | null>(null);
+  const router = useRouter();
+  const locale = useLocale();
+
+  function handleNavigate(item: NavItem) {
+    if (item.id === active) return;
+    router.push(`/${locale}${item.route}`);
+  }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 px-5 pb-5 pt-2">
@@ -83,11 +96,13 @@ export function BottomNav({
           return (
             <button
               key={item.id}
-              onPointerDown={() => setPressedId(item.id)}
+              onPointerDown={() => {
+                setPressedId(item.id);
+                handleNavigate(item);
+              }}
               onPointerUp={() => setPressedId(null)}
               onPointerLeave={() => setPressedId(null)}
-              onClick={() => onNavigate?.(item.id)}
-              className="relative overflow-hidden flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-[80ms] ease-out focus-visible:outline-none"
+              className="relative overflow-hidden flex h-12 w-12 items-center justify-center rounded-xl transition-[transform,box-shadow] duration-[80ms] ease-out focus-visible:outline-none"
               style={{
                 background: isActive
                   ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"

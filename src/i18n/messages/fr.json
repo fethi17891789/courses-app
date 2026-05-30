@@ -67,5 +67,8 @@
     "upcoming": "Prochaines seances",
     "noUpcoming": "Rien de prevu aujourd'hui",
     "viewCalendar": "Voir le calendrier"
+  },
+  "settings": {
+    "logout": "Se deconnecter"
   }
 }
