@@ -36,14 +36,7 @@ export async function POST(request: Request) {
 
     if (keyError || !keyRow) {
       return NextResponse.json(
-        {
-          error: "invalid_key",
-          debug: {
-            keyError: keyError?.message || null,
-            hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-            serviceKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 20) || "MISSING",
-          },
-        },
+        { error: "invalid_key" },
         { status: 400 }
       );
     }
@@ -59,7 +52,7 @@ export async function POST(request: Request) {
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
-    email_confirm: false,
+    email_confirm: true,
     user_metadata: {
       full_name: fullName?.trim() || "",
       phone: phone?.trim() || "",
