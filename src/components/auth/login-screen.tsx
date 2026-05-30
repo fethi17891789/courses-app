@@ -595,7 +595,7 @@ function LoginScreenInner({
             </button>
           ))}
           <div
-            className="absolute inset-y-1 w-[calc(50%-0.25rem)] overflow-hidden rounded-lg transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            className="absolute inset-y-1 w-[calc(50%-0.25rem)] overflow-hidden rounded-lg transition-[inset-inline-start,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
             style={{
               insetInlineStart: mode === "login" ? "0.25rem" : "calc(50%)",
               boxShadow: `0 3px 0 ${theme.shadow3d}, 0 6px 12px -2px ${theme.shadowGlow}`,

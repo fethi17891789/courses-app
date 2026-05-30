@@ -46,6 +46,26 @@
   "dashboard": {
     "welcome": "Bienvenue, {name}",
     "title": "Tableau de bord",
-    "logoutCta": "Se deconnecter"
+    "logoutCta": "Se deconnecter",
+    "goodMorning": "Bonjour, {name}",
+    "goodAfternoon": "Bon apres-midi, {name}",
+    "goodEvening": "Bonsoir, {name}",
+    "sessionsToday": "{count, plural, =0 {Aucune seance aujourd'hui} one {1 seance aujourd'hui} other {{count} seances aujourd'hui}}",
+    "statStudents": "Eleves",
+    "statGroups": "Groupes",
+    "statSessions": "Seances",
+    "statPending": "En attente",
+    "createGroup": "Creer un groupe",
+    "createGroupDesc": "Organisez vos eleves par niveau",
+    "takeAttendance": "Faire l'appel",
+    "takeAttendanceDesc": "Presence et absences du jour",
+    "managePayments": "Paiements",
+    "managePaymentsDesc": "Suivez les reglements",
+    "createQuiz": "Creer un Quiz",
+    "createQuizDesc": "Testez vos eleves avant le cours",
+    "quizCta": "Commencer",
+    "upcoming": "Prochaines seances",
+    "noUpcoming": "Rien de prevu aujourd'hui",
+    "viewCalendar": "Voir le calendrier"
   }
 }

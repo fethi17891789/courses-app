@@ -46,6 +46,26 @@
   "dashboard": {
     "welcome": "مرحبا، {name}",
     "title": "لوحة التحكم",
-    "logoutCta": "تسجيل الخروج"
+    "logoutCta": "تسجيل الخروج",
+    "goodMorning": "صباح الخير، {name}",
+    "goodAfternoon": "مساء الخير، {name}",
+    "goodEvening": "مساء الخير، {name}",
+    "sessionsToday": "{count, plural, =0 {لا حصص اليوم} one {حصة واحدة اليوم} other {{count} حصص اليوم}}",
+    "statStudents": "التلاميذ",
+    "statGroups": "الأفواج",
+    "statSessions": "الحصص",
+    "statPending": "في الانتظار",
+    "createGroup": "إنشاء فوج",
+    "createGroupDesc": "نظّم تلاميذك حسب المستوى",
+    "takeAttendance": "تسجيل الحضور",
+    "takeAttendanceDesc": "الحضور والغياب اليوم",
+    "managePayments": "المدفوعات",
+    "managePaymentsDesc": "تتبع المدفوعات",
+    "createQuiz": "إنشاء اختبار",
+    "createQuizDesc": "اختبر تلاميذك قبل الحصة",
+    "quizCta": "ابدأ",
+    "upcoming": "الحصص القادمة",
+    "noUpcoming": "لا شيء مبرمج اليوم",
+    "viewCalendar": "عرض التقويم"
   }
 }
