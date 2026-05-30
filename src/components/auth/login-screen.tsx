@@ -452,7 +452,18 @@ function LoginScreenInner({
           return;
         }
 
-        setSuccess(t("signupSuccess"));
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        });
+
+        if (loginError) {
+          setSuccess(t("signupSuccess"));
+          return;
+        }
+
+        router.push(`/${activeLocale}/dashboard`);
+        router.refresh();
       }
     } catch {
       setError(t("errorGeneric"));
