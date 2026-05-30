@@ -82,7 +82,7 @@ export function DashboardContent({ user }: { user: User }) {
             onPointerLeave={() => setPressed(null)}
             className="relative flex flex-col items-center gap-3 overflow-hidden rounded-xl pb-5 pt-6 transition-all duration-[80ms] ease-out"
             style={{
-              background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+              background: "linear-gradient(150deg, #a78bfa 0%, #7c3aed 60%, #6d28d9 100%)",
               transform: `translateY(${pressed === "group" ? 5 : 0}px)`,
               boxShadow: pressed === "group"
                 ? "0 0px 0 #5b21b6, 0 2px 4px -2px rgba(124,58,237,0.4)"
@@ -109,7 +109,7 @@ export function DashboardContent({ user }: { user: User }) {
             onPointerLeave={() => setPressed(null)}
             className="relative flex flex-col items-center gap-3 overflow-hidden rounded-xl pb-5 pt-6 transition-all duration-[80ms] ease-out"
             style={{
-              background: "linear-gradient(135deg, #4ade80, #16a34a)",
+              background: "linear-gradient(150deg, #86efac 0%, #22c55e 60%, #16a34a 100%)",
               transform: `translateY(${pressed === "appel" ? 5 : 0}px)`,
               boxShadow: pressed === "appel"
                 ? "0 0px 0 #15803d, 0 2px 4px -2px rgba(34,197,94,0.4)"
@@ -136,7 +136,7 @@ export function DashboardContent({ user }: { user: User }) {
             onPointerLeave={() => setPressed(null)}
             className="relative flex flex-col items-center gap-3 overflow-hidden rounded-xl pb-5 pt-6 transition-all duration-[80ms] ease-out"
             style={{
-              background: "linear-gradient(135deg, #fb923c, #ea580c)",
+              background: "linear-gradient(150deg, #fdba74 0%, #f97316 60%, #ea580c 100%)",
               transform: `translateY(${pressed === "pay" ? 5 : 0}px)`,
               boxShadow: pressed === "pay"
                 ? "0 0px 0 #c2410c, 0 2px 4px -2px rgba(249,115,22,0.4)"
@@ -163,7 +163,7 @@ export function DashboardContent({ user }: { user: User }) {
           <div
             className="relative w-full overflow-hidden rounded-xl p-5"
             style={{
-              background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
+              background: "linear-gradient(150deg, #fde68a 0%, #fbbf24 60%, #f59e0b 100%)",
               boxShadow: "0 5px 0 #b45309, 0 10px 24px -6px rgba(251,191,36,0.4)",
             }}
           >
