@@ -197,19 +197,25 @@ function QuizCard({
           }}
           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20"
         >
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            {/* Podium - 3 steps */}
+            <motion.g
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 350, damping: 16, delay: 0.4 }}
+            >
+              {/* 2nd place - left */}
+              <rect x="1" y="11" width="7" height="11" rx="2" fill="white" opacity="0.7" />
+              {/* 1st place - center (tallest) */}
+              <rect x="8.5" y="4" width="7" height="18" rx="2" fill="white" />
+              {/* 3rd place - right */}
+              <rect x="16" y="14" width="7" height="8" rx="2" fill="white" opacity="0.5" />
+              {/* Star on 1st place */}
+              <path
+                d="M12 7l1 2.2 2.4.2-1.8 1.6.5 2.4L12 12.2 9.9 13.4l.5-2.4-1.8-1.6 2.4-.2L12 7z"
+                fill="rgba(251,191,36,0.7)"
+              />
+            </motion.g>
           </svg>
         </motion.div>
       </div>
@@ -324,46 +330,21 @@ export function DashboardContent({ user }: { user: User }) {
             shadow3d="#5b21b6"
             shadowGlow="rgba(124,58,237,0.4)"
             icon={
-              <motion.svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="white"
-                stroke="none"
-              >
-                <motion.rect
-                  x="10"
-                  y="3"
-                  width="4"
-                  height="18"
-                  rx="2"
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 20,
-                    delay: 0.4,
-                  }}
-                  style={{ originY: 0.5 }}
-                />
-                <motion.rect
-                  x="3"
-                  y="10"
-                  width="18"
-                  height="4"
-                  rx="2"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 20,
-                    delay: 0.5,
-                  }}
-                  style={{ originX: 0.5 }}
-                />
-              </motion.svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                {/* Rounded square with + cutout */}
+                <motion.g
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 16, delay: 0.35 }}
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M4 2a4 4 0 0 0-4 4v12a4 4 0 0 0 4 4h16a4 4 0 0 0 4-4V6a4 4 0 0 0-4-4H4zm8 4a1.5 1.5 0 0 1 1.5 1.5v3h3a1.5 1.5 0 0 1 0 3h-3v3a1.5 1.5 0 0 1-3 0v-3h-3a1.5 1.5 0 0 1 0-3h3v-3A1.5 1.5 0 0 1 12 6z"
+                    fill="white"
+                  />
+                </motion.g>
+              </svg>
             }
             label={t("createGroup")}
             description={t("createGroupDesc")}
@@ -378,30 +359,20 @@ export function DashboardContent({ user }: { user: User }) {
             shadow3d="#15803d"
             shadowGlow="rgba(34,197,94,0.4)"
             icon={
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="white"
-                stroke="none"
-              >
-                <path d="M12 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm-7 18v-1c0-3.3 2.7-6 6-6h2c3.3 0 6 2.7 6 6v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z" />
-                <motion.circle
-                  cx="19"
-                  cy="4"
-                  r="3"
-                  fill="#4ade80"
-                  stroke="white"
-                  strokeWidth="2"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 12,
-                    delay: 0.6,
-                  }}
-                />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                {/* Shield with check cutout */}
+                <motion.g
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 16, delay: 0.35 }}
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M12 1l8.5 3.5c.9.4 1.5 1.3 1.5 2.3V11c0 5.5-3.8 9.7-10 12C5.8 20.7 2 16.5 2 11V6.8c0-1 .6-1.9 1.5-2.3L12 1zm4.2 7.3a1.4 1.4 0 0 0-2-2L10.5 10l-1.7-1.7a1.4 1.4 0 0 0-2 2l2.7 2.7a1.4 1.4 0 0 0 2 0l4.7-4.7z"
+                    fill="white"
+                  />
+                </motion.g>
               </svg>
             }
             label={t("takeAttendance")}
@@ -420,34 +391,21 @@ export function DashboardContent({ user }: { user: User }) {
             shadow3d="#c2410c"
             shadowGlow="rgba(249,115,22,0.4)"
             icon={
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="white"
-                stroke="none"
-              >
-                <path d="M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4H4V4z" />
-                <path
-                  d="M4 10h16v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8z"
-                  opacity="0.7"
-                />
-                <motion.rect
-                  x="8"
-                  y="13"
-                  width="8"
-                  height="3"
-                  rx="1"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 400,
-                    damping: 20,
-                    delay: 0.55,
-                  }}
-                  style={{ originX: 0.5 }}
-                />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                {/* Wallet with slot cutout */}
+                <motion.g
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 16, delay: 0.35 }}
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M3 5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V5zm2 0a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2H5V5zm0 5h14v3h-4.5a2.5 2.5 0 0 0 0 5H19v2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-10z"
+                    fill="white"
+                  />
+                  <circle cx="16" cy="15.5" r="1.5" fill="white" />
+                </motion.g>
               </svg>
             }
             label={t("managePayments")}
