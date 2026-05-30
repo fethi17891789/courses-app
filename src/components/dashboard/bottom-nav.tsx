@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 
@@ -75,6 +75,12 @@ export function BottomNav({
   const [pressedId, setPressedId] = useState<string | null>(null);
   const router = useRouter();
   const locale = useLocale();
+
+  useEffect(() => {
+    for (const item of items) {
+      router.prefetch(`/${locale}${item.route}`);
+    }
+  }, [locale, router]);
 
   function handleNavigate(item: NavItem) {
     if (item.id === active) return;
