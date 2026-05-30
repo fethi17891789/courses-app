@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { NextIntlClientProvider, useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { PageTransition } from "@/components/auth/page-transition";
 import frMessages from "@/i18n/messages/fr.json";
 import arMessages from "@/i18n/messages/ar.json";
 
@@ -367,6 +368,8 @@ function LoginScreenInner({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [transitioning, setTransitioning] = useState(false);
+  const pendingNav = useRef<string | null>(null);
   const changeSource = useRef<"mode" | "locale">("mode");
 
   const [email, setEmail] = useState("");
@@ -423,8 +426,8 @@ function LoginScreenInner({
           return;
         }
 
-        router.push(`/${activeLocale}/dashboard`);
-        router.refresh();
+        pendingNav.current = `/${activeLocale}/dashboard`;
+        setTransitioning(true);
       } else {
         const res = await fetch("/api/auth/signup", {
           method: "POST",
@@ -462,8 +465,8 @@ function LoginScreenInner({
           return;
         }
 
-        router.push(`/${activeLocale}/dashboard`);
-        router.refresh();
+        pendingNav.current = `/${activeLocale}/dashboard`;
+        setTransitioning(true);
       }
     } catch {
       setError(t("errorGeneric"));
@@ -471,6 +474,13 @@ function LoginScreenInner({
       setLoading(false);
     }
   }
+
+  const handleTransitionComplete = useCallback(() => {
+    if (pendingNav.current) {
+      router.push(pendingNav.current);
+      router.refresh();
+    }
+  }, [router]);
 
   const textAnim = reduced
     ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.12 } as const }
@@ -495,7 +505,10 @@ function LoginScreenInner({
       style={{ backgroundColor: theme.bgTint }}
     >
       {/* header */}
-      <div className="relative shrink-0 overflow-hidden rounded-b-[32px] px-5 pb-12 pt-10">
+      <motion.div
+        animate={transitioning ? { scale: 0.9, opacity: 0, y: -30 } : { scale: 1, opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+        className="relative shrink-0 overflow-hidden rounded-b-[32px] px-5 pb-12 pt-10">
         <GradientLayers activeRole={role} rtl={isRtl} />
 
         <motion.div
@@ -537,13 +550,21 @@ function LoginScreenInner({
             {activeLocale === "fr" ? "AR" : "FR"}
           </motion.button>
         </div>
-      </div>
+      </motion.div>
 
       {/* form card */}
       <motion.div
         initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 120, damping: 18, delay: 0.15 }}
+        animate={
+          transitioning
+            ? { y: 20, opacity: 0, scale: 0.92, filter: "blur(8px)" }
+            : { y: 0, opacity: 1, scale: 1, filter: "blur(0px)" }
+        }
+        transition={
+          transitioning
+            ? { duration: 0.4, ease: [0.23, 1, 0.32, 1] }
+            : { type: "spring", stiffness: 120, damping: 18, delay: 0.15 }
+        }
         className="-mt-6 relative z-10 mx-5 rounded-[28px] bg-white px-5 pb-5 pt-4 shadow-[0_16px_48px_-12px_rgba(30,27,75,0.15)]"
       >
         <div className="relative mb-3 h-6 overflow-hidden">
@@ -758,6 +779,11 @@ function LoginScreenInner({
         </PushButton>
 
       </motion.div>
+
+      <PageTransition
+        active={transitioning}
+        onComplete={handleTransitionComplete}
+      />
     </main>
   );
 }
