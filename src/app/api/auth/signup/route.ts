@@ -36,7 +36,14 @@ export async function POST(request: Request) {
 
     if (keyError || !keyRow) {
       return NextResponse.json(
-        { error: "invalid_key" },
+        {
+          error: "invalid_key",
+          debug: {
+            keyError: keyError?.message || null,
+            hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            serviceKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 20) || "MISSING",
+          },
+        },
         { status: 400 }
       );
     }
