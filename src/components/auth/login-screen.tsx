@@ -158,11 +158,14 @@ function Field({
 }) {
   const fieldId = useId();
   const [focused, setFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const filled = value.length > 0;
   const floated = focused || filled;
   const iconKey = iconType || type;
   const iconFn = fieldIcons[iconKey] || fieldIcons.text;
   const iconColor = focused ? theme.primary : "#1e1b4b30";
+  const isPassword = type === "password";
+  const inputType = isPassword && showPassword ? "text" : type;
 
   return (
     <div
@@ -201,15 +204,19 @@ function Field({
         </div>
       </motion.div>
 
-      <input
+      <motion.input
         id={fieldId}
-        type={type}
+        type={inputType}
         aria-label={label}
         value={value}
+        key={isPassword ? `pw-${showPassword}` : undefined}
+        initial={isPassword ? { opacity: 0, filter: "blur(4px)" } : false}
+        animate={isPassword ? { opacity: 1, filter: "blur(0px)" } : undefined}
+        transition={{ duration: 0.25, ease: "easeOut" }}
         className="peer h-11 w-full rounded-xl bg-transparent text-[13px] font-semibold text-[#1e1b4b] outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
         style={{
           paddingInlineStart: "2.5rem",
-          paddingInlineEnd: "0.875rem",
+          paddingInlineEnd: isPassword ? "2.75rem" : "0.875rem",
           paddingTop: floated ? "0.75rem" : "0",
           // @ts-expect-error -- focus-visible ring color
           "--tw-ring-color": theme.primary,
@@ -218,6 +225,52 @@ function Field({
         onBlur={() => setFocused(false)}
         onChange={(e) => onValueChange(e.currentTarget.value)}
       />
+
+      {isPassword && (
+        <motion.button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setShowPassword((v) => !v)}
+          whileTap={{ scale: 0.8 }}
+          className="absolute top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-xl transition-colors duration-200"
+          style={{
+            insetInlineEnd: "0.375rem",
+            backgroundColor: focused ? `${theme.primary}12` : "transparent",
+          }}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.svg
+              key={showPassword ? "visible" : "hidden"}
+              initial={{ opacity: 0, scale: 0.5, rotate: -30 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotate: 30 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={focused ? theme.primary : "#1e1b4b50"}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {showPassword ? (
+                <>
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+                  <circle cx="12" cy="12" r="3" fill={focused ? `${theme.primary}30` : "#1e1b4b15"} />
+                </>
+              ) : (
+                <>
+                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c4.5 0 8.4 3.2 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                  <path d="M6.61 6.61A13.53 13.53 0 0 0 2 12c1.6 3.8 5.5 7 10 7a10.44 10.44 0 0 0 5.39-1.61" />
+                  <line x1="2" y1="2" x2="22" y2="22" />
+                </>
+              )}
+            </motion.svg>
+          </AnimatePresence>
+        </motion.button>
+      )}
 
       <motion.label
         layout="position"
