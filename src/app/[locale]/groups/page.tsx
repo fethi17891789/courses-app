@@ -18,6 +18,10 @@ export default async function GroupsPage({
     redirect(`/${locale}/login`);
   }
 
+  if (user.user_metadata?.role === "eleve") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   const { data: groups } = await supabase
     .from("groups")
     .select("*, group_members(count)")

@@ -127,6 +127,14 @@ export async function DELETE(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
+  // Get the student_id before deleting, to clean up the join_request
+  const { data: member } = await supabase
+    .from("group_members")
+    .select("student_id")
+    .eq("id", memberId)
+    .eq("group_id", groupId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("group_members")
     .delete()
@@ -135,6 +143,28 @@ export async function DELETE(
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (member?.student_id) {
+    // Clean up any accepted join_request so the student can re-request
+    await supabase
+      .from("join_requests")
+      .delete()
+      .eq("group_id", groupId)
+      .eq("status", "accepted");
+
+    // If the student is no longer in any group, delete the student record
+    const { count: otherGroups } = await supabase
+      .from("group_members")
+      .select("*", { count: "exact", head: true })
+      .eq("student_id", member.student_id);
+
+    if (otherGroups === 0) {
+      await supabase
+        .from("students")
+        .delete()
+        .eq("id", member.student_id);
+    }
   }
 
   return NextResponse.json({ success: true });

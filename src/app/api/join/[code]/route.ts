@@ -19,7 +19,7 @@ export async function GET(
     .from("groups")
     .select("id, name, level, section, capacity, price, payment_mode, group_members(count)")
     .eq("join_code", code.toUpperCase())
-    .single();
+    .maybeSingle();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -32,7 +32,7 @@ export async function GET(
     .select("id, status")
     .eq("group_id", group.id)
     .eq("student_id", user.id)
-    .single();
+    .maybeSingle();
 
   return NextResponse.json({
     id: group.id,
@@ -48,7 +48,7 @@ export async function GET(
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
@@ -61,11 +61,18 @@ export async function POST(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const body = await request.json();
+  const { full_name, phone, parent_phone, level, section, notes } = body;
+
+  if (!full_name?.trim() || !level?.trim() || !parent_phone?.trim()) {
+    return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  }
+
   const { data: group } = await supabase
     .from("groups")
     .select("id, capacity, teacher_id")
     .eq("join_code", code.toUpperCase())
-    .single();
+    .maybeSingle();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -89,29 +96,57 @@ export async function POST(
     .select("id, status")
     .eq("group_id", group.id)
     .eq("student_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (existing) {
-    return NextResponse.json({ error: "already_requested", status: existing.status }, { status: 409 });
+    if (existing.status === "pending") {
+      return NextResponse.json({ error: "already_requested", status: "pending" }, { status: 409 });
+    }
+    if (existing.status === "accepted") {
+      return NextResponse.json({ error: "already_requested", status: "accepted" }, { status: 409 });
+    }
+    // Rejected: update the existing request to re-send
+    const { error } = await supabase
+      .from("join_requests")
+      .update({
+        status: "pending",
+        resolved_at: null,
+        student_name: full_name.trim(),
+        student_email: user.email || "",
+        phone: phone?.trim() || null,
+        parent_phone: parent_phone.trim(),
+        level: level.trim(),
+        section: section?.trim() || null,
+        notes: notes?.trim() || null,
+      })
+      .eq("id", existing.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ id: existing.id, status: "pending" });
   }
 
-  const studentName = user.user_metadata?.full_name || user.email?.split("@")[0] || "";
-  const studentEmail = user.email || "";
+  const requestId = crypto.randomUUID();
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("join_requests")
     .insert({
+      id: requestId,
       group_id: group.id,
       student_id: user.id,
-      student_name: studentName,
-      student_email: studentEmail,
-    })
-    .select()
-    .single();
+      student_name: full_name.trim(),
+      student_email: user.email || "",
+      phone: phone?.trim() || null,
+      parent_phone: parent_phone.trim(),
+      level: level.trim(),
+      section: section?.trim() || null,
+      notes: notes?.trim() || null,
+    });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({ id: requestId, status: "pending" });
 }

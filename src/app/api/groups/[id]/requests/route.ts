@@ -97,12 +97,12 @@ export async function PATCH(
   }
 
   if (action === "accept") {
-    const { data: requesterUser } = await supabase.auth.admin.getUserById(req.student_id);
-
-    const studentName = requesterUser?.user?.user_metadata?.full_name
-      || requesterUser?.user?.email?.split("@")[0]
-      || "Eleve";
-    const studentPhone = requesterUser?.user?.user_metadata?.phone || null;
+    const studentName = req.student_name || "Eleve";
+    const studentPhone = req.phone || null;
+    const studentParentPhone = req.parent_phone || null;
+    const studentLevel = req.level || group.level;
+    const studentSection = req.section || group.section;
+    const studentNotes = req.notes || null;
 
     let studentRecord = await supabase
       .from("students")
@@ -122,8 +122,10 @@ export async function PATCH(
           teacher_id: user.id,
           full_name: studentName,
           phone: studentPhone,
-          level: group.level,
-          section: group.section,
+          parent_phone: studentParentPhone,
+          level: studentLevel,
+          section: studentSection,
+          notes: studentNotes,
         })
         .select("id")
         .single();

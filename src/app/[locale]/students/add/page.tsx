@@ -20,5 +20,9 @@ export default async function AddStudentPage({
     redirect(`/${locale}/login`);
   }
 
+  if (user.user_metadata?.role === "eleve") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   return <AddStudent preselectedGroupId={group} />;
 }

@@ -20,5 +20,11 @@ export default async function JoinPage({
     redirect(`/${locale}/login`);
   }
 
-  return <JoinGroup initialCode={code} />;
+  return (
+    <JoinGroup
+      initialCode={code}
+      userName={user.user_metadata?.full_name || ""}
+      userPhone={user.user_metadata?.phone || ""}
+    />
+  );
 }

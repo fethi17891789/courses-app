@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
+import { StudentDashboard } from "@/components/dashboard/student-dashboard";
 
 export default async function DashboardPage({
   params,
@@ -15,6 +16,12 @@ export default async function DashboardPage({
 
   if (!user) {
     redirect(`/${locale}/login`);
+  }
+
+  const role = user.user_metadata?.role || "prof";
+
+  if (role === "eleve") {
+    return <StudentDashboard user={user} />;
   }
 
   return <DashboardContent user={user} />;

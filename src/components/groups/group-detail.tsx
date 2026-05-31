@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -75,11 +75,36 @@ export function GroupDetail({
   const [studentSearch, setStudentSearch] = useState("");
   const [addingStudentId, setAddingStudentId] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+  const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const levelDef = getLevelDef(group.level);
 
   const tStudents = useTranslations("students");
   const tJoin = useTranslations("join");
+
+  // Poll for new join requests every 5 seconds
+  const requestsRef = useRef(requests);
+  requestsRef.current = requests;
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const res = await fetch(`/api/groups/${group.id}/requests`);
+      if (!res.ok) return;
+      const fresh: JoinRequest[] = await res.json();
+      const currentIds = new Set(requestsRef.current.map((r) => r.id));
+      const freshIds = new Set(fresh.map((r) => r.id));
+      const hasChanges =
+        fresh.length !== requestsRef.current.length ||
+        fresh.some((r) => !currentIds.has(r.id)) ||
+        requestsRef.current.some((r) => !freshIds.has(r.id));
+      if (hasChanges) {
+        setRequests(fresh);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [group.id]);
 
   const fetchAvailableStudents = useCallback(async () => {
     const params = new URLSearchParams();
@@ -118,14 +143,18 @@ export function GroupDetail({
     }
   }
 
-  async function handleRemoveMember(memberId: string) {
+  async function confirmRemoveMember() {
+    if (!removeMemberId) return;
+    setRemoving(true);
     const res = await fetch(
-      `/api/groups/${group.id}/members?memberId=${memberId}`,
+      `/api/groups/${group.id}/members?memberId=${removeMemberId}`,
       { method: "DELETE" }
     );
     if (res.ok) {
-      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      setMembers((prev) => prev.filter((m) => m.id !== removeMemberId));
     }
+    setRemoving(false);
+    setRemoveMemberId(null);
   }
 
   async function handleRequest(requestId: string, action: "accept" | "reject") {
@@ -269,7 +298,7 @@ export function GroupDetail({
                     </p>
                   </div>
                   <button
-                    onClick={() => handleRemoveMember(m.id)}
+                    onClick={() => setRemoveMemberId(m.id)}
                     className="rounded-lg bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-500 transition-[transform] duration-[80ms] active:translate-y-[1px]"
                   >
                     {t("removeStudent")}
@@ -449,6 +478,56 @@ export function GroupDetail({
                     ))}
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Remove member confirmation overlay */}
+      <AnimatePresence>
+        {removeMemberId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-5 pb-8"
+            onClick={() => setRemoveMemberId(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ duration: 0.25, ease }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-2xl bg-white p-5"
+              style={{ boxShadow: "0 4px 0 #e9e5f5, 0 16px 48px -12px rgba(30,27,75,0.2)" }}
+            >
+              <p className="text-[14px] font-extrabold text-[#1e1b4b]">
+                {t("removeStudent")}
+              </p>
+              <p className="mt-2 text-[12px] font-semibold text-[#1e1b4b]/50">
+                {t("removeConfirm")}
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setRemoveMemberId(null)}
+                  className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed] transition-[transform] duration-[80ms] active:translate-y-[2px]"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  onClick={confirmRemoveMember}
+                  disabled={removing}
+                  className="rounded-xl py-3 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-60 active:translate-y-[2px]"
+                  style={{
+                    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                    boxShadow: "0 3px 0 #b91c1c",
+                  }}
+                >
+                  {t("confirm")}
+                </button>
               </div>
             </motion.div>
           </motion.div>

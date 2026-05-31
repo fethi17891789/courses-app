@@ -1,0 +1,4 @@
+- [User profile](user_profile.md) — Algerian dev, design-focused, communicates in French
+- [Design feedback](feedback_design.md) — Cartoon style, no new styles without approval, strict color palette
+- [Project state](project_current_state.md) — Login screen done and deployed, next: dashboard or Supabase auth
+- [Concise responses](feedback_concise.md) — Just code, no commentary unless asked

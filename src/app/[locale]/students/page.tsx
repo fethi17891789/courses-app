@@ -17,5 +17,9 @@ export default async function StudentsPage({
     redirect(`/${locale}/login`);
   }
 
+  if (user.user_metadata?.role === "eleve") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   return <StudentsList />;
 }
