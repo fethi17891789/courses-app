@@ -37,13 +37,13 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`${jakarta.variable} ${cairo.variable} h-full antialiased`}
+      className={`${jakarta.variable} ${cairo.variable} h-dvh antialiased`}
     >
       <head>
         <meta name="theme-color" content="#7c3aed" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-dvh flex flex-col">
         {children}
         <PWAInstallPrompt />
         <script

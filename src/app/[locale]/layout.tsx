@@ -22,7 +22,7 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <ThemeProvider>
-        <div dir={dir} className={`min-h-full flex flex-col ${locale === "ar" ? "font-[family-name:var(--font-arabic)]" : "font-[family-name:var(--font-sans)]"}`}>
+        <div dir={dir} className={`min-h-dvh flex flex-col ${locale === "ar" ? "font-[family-name:var(--font-arabic)]" : "font-[family-name:var(--font-sans)]"}`}>
           {children}
         </div>
       </ThemeProvider>
