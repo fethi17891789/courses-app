@@ -78,6 +78,11 @@ export function GroupDetail({
   const [addError, setAddError] = useState<string | null>(null);
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [editSessionsMemberId, setEditSessionsMemberId] = useState<string | null>(null);
+  const [editSessionsDays, setEditSessionsDays] = useState<number[]>([]);
+
+  const schedules = group.schedules || [];
+  const allDays = schedules.map((s) => s.day);
 
   const levelDef = getLevelDef(group.level);
 
@@ -156,6 +161,29 @@ export function GroupDetail({
     }
     setRemoving(false);
     setRemoveMemberId(null);
+  }
+
+  function openEditSessions(member: GroupMember) {
+    setEditSessionsMemberId(member.id);
+    setEditSessionsDays(member.enrolled_sessions || [...allDays]);
+  }
+
+  async function saveEditSessions() {
+    if (!editSessionsMemberId) return;
+    const isAll = allDays.length > 0 && allDays.every((d) => editSessionsDays.includes(d)) && editSessionsDays.length === allDays.length;
+    const res = await fetch(`/api/groups/${group.id}/members`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        memberId: editSessionsMemberId,
+        enrolled_sessions: isAll ? null : editSessionsDays,
+      }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    }
+    setEditSessionsMemberId(null);
   }
 
   async function handleRequest(requestId: string, action: "accept" | "reject") {
@@ -279,33 +307,56 @@ export function GroupDetail({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {members.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center gap-3 rounded-xl bg-white px-4 py-3"
-                  style={{ boxShadow: "0 2px 0 #e9e5f5" }}
-                >
+              {members.map((m) => {
+                const isPartial = m.enrolled_sessions && m.enrolled_sessions.length > 0 && schedules.length > 0 && m.enrolled_sessions.length < schedules.length;
+                return (
                   <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
-                    style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}
+                    key={m.id}
+                    className="rounded-xl bg-white px-4 py-3"
+                    style={{ boxShadow: "0 2px 0 #e9e5f5" }}
                   >
-                    {(m.student?.full_name || m.student_id)
-                      .charAt(0)
-                      .toUpperCase()}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
+                        style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}
+                      >
+                        {(m.student?.full_name || m.student_id)
+                          .charAt(0)
+                          .toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
+                          {m.student?.full_name || m.student_id.slice(0, 8)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setRemoveMemberId(m.id)}
+                        className="rounded-lg bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-500 transition-[transform] duration-[80ms] active:translate-y-[1px]"
+                      >
+                        {t("removeStudent")}
+                      </button>
+                    </div>
+                    {schedules.length > 0 && (
+                      <button
+                        onClick={() => openEditSessions(m)}
+                        className="mt-2 flex flex-wrap gap-1"
+                      >
+                        {isPartial ? (
+                          m.enrolled_sessions!.map((day) => (
+                            <span
+                              key={day}
+                              className="rounded-md px-1.5 py-0.5 text-[9px] font-bold text-[#f97316]"
+                              style={{ background: "linear-gradient(135deg, #fff7ed, #ffedd5)" }}
+                            >
+                              {t(`day${day}Short`)}
+                            </span>
+                          ))
+                        ) : null}
+                      </button>
+                    )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
-                      {m.student?.full_name || m.student_id.slice(0, 8)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setRemoveMemberId(m.id)}
-                    className="rounded-lg bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-500 transition-[transform] duration-[80ms] active:translate-y-[1px]"
-                  >
-                    {t("removeStudent")}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </motion.div>
@@ -472,6 +523,84 @@ export function GroupDetail({
                     ))}
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit member sessions overlay */}
+      <AnimatePresence>
+        {editSessionsMemberId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 px-5"
+            onClick={() => setEditSessionsMemberId(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ duration: 0.25, ease }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-2xl bg-white p-5"
+              style={{ boxShadow: "0 4px 0 #e9e5f5, 0 16px 48px -12px rgba(30,27,75,0.2)" }}
+            >
+              <p className="text-[14px] font-extrabold text-[#1e1b4b]">
+                {t("enrolledSessions")}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-[#1e1b4b]/40">
+                {members.find((m) => m.id === editSessionsMemberId)?.student?.full_name}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {schedules.map((s, i) => {
+                  const selected = editSessionsDays.includes(s.day);
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setEditSessionsDays(
+                          selected
+                            ? editSessionsDays.filter((d) => d !== s.day)
+                            : [...editSessionsDays, s.day]
+                        );
+                      }}
+                      className="rounded-xl px-3 py-2 text-[11px] font-extrabold transition-[transform,box-shadow] duration-[80ms] active:translate-y-[1px]"
+                      style={{
+                        background: selected
+                          ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                          : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+                        color: selected ? "#fff" : "#7c3aed",
+                        boxShadow: selected
+                          ? "0 2px 0 #5b21b6"
+                          : "0 2px 0 #e9e5f5",
+                      }}
+                    >
+                      {t(`day${s.day}Short`)} {s.start_time}-{s.end_time}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setEditSessionsMemberId(null)}
+                  className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed] transition-[transform] duration-[80ms] active:translate-y-[2px]"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  onClick={saveEditSessions}
+                  className="rounded-xl py-3 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+                  style={{
+                    background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+                    boxShadow: "0 3px 0 #5b21b6",
+                  }}
+                >
+                  {t("save")}
+                </button>
               </div>
             </motion.div>
           </motion.div>

@@ -26,6 +26,7 @@ export type GroupMember = {
   group_id: string;
   student_id: string;
   status: "active" | "inactive";
+  enrolled_sessions: number[] | null;
   joined_at: string;
   student?: {
     full_name: string;

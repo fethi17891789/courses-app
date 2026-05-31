@@ -53,7 +53,7 @@ export async function POST(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { student_id } = await request.json();
+  const { student_id, enrolled_sessions } = await request.json();
 
   if (!student_id) {
     return NextResponse.json({ error: "missing_student_id" }, { status: 400 });
@@ -79,9 +79,14 @@ export async function POST(
     return NextResponse.json({ error: "group_full" }, { status: 400 });
   }
 
+  const insertData: Record<string, unknown> = { group_id: groupId, student_id };
+  if (Array.isArray(enrolled_sessions) && enrolled_sessions.length > 0) {
+    insertData.enrolled_sessions = enrolled_sessions;
+  }
+
   const { data, error } = await supabase
     .from("group_members")
-    .insert({ group_id: groupId, student_id })
+    .insert(insertData)
     .select("*, student:students(full_name, phone, level)")
     .single();
 
@@ -89,6 +94,56 @@ export async function POST(
     if (error.code === "23505") {
       return NextResponse.json({ error: "already_member" }, { status: 409 });
     }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: groupId } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { data: group } = await supabase
+    .from("groups")
+    .select("id")
+    .eq("id", groupId)
+    .eq("teacher_id", user.id)
+    .single();
+
+  if (!group) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  const { memberId, enrolled_sessions } = await request.json();
+
+  if (!memberId) {
+    return NextResponse.json({ error: "missing_member_id" }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("group_members")
+    .update({
+      enrolled_sessions: Array.isArray(enrolled_sessions) && enrolled_sessions.length > 0
+        ? enrolled_sessions
+        : null,
+    })
+    .eq("id", memberId)
+    .eq("group_id", groupId)
+    .select("*, student:students(full_name, phone, level)")
+    .single();
+
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

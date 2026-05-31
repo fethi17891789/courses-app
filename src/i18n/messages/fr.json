@@ -124,7 +124,10 @@
     "day3Short": "Mer",
     "day4Short": "Jeu",
     "day5Short": "Ven",
-    "day6Short": "Sam"
+    "day6Short": "Sam",
+    "allSessions": "Toutes les seances",
+    "partialSessions": "Seances selectionnees",
+    "enrolledSessions": "Seances inscrites"
   },
   "students": {
     "title": "Mes eleves",

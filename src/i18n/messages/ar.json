@@ -124,7 +124,10 @@
     "day3Short": "أرب",
     "day4Short": "خمي",
     "day5Short": "جمع",
-    "day6Short": "سبت"
+    "day6Short": "سبت",
+    "allSessions": "كل الحصص",
+    "partialSessions": "حصص محددة",
+    "enrolledSessions": "الحصص المسجلة"
   },
   "students": {
     "title": "تلاميذي",
