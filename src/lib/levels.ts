@@ -16,7 +16,7 @@ export const levels: LevelDef[] = [
   { id: "1AM", label: "1AM", category: "moyen" },
   { id: "2AM", label: "2AM", category: "moyen" },
   { id: "3AM", label: "3AM", category: "moyen" },
-  { id: "4AM", label: "4AM (BEM)", category: "moyen" },
+  { id: "4AM", label: "4 BEM", category: "moyen" },
   { id: "1AS", label: "1AS", category: "lycee", sections: ["Sciences", "Lettres"] },
   { id: "2AS", label: "2AS", category: "lycee", sections: ["Sc. Exp", "Maths", "Tech Maths", "Gestion-Economie", "Lettres et Philo", "Langues Etrangeres"] },
   { id: "3AS", label: "3AS (BAC)", category: "lycee", sections: ["Sc. Exp", "Maths", "Tech Maths", "Gestion-Economie", "Lettres et Philo", "Langues Etrangeres"] },

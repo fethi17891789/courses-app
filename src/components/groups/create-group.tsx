@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { levels, hasSections, getLevelDef, categoryLabels, type LevelCategory } from "@/lib/levels";
@@ -102,7 +102,7 @@ function ToggleGroup({
       ))}
       {activeIndex >= 0 && (
         <div
-          className="absolute overflow-hidden rounded-lg transition-[top,left,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
+          className="absolute z-0 overflow-hidden rounded-lg transition-[top,left,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
           style={{
             width: `calc(${100 / cols}% - 0.25rem)`,
             height: `calc(${100 / Math.ceil(options.length / cols)}% - 0.25rem)`,
@@ -248,27 +248,31 @@ export function CreateGroup() {
         </motion.div>
 
         {/* Sections (if lycee) */}
-        {showSections && levelDef?.sections && (
-          <motion.div
-            className="mt-4"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-          >
-            <FieldLabel>{t("section")}</FieldLabel>
-            <ToggleGroup
-              options={levelDef.sections.map((s) => ({ id: s, label: s }))}
-              value={selectedSection}
-              onChange={setSelectedSection}
-              columns={3}
-              color="#22c55e"
-              shadow="#15803d"
-              glow="rgba(34,197,94,0.5)"
-              gradientFrom="#4ade80"
-              gradientTo="#16a34a"
-            />
-          </motion.div>
-        )}
+        <AnimatePresence initial={false}>
+          {showSections && levelDef?.sections && (
+            <motion.div
+              key={selectedLevel}
+              className="mt-4 overflow-hidden"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+            >
+              <FieldLabel>{t("section")}</FieldLabel>
+              <ToggleGroup
+                options={levelDef.sections.map((s) => ({ id: s, label: s }))}
+                value={selectedSection}
+                onChange={setSelectedSection}
+                columns={levelDef.sections.length <= 3 ? levelDef.sections.length : 3}
+                color="#22c55e"
+                shadow="#15803d"
+                glow="rgba(34,197,94,0.5)"
+                gradientFrom="#4ade80"
+                gradientTo="#16a34a"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Capacity + Price */}
         <motion.div variants={fadeUp} className="mt-4 grid grid-cols-2 gap-3">
