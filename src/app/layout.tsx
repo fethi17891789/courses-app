@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Cairo } from "next/font/google";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
@@ -14,6 +14,14 @@ const cairo = Cairo({
   variable: "--font-arabic",
   weight: ["400", "500", "600", "700", "800"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "Courses — Gestion de cours de soutien",
