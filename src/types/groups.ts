@@ -1,5 +1,11 @@
 export type PaymentMode = "monthly" | "per_session" | "weekly";
 
+export type Schedule = {
+  day: number;
+  start_time: string;
+  end_time: string;
+};
+
 export type Group = {
   id: string;
   teacher_id: string;
@@ -9,6 +15,7 @@ export type Group = {
   capacity: number;
   price: number;
   payment_mode: PaymentMode;
+  schedules: Schedule[];
   join_code: string;
   created_at: string;
   member_count?: number;

@@ -311,21 +311,14 @@ export function GroupDetail({
         </motion.div>
 
         {/* Add student button */}
-        <motion.div variants={fadeUp} className="mt-3 flex gap-2">
+        <motion.div variants={fadeUp} className="mt-3">
           <button
-            onClick={() => setShowAddStudent(true)}
-            className="flex-1 rounded-xl py-2.5 text-[12px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+            onClick={() => router.push(`/${locale}/students/add?group=${group.id}`)}
+            className="w-full rounded-xl py-2.5 text-[12px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
             style={{
               background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
               boxShadow: "0 3px 0 #5b21b6, 0 6px 12px -4px rgba(124,58,237,0.4)",
             }}
-          >
-            {tStudents("addExisting")}
-          </button>
-          <button
-            onClick={() => router.push(`/${locale}/students/add?group=${group.id}`)}
-            className="flex-1 rounded-xl border-2 border-[#ddd6fe] bg-white py-2.5 text-[12px] font-extrabold text-[#7c3aed] transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
-            style={{ boxShadow: "0 3px 0 #e9e5f5" }}
           >
             {tStudents("addNew")}
           </button>
@@ -493,7 +486,7 @@ export function GroupDetail({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-5 pb-8"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 px-5"
             onClick={() => setRemoveMemberId(null)}
           >
             <motion.div
@@ -543,7 +536,7 @@ export function GroupDetail({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-5 pb-8"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 px-5"
             onClick={() => setShowDeleteConfirm(false)}
           >
             <motion.div

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { levels, hasSections, getLevelDef, categoryLabels, type LevelCategory } from "@/lib/levels";
-import type { PaymentMode } from "@/types/groups";
+import type { PaymentMode, Schedule } from "@/types/groups";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -131,6 +131,7 @@ export function CreateGroup() {
   const [capacity, setCapacity] = useState("30");
   const [price, setPrice] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("monthly");
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitPressed, setSubmitPressed] = useState(false);
@@ -161,6 +162,7 @@ export function CreateGroup() {
           capacity: parseInt(capacity) || 30,
           price: parseInt(price) || 0,
           payment_mode: paymentMode,
+          schedules,
         }),
       });
 
@@ -309,6 +311,115 @@ export function CreateGroup() {
             gradientFrom="#fb923c"
             gradientTo="#ea580c"
           />
+        </motion.div>
+
+        {/* Schedules */}
+        <motion.div variants={fadeUp} className="mt-4">
+          <FieldLabel>{t("schedules")}</FieldLabel>
+          <div className="flex flex-col gap-3">
+            <AnimatePresence initial={false}>
+              {schedules.map((s, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-2xl bg-white p-3" style={{ boxShadow: "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)" }}>
+                    <div className="mb-2.5 flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-[#1e1b4b]/40">{t("schedules")} {i + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSchedules(schedules.filter((_, j) => j !== i))}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+                        style={{
+                          background: "linear-gradient(135deg, #fecaca, #fca5a5)",
+                          boxShadow: "0 2px 0 #f87171",
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="mb-2.5 grid grid-cols-7 gap-1">
+                      {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => {
+                            const updated = [...schedules];
+                            updated[i] = { ...updated[i], day: d };
+                            setSchedules(updated);
+                          }}
+                          className="rounded-lg py-1.5 text-[10px] font-extrabold transition-[transform,box-shadow,background,color] duration-[80ms] active:translate-y-[1px]"
+                          style={{
+                            background:
+                              s.day === d
+                                ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                                : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+                            color: s.day === d ? "#fff" : "#7c3aed",
+                            boxShadow:
+                              s.day === d
+                                ? "0 2px 0 #5b21b6"
+                                : "0 2px 0 #e9e5f5",
+                          }}
+                        >
+                          {t(`day${d}Short`)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <span className="mb-1 block text-[10px] font-bold text-[#1e1b4b]/40">{t("startTime")}</span>
+                        <input
+                          type="time"
+                          value={s.start_time}
+                          onChange={(e) => {
+                            const updated = [...schedules];
+                            updated[i] = { ...updated[i], start_time: e.target.value };
+                            setSchedules(updated);
+                          }}
+                          className="h-11 w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 text-[13px] font-semibold text-[#1e1b4b] outline-none transition-[border-color,box-shadow] duration-200 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="mb-1 block text-[10px] font-bold text-[#1e1b4b]/40">{t("endTime")}</span>
+                        <input
+                          type="time"
+                          value={s.end_time}
+                          onChange={(e) => {
+                            const updated = [...schedules];
+                            updated[i] = { ...updated[i], end_time: e.target.value };
+                            setSchedules(updated);
+                          }}
+                          className="h-11 w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 text-[13px] font-semibold text-[#1e1b4b] outline-none transition-[border-color,box-shadow] duration-200 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setSchedules([...schedules, { day: 0, start_time: "08:00", end_time: "09:00" }])
+            }
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-[12px] font-extrabold text-[#7c3aed] transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+            style={{
+              background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+              boxShadow: "0 3px 0 #e9e5f5",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {t("addSession")}
+          </button>
         </motion.div>
 
         {/* Error */}

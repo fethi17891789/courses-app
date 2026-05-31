@@ -138,6 +138,11 @@
   --brand-cream: #fffaf3;
 }
 
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-1.5deg); }
+  50% { transform: rotate(1.5deg); }
+}
+
 @keyframes spin-slow {
   to {
     transform: rotate(360deg);
