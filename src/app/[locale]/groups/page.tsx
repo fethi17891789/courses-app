@@ -34,6 +34,7 @@ export default async function GroupsPage({
     capacity: g.capacity,
     price: g.price,
     payment_mode: g.payment_mode,
+    join_code: g.join_code,
     created_at: g.created_at,
     member_count: g.group_members?.[0]?.count ?? 0,
   }));

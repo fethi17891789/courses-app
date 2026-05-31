@@ -246,7 +246,7 @@ export function DashboardContent({ user }: { user: User }) {
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="flex min-h-[100dvh] flex-col bg-[#f0ecff] font-[family-name:var(--font-sans)]"
+      className="flex min-h-[100dvh] flex-col bg-[#f0ecff]"
     >
       {/* Header - compact, no big purple block */}
       <motion.div variants={fadeUp} className="px-5 pb-1 pt-10">

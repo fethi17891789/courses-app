@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { levels, hasSections, getLevelDef, categoryLabels, type LevelCategory } from "@/lib/levels";
-import type { PaymentMode } from "@/types/groups";
+import type { Group } from "@/types/groups";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -18,12 +18,6 @@ const fadeUp = {
   hidden: { opacity: 0, y: 16 },
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease } },
 };
-
-const paymentModes: { id: PaymentMode; key: string }[] = [
-  { id: "monthly", key: "monthly" },
-  { id: "per_session", key: "perSession" },
-  { id: "weekly", key: "weekly" },
-];
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -47,11 +41,31 @@ function InputField({
   return (
     <input
       type={type}
-      inputMode={type === "number" ? "numeric" : undefined}
+      inputMode={type === "tel" ? "tel" : undefined}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className="h-11 w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 text-[13px] font-semibold text-[#1e1b4b] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/30 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+    />
+  );
+}
+
+function TextArea({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={3}
+      className="w-full resize-none rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 py-2.5 text-[13px] font-semibold text-[#1e1b4b] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/30 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
     />
   );
 }
@@ -117,19 +131,21 @@ function ToggleGroup({
   );
 }
 
-
-export function CreateGroup() {
-  const t = useTranslations("groups");
+export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string }) {
+  const t = useTranslations("students");
+  const tGroups = useTranslations("groups");
   const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split("/")[1];
 
-  const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [parentPhone, setParentPhone] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
-  const [capacity, setCapacity] = useState("30");
-  const [price, setPrice] = useState("");
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("monthly");
+  const [notes, setNotes] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState(preselectedGroupId || "");
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitPressed, setSubmitPressed] = useState(false);
@@ -137,11 +153,17 @@ export function CreateGroup() {
 
   const levelDef = selectedLevel ? getLevelDef(selectedLevel) : null;
   const showSections = selectedLevel ? hasSections(selectedLevel) : false;
-
   const categories: LevelCategory[] = ["primaire", "moyen", "lycee"];
 
+  useEffect(() => {
+    fetch("/api/groups")
+      .then((res) => res.json())
+      .then((data) => setGroups(data))
+      .catch(() => {});
+  }, []);
+
   async function handleCreate() {
-    if (!name.trim() || !selectedLevel) {
+    if (!fullName.trim() || !selectedLevel) {
       setError("missing_fields");
       return;
     }
@@ -150,16 +172,17 @@ export function CreateGroup() {
     setError(null);
 
     try {
-      const res = await fetch("/api/groups", {
+      const res = await fetch("/api/students", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
+          full_name: fullName.trim(),
+          phone: phone.trim() || null,
+          parent_phone: parentPhone.trim() || null,
           level: selectedLevel,
           section: showSections ? selectedSection || null : null,
-          capacity: parseInt(capacity) || 30,
-          price: parseInt(price) || 0,
-          payment_mode: paymentMode,
+          notes: notes.trim() || null,
+          group_id: selectedGroup || null,
         }),
       });
 
@@ -168,7 +191,11 @@ export function CreateGroup() {
         return;
       }
 
-      router.push(`/${locale}/groups`);
+      if (preselectedGroupId) {
+        router.back();
+      } else {
+        router.push(`/${locale}/students`);
+      }
       router.refresh();
     } catch {
       setError("generic");
@@ -195,9 +222,7 @@ export function CreateGroup() {
           style={{
             background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
             transform: `translateY(${backPressed ? 2 : 0}px)`,
-            boxShadow: backPressed
-              ? "0 0px 0 #e9e5f5"
-              : "0 3px 0 #e9e5f5",
+            boxShadow: backPressed ? "0 0px 0 #e9e5f5" : "0 3px 0 #e9e5f5",
           }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -205,22 +230,44 @@ export function CreateGroup() {
           </svg>
         </button>
         <h1 className="text-[20px] font-extrabold text-[#1e1b4b]">
-          {t("createCta")}
+          {t("addCta")}
         </h1>
       </motion.div>
 
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-6 scrollbar-hide">
-        {/* Name */}
+        {/* Full name */}
         <motion.div variants={fadeUp}>
-          <FieldLabel>{t("name")}</FieldLabel>
+          <FieldLabel>{t("fullName")}</FieldLabel>
           <InputField
-            value={name}
-            onChange={setName}
-            placeholder={t("namePlaceholder")}
+            value={fullName}
+            onChange={setFullName}
+            placeholder={t("fullNamePlaceholder")}
           />
         </motion.div>
 
-        {/* Level picker - toggle per category */}
+        {/* Phones */}
+        <motion.div variants={fadeUp} className="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <FieldLabel>{t("phone")}</FieldLabel>
+            <InputField
+              value={phone}
+              onChange={setPhone}
+              placeholder={t("phonePlaceholder")}
+              type="tel"
+            />
+          </div>
+          <div>
+            <FieldLabel>{t("parentPhone")}</FieldLabel>
+            <InputField
+              value={parentPhone}
+              onChange={setParentPhone}
+              placeholder={t("parentPhonePlaceholder")}
+              type="tel"
+            />
+          </div>
+        </motion.div>
+
+        {/* Level picker */}
         <motion.div variants={fadeUp} className="mt-4">
           <FieldLabel>{t("level")}</FieldLabel>
           <div className="flex flex-col gap-3">
@@ -274,39 +321,51 @@ export function CreateGroup() {
           )}
         </AnimatePresence>
 
-        {/* Capacity + Price */}
-        <motion.div variants={fadeUp} className="mt-4 grid grid-cols-2 gap-3">
-          <div>
-            <FieldLabel>{t("capacityLabel")}</FieldLabel>
-            <InputField
-              value={capacity}
-              onChange={setCapacity}
-              type="number"
-            />
-          </div>
-          <div>
-            <FieldLabel>{t("price")} ({t("priceUnit")})</FieldLabel>
-            <InputField
-              value={price}
-              onChange={setPrice}
-              placeholder="0"
-              type="number"
-            />
-          </div>
-        </motion.div>
+        {/* Group picker */}
+        {!preselectedGroupId && groups.length > 0 && (
+          <motion.div variants={fadeUp} className="mt-4">
+            <FieldLabel>{t("group")}</FieldLabel>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setSelectedGroup("")}
+                className="w-full rounded-xl border-2 px-3 py-2.5 text-left text-[12px] font-bold transition-all duration-150"
+                style={{
+                  borderColor: !selectedGroup ? "#7c3aed" : "#ddd6fe",
+                  background: !selectedGroup ? "rgba(124,58,237,0.06)" : "#f9f7ff",
+                  color: !selectedGroup ? "#7c3aed" : "#1e1b4b80",
+                }}
+              >
+                {t("noGroup")}
+              </button>
+              {groups.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => setSelectedGroup(g.id)}
+                  className="w-full rounded-xl border-2 px-3 py-2.5 text-left text-[12px] font-bold transition-all duration-150"
+                  style={{
+                    borderColor: selectedGroup === g.id ? "#7c3aed" : "#ddd6fe",
+                    background: selectedGroup === g.id ? "rgba(124,58,237,0.06)" : "#f9f7ff",
+                    color: selectedGroup === g.id ? "#7c3aed" : "#1e1b4b",
+                  }}
+                >
+                  <span className="font-extrabold">{g.name}</span>
+                  <span className="ml-2 text-[11px] font-semibold text-[#1e1b4b]/40">
+                    {getLevelDef(g.level)?.label || g.level}
+                    {g.section ? ` - ${g.section}` : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
-        {/* Payment mode - toggle style like login/signup */}
+        {/* Notes */}
         <motion.div variants={fadeUp} className="mt-4">
-          <FieldLabel>{t("paymentMode")}</FieldLabel>
-          <ToggleGroup
-            options={paymentModes.map((pm) => ({ id: pm.id, label: t(pm.key) }))}
-            value={paymentMode}
-            onChange={(id) => setPaymentMode(id as PaymentMode)}
-            color="#f97316"
-            shadow="#c2410c"
-            glow="rgba(249,115,22,0.5)"
-            gradientFrom="#fb923c"
-            gradientTo="#ea580c"
+          <FieldLabel>{t("notes")}</FieldLabel>
+          <TextArea
+            value={notes}
+            onChange={setNotes}
+            placeholder={t("notesPlaceholder")}
           />
         </motion.div>
 

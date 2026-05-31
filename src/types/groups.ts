@@ -9,6 +9,7 @@ export type Group = {
   capacity: number;
   price: number;
   payment_mode: PaymentMode;
+  join_code: string;
   created_at: string;
   member_count?: number;
 };
@@ -19,8 +20,11 @@ export type GroupMember = {
   student_id: string;
   status: "active" | "inactive";
   joined_at: string;
-  student_name?: string;
-  student_email?: string;
+  student?: {
+    full_name: string;
+    phone: string | null;
+    level: string;
+  };
 };
 
 export type JoinRequest = {

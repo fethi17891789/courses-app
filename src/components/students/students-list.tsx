@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { getLevelDef } from "@/lib/levels";
-import type { Group } from "@/types/groups";
+import type { Student } from "@/types/students";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -20,23 +20,16 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease } },
 };
 
-const paymentModeKeys: Record<string, string> = {
-  monthly: "monthly",
-  per_session: "perSession",
-  weekly: "weekly",
-};
-
-function GroupCard({
-  group,
+function StudentCard({
+  student,
   onTap,
 }: {
-  group: Group;
+  student: Student;
   onTap: () => void;
 }) {
-  const t = useTranslations("groups");
-  const levelDef = getLevelDef(group.level);
-  const label = levelDef?.label || group.level;
-  const section = group.section;
+  const t = useTranslations("students");
+  const levelDef = getLevelDef(student.level);
+  const label = levelDef?.label || student.level;
 
   return (
     <button
@@ -46,60 +39,63 @@ function GroupCard({
         boxShadow: "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
       }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-extrabold text-[#1e1b4b]">
-            {group.name}
-          </p>
-          <p className="mt-0.5 text-[12px] font-semibold text-[#1e1b4b]/40">
-            {label}
-            {section ? ` - ${section}` : ""}
-          </p>
-        </div>
+      <div className="flex items-center gap-3">
         <div
-          className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1"
-          style={{ background: "linear-gradient(135deg, #f5f3ff, #ede9fe)" }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[13px] font-black text-white"
+          style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#7c3aed"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-          </svg>
-          <span className="text-[12px] font-bold text-[#7c3aed]">
-            {group.member_count ?? 0}
-          </span>
+          {student.full_name.charAt(0).toUpperCase()}
         </div>
-      </div>
-      <div className="mt-2 flex items-center gap-2">
-        <span className="rounded-lg bg-[#f0ecff] px-2 py-0.5 text-[10px] font-bold text-[#7c3aed]">
-          {group.price} DA
-        </span>
-        <span className="rounded-lg bg-[#f0fdf4] px-2 py-0.5 text-[10px] font-bold text-[#22c55e]">
-          {t(paymentModeKeys[group.payment_mode] || "monthly")}
-        </span>
-        <span className="rounded-lg bg-[#fff7ed] px-2 py-0.5 text-[10px] font-bold text-[#f97316]">
-          {t("capacity", { max: group.capacity })}
-        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14px] font-extrabold text-[#1e1b4b]">
+            {student.full_name}
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-[#1e1b4b]/40">
+            {label}
+            {student.section ? ` - ${student.section}` : ""}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className="rounded-lg bg-[#f0ecff] px-2 py-0.5 text-[10px] font-bold text-[#7c3aed]">
+            {t("groupCount", { count: student.group_count ?? 0 })}
+          </span>
+          {student.phone && (
+            <span className="text-[10px] font-semibold text-[#1e1b4b]/30">
+              {student.phone}
+            </span>
+          )}
+        </div>
       </div>
     </button>
   );
 }
 
-export function GroupsList({ groups }: { groups: Group[] }) {
-  const t = useTranslations("groups");
+export function StudentsList() {
+  const t = useTranslations("students");
   const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split("/")[1];
+
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [addPressed, setAddPressed] = useState(false);
   const [createPressed, setCreatePressed] = useState(false);
+
+  const fetchStudents = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("search", search.trim());
+    const res = await fetch(`/api/students?${params}`);
+    if (res.ok) {
+      setStudents(await res.json());
+    }
+    setLoading(false);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchStudents, search ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [fetchStudents, search]);
 
   return (
     <motion.main
@@ -116,7 +112,7 @@ export function GroupsList({ groups }: { groups: Group[] }) {
           onPointerDown={() => setAddPressed(true)}
           onPointerUp={() => setAddPressed(false)}
           onPointerLeave={() => setAddPressed(false)}
-          onClick={() => router.push(`/${locale}/groups/create`)}
+          onClick={() => router.push(`/${locale}/students/add`)}
           className="flex h-9 w-9 items-center justify-center rounded-xl transition-[transform,box-shadow] duration-[80ms]"
           style={{
             background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
@@ -137,8 +133,24 @@ export function GroupsList({ groups }: { groups: Group[] }) {
         </button>
       </motion.div>
 
+      {/* Search */}
+      <motion.div variants={fadeUp} className="px-5 pt-3">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search")}
+          className="h-11 w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 text-[13px] font-semibold text-[#1e1b4b] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/30 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+        />
+      </motion.div>
+
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-2 scrollbar-hide">
-        {groups.length === 0 ? (
+        {loading ? (
+          <motion.div variants={fadeUp} className="flex justify-center pt-16">
+            <div className="text-[13px] font-semibold text-[#1e1b4b]/40">
+              {t("creating").replace("...", "")}...
+            </div>
+          </motion.div>
+        ) : students.length === 0 && !search ? (
           <motion.div
             variants={fadeUp}
             className="flex flex-col items-center justify-center pt-16"
@@ -152,10 +164,19 @@ export function GroupsList({ groups }: { groups: Group[] }) {
             >
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                 <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M4 2a4 4 0 0 0-4 4v12a4 4 0 0 0 4 4h16a4 4 0 0 0 4-4V6a4 4 0 0 0-4-4H4zm8 4a1.5 1.5 0 0 1 1.5 1.5v3h3a1.5 1.5 0 0 1 0 3h-3v3a1.5 1.5 0 0 1-3 0v-3h-3a1.5 1.5 0 0 1 0-3h3v-3A1.5 1.5 0 0 1 12 6z"
-                  fill="#c4b5fd"
+                  d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+                  stroke="#c4b5fd"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="9" cy="7" r="4" stroke="#c4b5fd" strokeWidth="2.5" />
+                <path
+                  d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+                  stroke="#c4b5fd"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
               </svg>
             </div>
@@ -169,7 +190,7 @@ export function GroupsList({ groups }: { groups: Group[] }) {
               onPointerDown={() => setCreatePressed(true)}
               onPointerUp={() => setCreatePressed(false)}
               onPointerLeave={() => setCreatePressed(false)}
-              onClick={() => router.push(`/${locale}/groups/create`)}
+              onClick={() => router.push(`/${locale}/students/add`)}
               className="mt-5 rounded-xl px-5 py-3 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms]"
               style={{
                 background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
@@ -179,16 +200,22 @@ export function GroupsList({ groups }: { groups: Group[] }) {
                   : "0 4px 0 #5b21b6, 0 8px 20px -6px rgba(124,58,237,0.4)",
               }}
             >
-              {t("createCta")}
+              {t("addCta")}
             </button>
+          </motion.div>
+        ) : students.length === 0 && search ? (
+          <motion.div variants={fadeUp} className="flex flex-col items-center pt-16">
+            <p className="text-[13px] font-semibold text-[#1e1b4b]/40">
+              Aucun resultat pour "{search}"
+            </p>
           </motion.div>
         ) : (
           <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            {groups.map((group) => (
-              <GroupCard
-                key={group.id}
-                group={group}
-                onTap={() => router.push(`/${locale}/groups/${group.id}`)}
+            {students.map((student) => (
+              <StudentCard
+                key={student.id}
+                student={student}
+                onTap={() => router.push(`/${locale}/students/${student.id}`)}
               />
             ))}
           </motion.div>
@@ -196,7 +223,7 @@ export function GroupsList({ groups }: { groups: Group[] }) {
         <div className="h-28" />
       </div>
 
-      <BottomNav active="groups" />
+      <BottomNav active="students" />
     </motion.main>
   );
 }

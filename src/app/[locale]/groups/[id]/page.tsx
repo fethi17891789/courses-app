@@ -30,7 +30,7 @@ export default async function GroupDetailPage({
 
   const { data: members } = await supabase
     .from("group_members")
-    .select("*")
+    .select("*, student:students(full_name, phone, level)")
     .eq("group_id", id)
     .order("joined_at", { ascending: true });
 

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { PageTransition } from "@/components/auth/page-transition";
@@ -38,8 +38,26 @@ export function SettingsContent({ user }: { user: User }) {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+  const locale = useLocale();
   const [transitioning, setTransitioning] = useState(false);
+  const [langTransitioning, setLangTransitioning] = useState(false);
   const [logoutPressed, setLogoutPressed] = useState(false);
+  const pendingLocale = useState<string | null>(null);
+
+  function handleSwitchLocale(newLocale: string) {
+    if (newLocale === locale) return;
+    document.cookie = `preferred-locale=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
+    pendingLocale[1](newLocale);
+    setLangTransitioning(true);
+  }
+
+  const handleLangTransitionComplete = useCallback(() => {
+    const newLocale = pendingLocale[0];
+    if (!newLocale) return;
+    const currentPath = window.location.pathname;
+    const newPath = currentPath.replace(/^\/(fr|ar)/, `/${newLocale}`);
+    window.location.href = newPath;
+  }, [pendingLocale]);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -57,7 +75,7 @@ export function SettingsContent({ user }: { user: User }) {
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="flex min-h-[100dvh] flex-col bg-[#f0ecff] font-[family-name:var(--font-sans)]"
+      className="flex min-h-[100dvh] flex-col bg-[#f0ecff]"
     >
       {/* Header */}
       <motion.div variants={fadeUp} className="px-5 pb-1 pt-10">
@@ -94,6 +112,39 @@ export function SettingsContent({ user }: { user: User }) {
           </div>
         </motion.div>
 
+        {/* Language toggle */}
+        <motion.div variants={fadeUp} className="mt-5">
+          <p className="mb-2 text-[12px] font-bold uppercase text-[#1e1b4b]/30">
+            {t("language")}
+          </p>
+          <div
+            className="relative grid grid-cols-2 rounded-xl p-1 text-[13px] font-extrabold"
+            style={{ backgroundColor: "rgba(124,58,237,0.07)" }}
+          >
+            {[
+              { id: "fr", label: t("french") },
+              { id: "ar", label: t("arabic") },
+            ].map((lang) => (
+              <button
+                key={lang.id}
+                onClick={() => handleSwitchLocale(lang.id)}
+                className="relative z-10 rounded-lg py-2.5 transition-colors duration-200"
+                style={{ color: locale === lang.id ? "#ffffff" : "#7c3aed" }}
+              >
+                {lang.label}
+              </button>
+            ))}
+            <div
+              className="absolute inset-y-1 w-[calc(50%-0.25rem)] z-0 overflow-hidden rounded-lg transition-[inset-inline-start,left,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
+              style={{
+                left: locale === "fr" ? "0.25rem" : "calc(50%)",
+                background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+                boxShadow: "0 3px 0 #5b21b6, 0 6px 12px -2px rgba(124,58,237,0.5)",
+              }}
+            />
+          </div>
+        </motion.div>
+
         {/* Logout */}
         <motion.div variants={fadeUp} className="mt-5">
           <button
@@ -122,6 +173,11 @@ export function SettingsContent({ user }: { user: User }) {
         active={transitioning}
         onComplete={handleTransitionComplete}
         color="#ef4444"
+      />
+      <PageTransition
+        active={langTransitioning}
+        onComplete={handleLangTransitionComplete}
+        color="#7c3aed"
       />
     </motion.main>
   );

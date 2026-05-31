@@ -17,7 +17,18 @@ export async function middleware(request: NextRequest) {
 
   // Extract locale from path
   const localeMatch = pathname.match(/^\/(fr|ar)(\/|$)/);
-  const locale = localeMatch ? localeMatch[1] : "fr";
+  const preferredLocale = request.cookies.get("preferred-locale")?.value;
+  const locale = localeMatch ? localeMatch[1] : (preferredLocale || "fr");
+
+  // Redirect to preferred locale if on wrong one and cookie is set
+  if (localeMatch && preferredLocale && localeMatch[1] !== preferredLocale) {
+    const isNavigatingDirectly = !request.headers.get("referer");
+    if (isNavigatingDirectly) {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.replace(/^\/(fr|ar)/, `/${preferredLocale}`);
+      return NextResponse.redirect(url);
+    }
+  }
 
   const isLoginPage = pathname.startsWith(`/${locale}/login`);
   const isRootPage =
@@ -64,13 +75,15 @@ export async function middleware(request: NextRequest) {
   // Redirect logic
   if (!user && !isLoginPage && !isRootPage) {
     const url = request.nextUrl.clone();
-    url.pathname = `/${locale}/login`;
+    const targetLocale = preferredLocale || locale;
+    url.pathname = `/${targetLocale}/login`;
     return NextResponse.redirect(url);
   }
 
   if (user && isLoginPage) {
     const url = request.nextUrl.clone();
-    url.pathname = `/${locale}/dashboard`;
+    const targetLocale = preferredLocale || locale;
+    url.pathname = `/${targetLocale}/dashboard`;
     return NextResponse.redirect(url);
   }
 

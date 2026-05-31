@@ -1,6 +1,45 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: groupId } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { data: group } = await supabase
+    .from("groups")
+    .select("id")
+    .eq("id", groupId)
+    .eq("teacher_id", user.id)
+    .single();
+
+  if (!group) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  const { data, error } = await supabase
+    .from("join_requests")
+    .select("*")
+    .eq("group_id", groupId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data || []);
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -24,7 +63,7 @@ export async function PATCH(
 
   const { data: group } = await supabase
     .from("groups")
-    .select("id")
+    .select("id, level, section")
     .eq("id", groupId)
     .eq("teacher_id", user.id)
     .single();
@@ -58,15 +97,52 @@ export async function PATCH(
   }
 
   if (action === "accept") {
+    const { data: requesterUser } = await supabase.auth.admin.getUserById(req.student_id);
+
+    const studentName = requesterUser?.user?.user_metadata?.full_name
+      || requesterUser?.user?.email?.split("@")[0]
+      || "Eleve";
+    const studentPhone = requesterUser?.user?.user_metadata?.phone || null;
+
+    let studentRecord = await supabase
+      .from("students")
+      .select("id")
+      .eq("teacher_id", user.id)
+      .eq("full_name", studentName)
+      .single();
+
+    let studentId: string;
+
+    if (studentRecord.data) {
+      studentId = studentRecord.data.id;
+    } else {
+      const { data: newStudent, error: studentError } = await supabase
+        .from("students")
+        .insert({
+          teacher_id: user.id,
+          full_name: studentName,
+          phone: studentPhone,
+          level: group.level,
+          section: group.section,
+        })
+        .select("id")
+        .single();
+
+      if (studentError || !newStudent) {
+        return NextResponse.json({ error: studentError?.message || "student_create_failed" }, { status: 500 });
+      }
+      studentId = newStudent.id;
+    }
+
     const { error: memberError } = await supabase
       .from("group_members")
       .insert({
         group_id: groupId,
-        student_id: req.student_id,
+        student_id: studentId,
         status: "active",
       });
 
-    if (memberError) {
+    if (memberError && memberError.code !== "23505") {
       return NextResponse.json({ error: memberError.message }, { status: 500 });
     }
   }

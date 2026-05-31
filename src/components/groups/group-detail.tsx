@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
 import type { Group, GroupMember, JoinRequest } from "@/types/groups";
+import type { Student } from "@/types/students";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -24,6 +25,23 @@ const paymentModeKeys: Record<string, string> = {
   per_session: "perSession",
   weekly: "weekly",
 };
+
+function QrCode({ value }: { value: string }) {
+  const [src, setSrc] = useState<string>("");
+
+  useEffect(() => {
+    import("qrcode").then((QRCode) => {
+      QRCode.toDataURL(value, {
+        width: 180,
+        margin: 2,
+        color: { dark: "#1e1b4b", light: "#ffffff" },
+      }).then(setSrc);
+    });
+  }, [value]);
+
+  if (!src) return <div className="h-[180px] w-[180px] rounded-xl bg-[#f9f7ff]" />;
+  return <img src={src} alt="QR Code" className="h-[180px] w-[180px] rounded-xl" />;
+}
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -51,8 +69,54 @@ export function GroupDetail({
   const [requests, setRequests] = useState(initialRequests);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [addingStudentId, setAddingStudentId] = useState<string | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const levelDef = getLevelDef(group.level);
+
+  const tStudents = useTranslations("students");
+  const tJoin = useTranslations("join");
+
+  const fetchAvailableStudents = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (studentSearch.trim()) params.set("search", studentSearch.trim());
+    const res = await fetch(`/api/students?${params}`);
+    if (res.ok) {
+      const all: Student[] = await res.json();
+      const memberIds = new Set(members.map((m) => m.student_id));
+      setAvailableStudents(all.filter((s) => !memberIds.has(s.id)));
+    }
+  }, [studentSearch, members]);
+
+  useEffect(() => {
+    if (!showAddStudent) return;
+    const timer = setTimeout(fetchAvailableStudents, studentSearch ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [fetchAvailableStudents, showAddStudent, studentSearch]);
+
+  async function handleAddStudent(studentId: string) {
+    setAddingStudentId(studentId);
+    setAddError(null);
+    const res = await fetch(`/api/groups/${group.id}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ student_id: studentId }),
+    });
+    if (res.ok) {
+      const newMember = await res.json();
+      setMembers((prev) => [...prev, newMember]);
+      setAvailableStudents((prev) => prev.filter((s) => s.id !== studentId));
+      setAddingStudentId(null);
+    } else {
+      const data = await res.json();
+      setAddError(data.error === "already_member" ? "alreadyMember" : data.error === "group_full" ? "groupFull" : "generic");
+      setAddingStudentId(null);
+    }
+  }
 
   async function handleRemoveMember(memberId: string) {
     const res = await fetch(
@@ -93,7 +157,7 @@ export function GroupDetail({
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="flex min-h-[100dvh] flex-col bg-[#f0ecff] font-[family-name:var(--font-sans)]"
+      className="flex min-h-[100dvh] flex-col bg-[#f0ecff]"
     >
       {/* Header */}
       <motion.div variants={fadeUp} className="flex items-center gap-3 px-5 pb-1 pt-10">
@@ -134,6 +198,44 @@ export function GroupDetail({
           </span>
         </motion.div>
 
+        {/* Join code + QR */}
+        <motion.div variants={fadeUp} className="mt-4">
+          <SectionTitle>{tJoin("shareCode")}</SectionTitle>
+          <div
+            className="rounded-xl bg-white p-4"
+            style={{ boxShadow: "0 2px 0 #e9e5f5" }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="font-mono text-[24px] font-black tracking-[0.2em] text-[#7c3aed]">
+                  {group.join_code}
+                </p>
+                <p className="mt-0.5 text-[11px] font-semibold text-[#1e1b4b]/40">
+                  {tJoin("orEnterCode")}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(group.join_code);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="rounded-xl px-3 py-2 text-[11px] font-bold transition-[transform,box-shadow] duration-[80ms] active:translate-y-[1px]"
+                style={{
+                  background: copied ? "linear-gradient(135deg, #22c55e, #16a34a)" : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+                  color: copied ? "#fff" : "#7c3aed",
+                  boxShadow: copied ? "0 2px 0 #15803d" : "0 2px 0 #e9e5f5",
+                }}
+              >
+                {copied ? tJoin("copied") : tJoin("share")}
+              </button>
+            </div>
+            <div className="mt-3 flex justify-center">
+              <QrCode value={`${typeof window !== "undefined" ? window.location.origin : ""}/${locale}/join?code=${group.join_code}`} />
+            </div>
+          </div>
+        </motion.div>
+
         {/* Members */}
         <motion.div variants={fadeUp} className="mt-5">
           <SectionTitle>
@@ -157,13 +259,13 @@ export function GroupDetail({
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
                     style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}
                   >
-                    {(m.student_name || m.student_email || m.student_id)
+                    {(m.student?.full_name || m.student_id)
                       .charAt(0)
                       .toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
-                      {m.student_name || m.student_email || m.student_id.slice(0, 8)}
+                      {m.student?.full_name || m.student_id.slice(0, 8)}
                     </p>
                   </div>
                   <button
@@ -176,6 +278,27 @@ export function GroupDetail({
               ))}
             </div>
           )}
+        </motion.div>
+
+        {/* Add student button */}
+        <motion.div variants={fadeUp} className="mt-3 flex gap-2">
+          <button
+            onClick={() => setShowAddStudent(true)}
+            className="flex-1 rounded-xl py-2.5 text-[12px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+            style={{
+              background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+              boxShadow: "0 3px 0 #5b21b6, 0 6px 12px -4px rgba(124,58,237,0.4)",
+            }}
+          >
+            {tStudents("addExisting")}
+          </button>
+          <button
+            onClick={() => router.push(`/${locale}/students/add?group=${group.id}`)}
+            className="flex-1 rounded-xl border-2 border-[#ddd6fe] bg-white py-2.5 text-[12px] font-extrabold text-[#7c3aed] transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+            style={{ boxShadow: "0 3px 0 #e9e5f5" }}
+          >
+            {tStudents("addNew")}
+          </button>
         </motion.div>
 
         {/* Requests */}
@@ -241,6 +364,96 @@ export function GroupDetail({
           </button>
         </motion.div>
       </div>
+
+      {/* Add student overlay */}
+      <AnimatePresence>
+        {showAddStudent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/30"
+            onClick={() => { setShowAddStudent(false); setStudentSearch(""); setAddError(null); }}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ duration: 0.3, ease }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-2xl bg-white px-5 pb-8 pt-5"
+              style={{ boxShadow: "0 -8px 32px -8px rgba(30,27,75,0.15)", maxHeight: "70dvh" }}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-[15px] font-extrabold text-[#1e1b4b]">
+                  {tStudents("addToGroup")}
+                </p>
+                <button
+                  onClick={() => { setShowAddStudent(false); setStudentSearch(""); setAddError(null); }}
+                  className="rounded-lg bg-[#f0ecff] px-2.5 py-1 text-[11px] font-bold text-[#7c3aed]"
+                >
+                  {t("cancel")}
+                </button>
+              </div>
+
+              <input
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                placeholder={tStudents("search")}
+                className="mb-3 h-10 w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 text-[13px] font-semibold text-[#1e1b4b] outline-none placeholder:text-[#1e1b4b]/30 focus:border-[#7c3aed]"
+              />
+
+              {addError && (
+                <p className="mb-2 rounded-lg bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-600">
+                  {addError === "alreadyMember" ? tStudents("alreadyMember") : addError === "groupFull" ? tStudents("groupFull") : "Erreur"}
+                </p>
+              )}
+
+              <div className="overflow-y-auto scrollbar-hide" style={{ maxHeight: "calc(70dvh - 160px)" }}>
+                {availableStudents.length === 0 ? (
+                  <p className="py-6 text-center text-[12px] font-semibold text-[#1e1b4b]/40">
+                    {tStudents("empty")}
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {availableStudents.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => handleAddStudent(s.id)}
+                        disabled={addingStudentId === s.id}
+                        className="flex items-center gap-3 rounded-xl bg-[#f9f7ff] px-3 py-2.5 text-left transition-[transform] duration-[80ms] active:translate-y-[1px] disabled:opacity-50"
+                      >
+                        <div
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
+                          style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}
+                        >
+                          {s.full_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
+                            {s.full_name}
+                          </p>
+                          <p className="text-[10px] font-semibold text-[#1e1b4b]/40">
+                            {getLevelDef(s.level)?.label || s.level}
+                            {s.section ? ` - ${s.section}` : ""}
+                          </p>
+                        </div>
+                        <div
+                          className="rounded-lg px-2.5 py-1 text-[10px] font-bold text-white"
+                          style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}
+                        >
+                          +
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete confirmation overlay */}
       <AnimatePresence>
