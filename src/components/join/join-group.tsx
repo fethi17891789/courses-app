@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { getLevelDef, levels, hasSections, categoryLabels, type LevelCategory } from "@/lib/levels";
+import { BottomNav } from "@/components/dashboard/bottom-nav";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -594,6 +595,8 @@ export function JoinGroup({
           )}
         </AnimatePresence>
       </div>
+      <div className="h-24 shrink-0" />
+      <BottomNav active="join" role="eleve" />
     </motion.main>
   );
 }

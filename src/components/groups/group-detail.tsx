@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
 import type { Group, GroupMember, JoinRequest } from "@/types/groups";
 import type { Student } from "@/types/students";
+import { BottomNav } from "@/components/dashboard/bottom-nav";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -583,6 +584,8 @@ export function GroupDetail({
           </motion.div>
         )}
       </AnimatePresence>
+      <div className="h-24 shrink-0" />
+      <BottomNav active="groups" />
     </motion.main>
   );
 }
