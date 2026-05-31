@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { useRouter, usePathname } from "next/navigation";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { User } from "@supabase/supabase-js";
 
@@ -40,6 +41,7 @@ function ActionCard({
   pressed,
   onPress,
   onRelease,
+  onClick,
   className = "",
 }: {
   id: string;
@@ -52,6 +54,7 @@ function ActionCard({
   pressed: boolean;
   onPress: () => void;
   onRelease: () => void;
+  onClick?: () => void;
   className?: string;
 }) {
   return (
@@ -59,6 +62,7 @@ function ActionCard({
       onPointerDown={onPress}
       onPointerUp={onRelease}
       onPointerLeave={onRelease}
+      onClick={onClick}
       className={`relative flex items-center gap-3 overflow-hidden rounded-xl p-4 text-left transition-[transform,box-shadow] duration-[80ms] ease-out ${className}`}
       style={{
         background: gradient,
@@ -222,6 +226,9 @@ function QuizCard({
 
 export function DashboardContent({ user }: { user: User }) {
   const t = useTranslations("dashboard");
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1];
   const fullName =
     user.user_metadata?.full_name || user.email?.split("@")[0] || "";
   const initials = fullName
@@ -335,6 +342,7 @@ export function DashboardContent({ user }: { user: User }) {
             pressed={pressed === "group"}
             onPress={() => setPressed("group")}
             onRelease={() => setPressed(null)}
+            onClick={() => router.push(`/${locale}/groups/create`)}
           />
 
           <ActionCard
