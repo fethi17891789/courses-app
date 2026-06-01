@@ -231,13 +231,14 @@ export function GroupDetail({
       <motion.div variants={fadeUp} className="flex items-center gap-3 px-5 pb-1 pt-10">
         <button
           onClick={() => router.push(`/${locale}/groups`)}
-          className="flex h-9 w-9 items-center justify-center rounded-xl transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+          className="btn-push flex h-9 w-9 items-center justify-center rounded-xl"
           style={{
-            background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-            boxShadow: "0 3px 0 #e9e5f5",
-          }}
+            background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+            "--push-shadow": "#5b21b6",
+            "--push-glow": "rgba(124,58,237,0.4)",
+          } as React.CSSProperties}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
@@ -288,12 +289,14 @@ export function GroupDetail({
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className="rounded-xl px-3 py-2 text-[11px] font-bold transition-[transform,box-shadow] duration-[80ms] active:translate-y-[1px]"
+                className="btn-push rounded-xl px-3 py-2 text-[11px] font-bold"
                 style={{
                   background: copied ? "linear-gradient(135deg, #22c55e, #16a34a)" : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
                   color: copied ? "#fff" : "#7c3aed",
-                  boxShadow: copied ? "0 2px 0 #15803d" : "0 2px 0 #e9e5f5",
-                }}
+                  "--push-shadow": copied ? "#15803d" : "#e9e5f5",
+                  "--push-glow": copied ? "rgba(34,197,94,0.3)" : "rgba(124,58,237,0.1)",
+                  "--push-depth": "2px",
+                } as React.CSSProperties}
               >
                 {copied ? tJoin("copied") : tJoin("share")}
               </button>
@@ -341,7 +344,8 @@ export function GroupDetail({
                       </div>
                       <button
                         onClick={() => setRemoveMemberId(m.id)}
-                        className="rounded-lg bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-500 transition-[transform] duration-[80ms] active:translate-y-[1px]"
+                        className="btn-push rounded-lg bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-500"
+                        style={{ "--push-shadow": "#fecaca", "--push-glow": "rgba(239,68,68,0.15)", "--push-depth": "2px" } as React.CSSProperties}
                       >
                         {t("removeStudent")}
                       </button>
@@ -375,11 +379,12 @@ export function GroupDetail({
         <motion.div variants={fadeUp} className="mt-3">
           <button
             onClick={() => router.push(`/${locale}/students/add?group=${group.id}`)}
-            className="w-full rounded-xl py-2.5 text-[12px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+            className="btn-push w-full rounded-xl py-2.5 text-[12px] font-extrabold text-white"
             style={{
               background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-              boxShadow: "0 3px 0 #5b21b6, 0 6px 12px -4px rgba(124,58,237,0.4)",
-            }}
+              "--push-shadow": "#5b21b6",
+              "--push-glow": "rgba(124,58,237,0.4)",
+            } as React.CSSProperties}
           >
             {tStudents("addNew")}
           </button>
@@ -433,13 +438,15 @@ export function GroupDetail({
                   <div className="flex gap-1.5">
                     <button
                       onClick={() => handleRequest(r.id, "accept")}
-                      className="rounded-lg bg-green-50 px-2.5 py-1 text-[10px] font-bold text-green-600 transition-[transform] duration-[80ms] active:translate-y-[1px]"
+                      className="btn-push rounded-lg bg-green-50 px-2.5 py-1 text-[10px] font-bold text-green-600"
+                      style={{ "--push-shadow": "#bbf7d0", "--push-glow": "rgba(34,197,94,0.15)", "--push-depth": "2px" } as React.CSSProperties}
                     >
                       {t("accept")}
                     </button>
                     <button
                       onClick={() => handleRequest(r.id, "reject")}
-                      className="rounded-lg bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-500 transition-[transform] duration-[80ms] active:translate-y-[1px]"
+                      className="btn-push rounded-lg bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-500"
+                      style={{ "--push-shadow": "#fecaca", "--push-glow": "rgba(239,68,68,0.15)", "--push-depth": "2px" } as React.CSSProperties}
                     >
                       {t("reject")}
                     </button>
@@ -454,8 +461,8 @@ export function GroupDetail({
         <motion.div variants={fadeUp} className="mt-8">
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="w-full rounded-xl bg-white py-3 text-[13px] font-extrabold text-red-400 transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
-            style={{ boxShadow: "0 3px 0 #fecaca" }}
+            className="btn-push w-full rounded-xl bg-white py-3 text-[13px] font-extrabold text-red-400"
+            style={{ "--push-shadow": "#fecaca", "--push-glow": "rgba(239,68,68,0.1)" } as React.CSSProperties}
           >
             {t("deleteGroup")}
           </button>
@@ -519,7 +526,8 @@ export function GroupDetail({
                         key={s.id}
                         onClick={() => handleAddStudent(s.id)}
                         disabled={addingStudentId === s.id}
-                        className="flex items-center gap-3 rounded-xl bg-[#f9f7ff] px-3 py-2.5 text-left transition-[transform] duration-[80ms] active:translate-y-[1px] disabled:opacity-50"
+                        className="btn-push flex items-center gap-3 rounded-xl bg-[#f9f7ff] px-3 py-2.5 text-left disabled:opacity-50"
+                        style={{ "--push-shadow": "#e9e5f5", "--push-glow": "rgba(124,58,237,0.1)", "--push-depth": "2px" } as React.CSSProperties}
                       >
                         <div
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
@@ -611,17 +619,19 @@ export function GroupDetail({
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setEditSessionsMemberId(null)}
-                  className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed] transition-[transform] duration-[80ms] active:translate-y-[2px]"
+                  className="btn-push rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed]"
+                  style={{ "--push-shadow": "#ddd6fe", "--push-glow": "rgba(124,58,237,0.1)" } as React.CSSProperties}
                 >
                   {t("cancel")}
                 </button>
                 <button
                   onClick={saveEditSessions}
-                  className="rounded-xl py-3 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+                  className="btn-push rounded-xl py-3 text-[13px] font-extrabold text-white"
                   style={{
                     background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-                    boxShadow: "0 3px 0 #5b21b6",
-                  }}
+                    "--push-shadow": "#5b21b6",
+                    "--push-glow": "rgba(124,58,237,0.4)",
+                  } as React.CSSProperties}
                 >
                   {t("save")}
                 </button>
@@ -665,18 +675,20 @@ export function GroupDetail({
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => { setRemoveMemberId(null); setRemoveError(false); }}
-                  className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed] transition-[transform] duration-[80ms] active:translate-y-[2px]"
+                  className="btn-push rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed]"
+                  style={{ "--push-shadow": "#ddd6fe", "--push-glow": "rgba(124,58,237,0.1)" } as React.CSSProperties}
                 >
                   {t("cancel")}
                 </button>
                 <button
                   onClick={confirmRemoveMember}
                   disabled={removing}
-                  className="rounded-xl py-3 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-60 active:translate-y-[2px]"
+                  className="btn-push rounded-xl py-3 text-[13px] font-extrabold text-white disabled:opacity-60"
                   style={{
                     background: "linear-gradient(135deg, #ef4444, #dc2626)",
-                    boxShadow: "0 3px 0 #b91c1c",
-                  }}
+                    "--push-shadow": "#b91c1c",
+                    "--push-glow": "rgba(239,68,68,0.4)",
+                  } as React.CSSProperties}
                 >
                   {t("confirm")}
                 </button>
@@ -715,18 +727,20 @@ export function GroupDetail({
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed] transition-[transform] duration-[80ms] active:translate-y-[2px]"
+                  className="btn-push rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed]"
+                  style={{ "--push-shadow": "#ddd6fe", "--push-glow": "rgba(124,58,237,0.1)" } as React.CSSProperties}
                 >
                   {t("cancel")}
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="rounded-xl py-3 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-60 active:translate-y-[2px]"
+                  className="btn-push rounded-xl py-3 text-[13px] font-extrabold text-white disabled:opacity-60"
                   style={{
                     background: "linear-gradient(135deg, #ef4444, #dc2626)",
-                    boxShadow: "0 3px 0 #b91c1c",
-                  }}
+                    "--push-shadow": "#b91c1c",
+                    "--push-glow": "rgba(239,68,68,0.4)",
+                  } as React.CSSProperties}
                 >
                   {t("confirm")}
                 </button>

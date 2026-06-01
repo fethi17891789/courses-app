@@ -140,7 +140,8 @@ export function PWAInstallPrompt() {
               </button>
               <button
                 onClick={handleInstall}
-                className="flex-1 rounded-xl bg-[#7c3aed] px-4 py-2.5 text-sm font-bold text-white shadow-[0_4px_0_0_#5b21b6] transition-transform active:translate-y-[2px] active:shadow-[0_2px_0_0_#5b21b6]"
+                className="btn-push flex-1 rounded-xl bg-[#7c3aed] px-4 py-2.5 text-sm font-bold text-white"
+                style={{ "--push-shadow": "#5b21b6", "--push-glow": "rgba(124,58,237,0.4)" } as React.CSSProperties}
               >
                 Installer
               </button>

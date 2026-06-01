@@ -543,10 +543,12 @@ function LoginScreenInner({
             layout="position"
             transition={layoutTransition}
             onClick={handleSwitchLocale}
-            className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[12px] font-extrabold text-white transition-all duration-[80ms] active:translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+            className="btn-push shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[12px] font-extrabold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             style={{
-              boxShadow: "0 2px 0 rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3)",
-            }}
+              "--push-shadow": "rgba(0,0,0,0.15)",
+              "--push-glow": "rgba(255,255,255,0.1)",
+              "--push-depth": "2px",
+            } as React.CSSProperties}
           >
             {activeLocale === "fr" ? "AR" : "FR"}
           </motion.button>

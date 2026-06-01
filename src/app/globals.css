@@ -138,6 +138,20 @@
   --brand-cream: #fffaf3;
 }
 
+/* 3D push-button effect */
+.btn-push {
+  --push-shadow: #ddd6fe;
+  --push-glow: rgba(124,58,237,0.15);
+  --push-depth: 3px;
+  transform: translateY(0);
+  box-shadow: 0 var(--push-depth) 0 var(--push-shadow), 0 calc(var(--push-depth) * 2) 12px calc(var(--push-depth) * -1.3) var(--push-glow);
+  transition: transform 80ms, box-shadow 80ms;
+}
+.btn-push:active:not(:disabled) {
+  transform: translateY(var(--push-depth));
+  box-shadow: 0 0px 0 var(--push-shadow), 0 1px 3px -1px var(--push-glow);
+}
+
 @keyframes wiggle {
   0%, 100% { transform: rotate(-1.5deg); }
   50% { transform: rotate(1.5deg); }

@@ -292,18 +292,15 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
       {/* Header */}
       <motion.div variants={fadeUp} className="flex items-center gap-3 px-5 pb-1 pt-10">
         <button
-          onPointerDown={() => setBackPressed(true)}
-          onPointerUp={() => setBackPressed(false)}
-          onPointerLeave={() => setBackPressed(false)}
           onClick={() => router.back()}
-          className="flex h-9 w-9 items-center justify-center rounded-xl transition-[transform,box-shadow] duration-[80ms]"
+          className="btn-push flex h-9 w-9 items-center justify-center rounded-xl"
           style={{
-            background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-            transform: `translateY(${backPressed ? 2 : 0}px)`,
-            boxShadow: backPressed ? "0 0px 0 #e9e5f5" : "0 3px 0 #e9e5f5",
-          }}
+            background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+            "--push-shadow": "#5b21b6",
+            "--push-glow": "rgba(124,58,237,0.4)",
+          } as React.CSSProperties}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
@@ -437,7 +434,8 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
                       {!ga.locked && (
                         <button
                           onClick={() => removeGroupAssignment(index)}
-                          className="shrink-0 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-bold text-red-500 transition-[transform] duration-[80ms] active:translate-y-[1px]"
+                          className="btn-push shrink-0 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-bold text-red-500"
+                          style={{ "--push-shadow": "#fecaca", "--push-glow": "rgba(239,68,68,0.15)", "--push-depth": "2px" } as React.CSSProperties}
                         >
                           {t("removeGroup")}
                         </button>
@@ -476,7 +474,8 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
               {canAddGroup && (
                 <button
                   onClick={addGroupAssignment}
-                  className="w-full rounded-xl border-2 border-dashed border-[#ddd6fe] py-2.5 text-[12px] font-extrabold text-[#7c3aed] transition-[transform,background] duration-[80ms] active:translate-y-[1px] active:bg-[#f5f3ff]"
+                  className="btn-push w-full rounded-xl border-2 border-dashed border-[#ddd6fe] py-2.5 text-[12px] font-extrabold text-[#7c3aed]"
+                  style={{ "--push-shadow": "#e9e5f5", "--push-glow": "rgba(124,58,237,0.1)", "--push-depth": "2px" } as React.CSSProperties}
                 >
                   + {t("addGroup")}
                 </button>

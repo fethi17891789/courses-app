@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -34,10 +34,11 @@ function StudentCard({
   return (
     <button
       onClick={onTap}
-      className="w-full rounded-xl bg-white p-4 text-left transition-[transform,box-shadow] duration-[80ms] active:translate-y-[3px]"
+      className="btn-push w-full rounded-xl bg-white p-4 text-left"
       style={{
-        boxShadow: "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
-      }}
+        "--push-shadow": "#e9e5f5",
+        "--push-glow": "rgba(30,27,75,0.08)",
+      } as React.CSSProperties}
     >
       <div className="flex items-center gap-3">
         <div

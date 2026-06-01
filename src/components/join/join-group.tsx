@@ -441,7 +441,8 @@ export function JoinGroup({
                   </p>
                   <button
                     onClick={handleRetry}
-                    className="mt-2 rounded-lg bg-red-100 px-3 py-1.5 text-[12px] font-bold text-red-600 transition-[transform] duration-[80ms] active:translate-y-[1px]"
+                    className="btn-push mt-2 rounded-lg bg-red-100 px-3 py-1.5 text-[12px] font-bold text-red-600"
+                    style={{ "--push-shadow": "#fecaca", "--push-glow": "rgba(239,68,68,0.15)", "--push-depth": "2px" } as React.CSSProperties}
                   >
                     {t("retryRequest")}
                   </button>

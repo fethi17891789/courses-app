@@ -190,20 +190,15 @@ export function CreateGroup() {
       {/* Header */}
       <motion.div variants={fadeUp} className="flex items-center gap-3 px-5 pb-1 pt-10">
         <button
-          onPointerDown={() => setBackPressed(true)}
-          onPointerUp={() => setBackPressed(false)}
-          onPointerLeave={() => setBackPressed(false)}
           onClick={() => router.back()}
-          className="flex h-9 w-9 items-center justify-center rounded-xl transition-[transform,box-shadow] duration-[80ms]"
+          className="btn-push flex h-9 w-9 items-center justify-center rounded-xl"
           style={{
-            background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-            transform: `translateY(${backPressed ? 2 : 0}px)`,
-            boxShadow: backPressed
-              ? "0 0px 0 #e9e5f5"
-              : "0 3px 0 #e9e5f5",
-          }}
+            background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+            "--push-shadow": "#5b21b6",
+            "--push-glow": "rgba(124,58,237,0.4)",
+          } as React.CSSProperties}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
@@ -333,11 +328,13 @@ export function CreateGroup() {
                       <button
                         type="button"
                         onClick={() => setSchedules(schedules.filter((_, j) => j !== i))}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+                        className="btn-push flex h-7 w-7 items-center justify-center rounded-lg"
                         style={{
                           background: "linear-gradient(135deg, #fecaca, #fca5a5)",
-                          boxShadow: "0 2px 0 #f87171",
-                        }}
+                          "--push-shadow": "#f87171",
+                          "--push-glow": "rgba(239,68,68,0.2)",
+                          "--push-depth": "2px",
+                        } as React.CSSProperties}
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M18 6L6 18M6 6l12 12" />
@@ -354,17 +351,18 @@ export function CreateGroup() {
                             updated[i] = { ...updated[i], day: d };
                             setSchedules(updated);
                           }}
-                          className="rounded-lg py-1.5 text-[10px] font-extrabold transition-[transform,box-shadow,background,color] duration-[80ms] active:translate-y-[1px]"
+                          className="rounded-lg py-1.5 text-[10px] font-extrabold transition-[transform,box-shadow,background,color] duration-[80ms]"
                           style={{
                             background:
                               s.day === d
                                 ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
                                 : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
                             color: s.day === d ? "#fff" : "#7c3aed",
+                            transform: `translateY(${s.day === d ? 3 : 0}px)`,
                             boxShadow:
                               s.day === d
-                                ? "0 2px 0 #5b21b6"
-                                : "0 2px 0 #e9e5f5",
+                                ? "0 0px 0 #5b21b6, 0 1px 3px -1px rgba(124,58,237,0.5)"
+                                : "0 3px 0 #ddd6fe, 0 6px 12px -4px rgba(124,58,237,0.15)",
                           }}
                         >
                           {t(`day${d}Short`)}
@@ -409,11 +407,12 @@ export function CreateGroup() {
             onClick={() =>
               setSchedules([...schedules, { day: 0, start_time: "08:00", end_time: "09:00" }])
             }
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-[12px] font-extrabold text-[#7c3aed] transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+            className="btn-push mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-[12px] font-extrabold text-[#7c3aed]"
             style={{
               background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-              boxShadow: "0 3px 0 #e9e5f5",
-            }}
+              "--push-shadow": "#e9e5f5",
+              "--push-glow": "rgba(124,58,237,0.1)",
+            } as React.CSSProperties}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />

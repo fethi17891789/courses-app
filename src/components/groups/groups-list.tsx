@@ -142,9 +142,11 @@ function GroupCard({
   const section = group.section;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didLongPress = useRef(false);
+  const [pressed, setPressed] = useState(false);
 
   const handlePointerDown = useCallback(() => {
     didLongPress.current = false;
+    setPressed(true);
     timerRef.current = setTimeout(() => {
       didLongPress.current = true;
       if (navigator.vibrate) navigator.vibrate(10);
@@ -154,6 +156,7 @@ function GroupCard({
 
   const handlePointerUp = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    setPressed(false);
     if (!didLongPress.current && !wiggling) {
       onTap();
     }
@@ -161,6 +164,7 @@ function GroupCard({
 
   const handlePointerLeave = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    setPressed(false);
   }, []);
 
   const schedules = group.schedules || [];
@@ -172,9 +176,12 @@ function GroupCard({
       onPointerLeave={handlePointerLeave}
       className="w-full cursor-pointer rounded-xl bg-white p-4 text-left transition-[transform,box-shadow] duration-[80ms] select-none"
       style={{
+        transform: `translateY(${pressed ? 3 : 0}px)`,
         boxShadow: wiggling
           ? "0 3px 0 #c4b5fd, 0 6px 16px -4px rgba(124,58,237,0.15)"
-          : "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
+          : pressed
+            ? "0 0px 0 #e9e5f5, 0 1px 3px -1px rgba(30,27,75,0.08)"
+            : "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
         animation: wiggling ? "wiggle 0.25s ease-in-out infinite" : "none",
         borderColor: wiggling ? "#c4b5fd" : "transparent",
         borderWidth: "2px",
@@ -488,18 +495,20 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(null)}
-                  className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed] transition-[transform] duration-[80ms] active:translate-y-[2px]"
+                  className="btn-push rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed]"
+                  style={{ "--push-shadow": "#ddd6fe", "--push-glow": "rgba(124,58,237,0.1)" } as React.CSSProperties}
                 >
                   {t("cancel")}
                 </button>
                 <button
                   onClick={() => handleDelete(showDeleteConfirm)}
                   disabled={deleting}
-                  className="rounded-xl py-3 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-60 active:translate-y-[2px]"
+                  className="btn-push rounded-xl py-3 text-[13px] font-extrabold text-white disabled:opacity-60"
                   style={{
                     background: "linear-gradient(135deg, #ef4444, #dc2626)",
-                    boxShadow: "0 3px 0 #b91c1c",
-                  }}
+                    "--push-shadow": "#b91c1c",
+                    "--push-glow": "rgba(239,68,68,0.4)",
+                  } as React.CSSProperties}
                 >
                   {t("confirm")}
                 </button>
@@ -639,11 +648,13 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
                             <button
                               type="button"
                               onClick={() => setEditSchedules(editSchedules.filter((_, j) => j !== i))}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+                              className="btn-push flex h-7 w-7 items-center justify-center rounded-lg"
                               style={{
                                 background: "linear-gradient(135deg, #fecaca, #fca5a5)",
-                                boxShadow: "0 2px 0 #f87171",
-                              }}
+                                "--push-shadow": "#f87171",
+                                "--push-glow": "rgba(239,68,68,0.2)",
+                                "--push-depth": "2px",
+                              } as React.CSSProperties}
                             >
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M18 6L6 18M6 6l12 12" />
@@ -660,11 +671,14 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
                                   updated[i] = { ...updated[i], day: d };
                                   setEditSchedules(updated);
                                 }}
-                                className="rounded-lg py-1.5 text-[10px] font-extrabold transition-[transform,box-shadow,background,color] duration-[80ms] active:translate-y-[1px]"
+                                className="rounded-lg py-1.5 text-[10px] font-extrabold transition-[transform,box-shadow,background,color] duration-[80ms]"
                                 style={{
                                   background: s.day === d ? "linear-gradient(135deg, #8b5cf6, #6d28d9)" : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
                                   color: s.day === d ? "#fff" : "#7c3aed",
-                                  boxShadow: s.day === d ? "0 2px 0 #5b21b6" : "0 2px 0 #e9e5f5",
+                                  transform: `translateY(${s.day === d ? 3 : 0}px)`,
+                                  boxShadow: s.day === d
+                                    ? "0 0px 0 #5b21b6, 0 1px 3px -1px rgba(124,58,237,0.5)"
+                                    : "0 3px 0 #ddd6fe, 0 6px 12px -4px rgba(124,58,237,0.15)",
                                 }}
                               >
                                 {t(`day${d}Short`)}
@@ -707,11 +721,12 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
                 <button
                   type="button"
                   onClick={() => setEditSchedules([...editSchedules, { day: 0, start_time: "08:00", end_time: "09:00" }])}
-                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-[12px] font-extrabold text-[#7c3aed] transition-[transform,box-shadow] duration-[80ms] active:translate-y-[2px]"
+                  className="btn-push mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-[12px] font-extrabold text-[#7c3aed]"
                   style={{
                     background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-                    boxShadow: "0 3px 0 #e9e5f5",
-                  }}
+                    "--push-shadow": "#e9e5f5",
+                    "--push-glow": "rgba(124,58,237,0.1)",
+                  } as React.CSSProperties}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 5v14M5 12h14" />
@@ -723,18 +738,20 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setEditGroup(null)}
-                  className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed] transition-[transform] duration-[80ms] active:translate-y-[2px]"
+                  className="btn-push rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed]"
+                  style={{ "--push-shadow": "#ddd6fe", "--push-glow": "rgba(124,58,237,0.1)" } as React.CSSProperties}
                 >
                   {t("cancel")}
                 </button>
                 <button
                   onClick={handleSaveEdit}
                   disabled={saving}
-                  className="rounded-xl py-3 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-60 active:translate-y-[2px]"
+                  className="btn-push rounded-xl py-3 text-[13px] font-extrabold text-white disabled:opacity-60"
                   style={{
                     background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-                    boxShadow: "0 3px 0 #5b21b6",
-                  }}
+                    "--push-shadow": "#5b21b6",
+                    "--push-glow": "rgba(124,58,237,0.4)",
+                  } as React.CSSProperties}
                 >
                   {saving ? t("saving") : t("save")}
                 </button>
