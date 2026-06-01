@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { full_name, phone, parent_phone, level, section, notes, group_id } = body;
+  const { full_name, phone, parent_phone, level, section, notes, group_id, groups: groupAssignments } = body;
 
   if (!full_name?.trim() || !level?.trim()) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
@@ -79,7 +79,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (group_id) {
+  if (Array.isArray(groupAssignments) && groupAssignments.length > 0) {
+    for (const ga of groupAssignments) {
+      if (!ga.group_id) continue;
+      await supabase.from("group_members").insert({
+        group_id: ga.group_id,
+        student_id: student.id,
+        enrolled_sessions: Array.isArray(ga.enrolled_sessions) && ga.enrolled_sessions.length > 0
+          ? ga.enrolled_sessions
+          : null,
+      });
+    }
+  } else if (group_id) {
     await supabase.from("group_members").insert({
       group_id,
       student_id: student.id,

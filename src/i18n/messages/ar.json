@@ -163,7 +163,11 @@
     "alreadyMember": "عضو بالفعل في هذا الفوج",
     "groupFull": "هذا الفوج ممتلئ",
     "addExisting": "تلميذ موجود",
-    "addNew": "تلميذ جديد"
+    "addNew": "تلميذ جديد",
+    "addGroup": "إضافة فوج",
+    "removeGroup": "إزالة",
+    "allSchedules": "كل الحصص",
+    "groups": "الأفواج"
   },
   "join": {
     "title": "الانضمام إلى فوج",

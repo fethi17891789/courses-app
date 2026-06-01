@@ -132,6 +132,12 @@ function ToggleGroup({
   );
 }
 
+type GroupAssignment = {
+  group_id: string;
+  enrolled_sessions: number[];
+  locked: boolean;
+};
+
 export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string }) {
   const t = useTranslations("students");
   const tGroups = useTranslations("groups");
@@ -145,8 +151,8 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
   const [selectedLevel, setSelectedLevel] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
   const [notes, setNotes] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState(preselectedGroupId || "");
   const [groups, setGroups] = useState<Group[]>([]);
+  const [groupAssignments, setGroupAssignments] = useState<GroupAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitPressed, setSubmitPressed] = useState(false);
@@ -159,9 +165,58 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
   useEffect(() => {
     fetch("/api/groups")
       .then((res) => res.json())
-      .then((data) => setGroups(data))
+      .then((data: Group[]) => {
+        setGroups(data);
+        if (preselectedGroupId) {
+          const g = data.find((gr: Group) => gr.id === preselectedGroupId);
+          if (g) {
+            setGroupAssignments([{
+              group_id: g.id,
+              enrolled_sessions: g.schedules?.map((s) => s.day) || [],
+              locked: true,
+            }]);
+          }
+        }
+      })
       .catch(() => {});
-  }, []);
+  }, [preselectedGroupId]);
+
+  function addGroupAssignment() {
+    const usedIds = new Set(groupAssignments.map((ga) => ga.group_id));
+    const available = groups.find((g) => !usedIds.has(g.id));
+    if (!available) return;
+    setGroupAssignments([...groupAssignments, {
+      group_id: available.id,
+      enrolled_sessions: available.schedules?.map((s) => s.day) || [],
+      locked: false,
+    }]);
+  }
+
+  function removeGroupAssignment(index: number) {
+    setGroupAssignments(groupAssignments.filter((_, i) => i !== index));
+  }
+
+  function updateGroupId(index: number, newGroupId: string) {
+    const g = groups.find((gr) => gr.id === newGroupId);
+    setGroupAssignments(groupAssignments.map((ga, i) =>
+      i === index
+        ? { ...ga, group_id: newGroupId, enrolled_sessions: g?.schedules?.map((s) => s.day) || [] }
+        : ga
+    ));
+  }
+
+  function toggleSession(index: number, day: number) {
+    setGroupAssignments(groupAssignments.map((ga, i) => {
+      if (i !== index) return ga;
+      const has = ga.enrolled_sessions.includes(day);
+      return {
+        ...ga,
+        enrolled_sessions: has
+          ? ga.enrolled_sessions.filter((d) => d !== day)
+          : [...ga.enrolled_sessions, day],
+      };
+    }));
+  }
 
   async function handleCreate() {
     if (!fullName.trim() || !selectedLevel) {
@@ -169,10 +224,29 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
       return;
     }
 
+    const emptySchedule = groupAssignments.some((ga) => {
+      const g = groups.find((gr) => gr.id === ga.group_id);
+      return (g?.schedules?.length || 0) > 0 && ga.enrolled_sessions.length === 0;
+    });
+    if (emptySchedule) {
+      setError("no_schedule");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
+      const groupsPayload = groupAssignments.map((ga) => {
+        const g = groups.find((gr) => gr.id === ga.group_id);
+        const allDays = g?.schedules?.map((s) => s.day) || [];
+        const isAll = allDays.length > 0 && allDays.every((d) => ga.enrolled_sessions.includes(d)) && ga.enrolled_sessions.length === allDays.length;
+        return {
+          group_id: ga.group_id,
+          enrolled_sessions: isAll ? null : ga.enrolled_sessions,
+        };
+      });
+
       const res = await fetch("/api/students", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -183,7 +257,7 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
           level: selectedLevel,
           section: showSections ? selectedSection || null : null,
           notes: notes.trim() || null,
-          group_id: selectedGroup || null,
+          groups: groupsPayload.length > 0 ? groupsPayload : undefined,
         }),
       });
 
@@ -204,6 +278,9 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
       setLoading(false);
     }
   }
+
+  const usedGroupIds = new Set(groupAssignments.map((ga) => ga.group_id));
+  const canAddGroup = groups.some((g) => !usedGroupIds.has(g.id));
 
   return (
     <motion.main
@@ -322,40 +399,88 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
           )}
         </AnimatePresence>
 
-        {/* Group picker */}
-        {!preselectedGroupId && groups.length > 0 && (
+        {/* Group assignments */}
+        {groups.length > 0 && (
           <motion.div variants={fadeUp} className="mt-4">
-            <FieldLabel>{t("group")}</FieldLabel>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setSelectedGroup("")}
-                className="w-full rounded-xl border-2 px-3 py-2.5 text-left text-[12px] font-bold transition-all duration-150"
-                style={{
-                  borderColor: !selectedGroup ? "#7c3aed" : "#ddd6fe",
-                  background: !selectedGroup ? "rgba(124,58,237,0.06)" : "#f9f7ff",
-                  color: !selectedGroup ? "#7c3aed" : "#1e1b4b80",
-                }}
-              >
-                {t("noGroup")}
-              </button>
-              {groups.map((g) => (
+            <FieldLabel>{t("groups")}</FieldLabel>
+            <div className="flex flex-col gap-3">
+              {groupAssignments.map((ga, index) => {
+                const g = groups.find((gr) => gr.id === ga.group_id);
+                const schedules = g?.schedules || [];
+                const availableGroups = groups.filter(
+                  (gr) => gr.id === ga.group_id || !usedGroupIds.has(gr.id)
+                );
+                return (
+                  <div
+                    key={index}
+                    className="rounded-xl bg-white p-3"
+                    style={{ boxShadow: "0 2px 0 #e9e5f5" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      {ga.locked ? (
+                        <div className="flex-1 rounded-xl border-2 border-[#e9e5f5] bg-[#f0ecff] px-3 py-2.5 text-[12px] font-extrabold text-[#1e1b4b]/60">
+                          {g?.name || ""}
+                        </div>
+                      ) : (
+                        <select
+                          value={ga.group_id}
+                          onChange={(e) => updateGroupId(index, e.target.value)}
+                          className="flex-1 rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 py-2.5 text-[12px] font-extrabold text-[#1e1b4b] outline-none focus:border-[#7c3aed]"
+                        >
+                          {availableGroups.map((gr) => (
+                            <option key={gr.id} value={gr.id}>
+                              {gr.name} - {getLevelDef(gr.level)?.label || gr.level}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {!ga.locked && (
+                        <button
+                          onClick={() => removeGroupAssignment(index)}
+                          className="shrink-0 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-bold text-red-500 transition-[transform] duration-[80ms] active:translate-y-[1px]"
+                        >
+                          {t("removeGroup")}
+                        </button>
+                      )}
+                    </div>
+                    {schedules.length > 1 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {schedules.map((s) => {
+                          const selected = ga.enrolled_sessions.includes(s.day);
+                          return (
+                            <button
+                              key={s.day}
+                              type="button"
+                              onClick={() => toggleSession(index, s.day)}
+                              className="rounded-lg px-2.5 py-1.5 text-[10px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"
+                              style={{
+                                background: selected
+                                  ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                                  : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+                                color: selected ? "#fff" : "#7c3aed",
+                                transform: `translateY(${selected ? 3 : 0}px)`,
+                                boxShadow: selected
+                                  ? "0 0px 0 #5b21b6, 0 1px 3px -1px rgba(124,58,237,0.5)"
+                                  : "0 3px 0 #ddd6fe, 0 6px 12px -4px rgba(124,58,237,0.15)",
+                              }}
+                            >
+                              {tGroups(`day${s.day}Short`)} {s.start_time}-{s.end_time}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {canAddGroup && (
                 <button
-                  key={g.id}
-                  onClick={() => setSelectedGroup(g.id)}
-                  className="w-full rounded-xl border-2 px-3 py-2.5 text-left text-[12px] font-bold transition-all duration-150"
-                  style={{
-                    borderColor: selectedGroup === g.id ? "#7c3aed" : "#ddd6fe",
-                    background: selectedGroup === g.id ? "rgba(124,58,237,0.06)" : "#f9f7ff",
-                    color: selectedGroup === g.id ? "#7c3aed" : "#1e1b4b",
-                  }}
+                  onClick={addGroupAssignment}
+                  className="w-full rounded-xl border-2 border-dashed border-[#ddd6fe] py-2.5 text-[12px] font-extrabold text-[#7c3aed] transition-[transform,background] duration-[80ms] active:translate-y-[1px] active:bg-[#f5f3ff]"
                 >
-                  <span className="font-extrabold">{g.name}</span>
-                  <span className="ml-2 text-[11px] font-semibold text-[#1e1b4b]/40">
-                    {getLevelDef(g.level)?.label || g.level}
-                    {g.section ? ` - ${g.section}` : ""}
-                  </span>
+                  + {t("addGroup")}
                 </button>
-              ))}
+              )}
             </div>
           </motion.div>
         )}
@@ -379,7 +504,9 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
           >
             {error === "missing_fields"
               ? "Veuillez remplir le nom et le niveau."
-              : "Une erreur est survenue."}
+              : error === "no_schedule"
+                ? "Veuillez selectionner au moins une seance par groupe."
+                : "Une erreur est survenue."}
           </motion.p>
         )}
 

@@ -163,7 +163,11 @@
     "alreadyMember": "Deja membre de ce groupe",
     "groupFull": "Ce groupe est complet",
     "addExisting": "Eleve existant",
-    "addNew": "Nouvel eleve"
+    "addNew": "Nouvel eleve",
+    "addGroup": "Ajouter un groupe",
+    "removeGroup": "Retirer",
+    "allSchedules": "Toutes les seances",
+    "groups": "Groupes"
   },
   "join": {
     "title": "Rejoindre un groupe",

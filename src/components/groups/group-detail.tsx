@@ -591,15 +591,16 @@ export function GroupDetail({
                             : [...editSessionsDays, s.day]
                         );
                       }}
-                      className="rounded-xl px-3 py-2 text-[11px] font-extrabold transition-[transform,box-shadow] duration-[80ms] active:translate-y-[1px]"
+                      className="rounded-xl px-3 py-2 text-[11px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"
                       style={{
                         background: selected
                           ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
                           : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
                         color: selected ? "#fff" : "#7c3aed",
+                        transform: `translateY(${selected ? 3 : 0}px)`,
                         boxShadow: selected
-                          ? "0 2px 0 #5b21b6"
-                          : "0 2px 0 #e9e5f5",
+                          ? "0 0px 0 #5b21b6, 0 1px 3px -1px rgba(124,58,237,0.5)"
+                          : "0 3px 0 #ddd6fe, 0 6px 12px -4px rgba(124,58,237,0.15)",
                       }}
                     >
                       {t(`day${s.day}Short`)} {s.start_time}-{s.end_time}
