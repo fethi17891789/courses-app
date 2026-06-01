@@ -416,6 +416,19 @@ export function GroupDetail({
                     <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
                       {r.student_name || r.student_email || r.student_id.slice(0, 8)}
                     </p>
+                    {r.selected_schedules && r.selected_schedules.length > 0 && r.selected_schedules.length < schedules.length && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {r.selected_schedules.map((day) => (
+                          <span
+                            key={day}
+                            className="rounded-md px-1.5 py-0.5 text-[9px] font-bold text-[#f97316]"
+                            style={{ background: "linear-gradient(135deg, #fff7ed, #ffedd5)" }}
+                          >
+                            {t(`day${day}Short`)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-1.5">
                     <button

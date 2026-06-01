@@ -44,4 +44,5 @@ export type JoinRequest = {
   resolved_at: string | null;
   student_name?: string;
   student_email?: string;
+  selected_schedules?: number[] | null;
 };

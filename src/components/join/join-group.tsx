@@ -25,6 +25,12 @@ const paymentModeKeys: Record<string, string> = {
   weekly: "weekly",
 };
 
+type ScheduleSlot = {
+  day: number;
+  start_time: string;
+  end_time: string;
+};
+
 type GroupInfo = {
   id: string;
   name: string;
@@ -33,6 +39,7 @@ type GroupInfo = {
   capacity: number;
   price: number;
   payment_mode: string;
+  schedules: ScheduleSlot[];
   member_count: number;
   existing_request: { id: string; status: string } | null;
 };
@@ -187,6 +194,7 @@ export function JoinGroup({
   const [parentPhone, setParentPhone] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
+  const [selectedSchedules, setSelectedSchedules] = useState<number[]>([]);
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -239,6 +247,9 @@ export function JoinGroup({
     if (res.ok) {
       const data = await res.json();
       setGroupInfo(data);
+      if (data.schedules?.length > 0) {
+        setSelectedSchedules(data.schedules.map((_: ScheduleSlot, i: number) => i));
+      }
       if (data.existing_request) {
         requestIdRef.current = data.existing_request.id;
         if (data.existing_request.status === "pending") {
@@ -261,6 +272,11 @@ export function JoinGroup({
       return;
     }
 
+    if (groupInfo.schedules?.length > 0 && selectedSchedules.length === 0) {
+      setFormError("noScheduleSelected");
+      return;
+    }
+
     setSending(true);
     setError(null);
     setFormError(null);
@@ -276,6 +292,9 @@ export function JoinGroup({
           level: selectedLevel,
           section: showSections ? selectedSection || null : null,
           notes: notes.trim() || null,
+          selected_schedules: groupInfo.schedules?.length > 0 && selectedSchedules.length < groupInfo.schedules.length
+            ? selectedSchedules.map((i) => groupInfo.schedules[i].day)
+            : null,
         }),
       });
 
@@ -327,13 +346,13 @@ export function JoinGroup({
         {/* Code input */}
         <motion.div variants={fadeUp}>
           <FieldLabel>{t("enterCode")}</FieldLabel>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder={t("codePlaceholder")}
               maxLength={6}
-              className="h-12 flex-1 rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-4 font-mono text-[18px] font-black tracking-[0.15em] text-[#7c3aed] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/20 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+              className="h-12 w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-4 font-mono text-[18px] font-black tracking-[0.15em] text-[#7c3aed] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/20 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
             />
             <button
               onPointerDown={() => setLookupPressed(true)}
@@ -341,7 +360,7 @@ export function JoinGroup({
               onPointerLeave={() => setLookupPressed(false)}
               onClick={handleLookup}
               disabled={lookingUp || !code.trim()}
-              className="rounded-xl px-5 text-[13px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-50"
+              className="w-full rounded-xl py-3 text-[14px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-50"
               style={{
                 background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
                 transform: `translateY(${lookupPressed ? 3 : 0}px)`,
@@ -551,6 +570,50 @@ export function JoinGroup({
                 )}
               </AnimatePresence>
 
+              {/* Schedule selection */}
+              {groupInfo.schedules?.length > 1 && (
+                <div className="mt-3">
+                  <FieldLabel>{t("chooseSchedules")}</FieldLabel>
+                  <div className="flex flex-col gap-1.5">
+                    {groupInfo.schedules.map((s, i) => {
+                      const selected = selectedSchedules.includes(i);
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSchedules(
+                              selected
+                                ? selectedSchedules.filter((idx) => idx !== i)
+                                : [...selectedSchedules, i]
+                            );
+                          }}
+                          className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-extrabold transition-[transform,box-shadow] duration-[80ms] active:translate-y-[1px]"
+                          style={{
+                            background: selected
+                              ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                              : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+                            color: selected ? "#fff" : "#7c3aed",
+                            boxShadow: selected
+                              ? "0 2px 0 #5b21b6"
+                              : "0 2px 0 #e9e5f5",
+                          }}
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px]"
+                            style={{
+                              background: selected ? "rgba(255,255,255,0.25)" : "rgba(124,58,237,0.1)",
+                            }}
+                          >
+                            {selected ? "✓" : ""}
+                          </span>
+                          {tGroups(`day${s.day}Short`)} {s.start_time} - {s.end_time}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Notes */}
               <div className="mt-3">
                 <FieldLabel>{tStudents("notes")}</FieldLabel>
@@ -568,7 +631,7 @@ export function JoinGroup({
                   animate={{ opacity: 1, y: 0 }}
                   className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600"
                 >
-                  {t(formError as "missingFields")}
+                  {t(formError as "missingFields" | "noScheduleSelected")}
                 </motion.p>
               )}
 

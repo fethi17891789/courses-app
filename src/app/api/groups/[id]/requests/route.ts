@@ -143,12 +143,17 @@ export async function PATCH(
       studentId = newStudent.id;
     }
 
+    const enrolledSessions = Array.isArray(req.selected_schedules) && req.selected_schedules.length > 0
+      ? req.selected_schedules
+      : null;
+
     const { error: memberError } = await supabase
       .from("group_members")
       .insert({
         group_id: groupId,
         student_id: studentId,
         status: "active",
+        enrolled_sessions: enrolledSessions,
       });
 
     if (memberError && memberError.code !== "23505") {

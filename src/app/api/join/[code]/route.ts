@@ -17,7 +17,7 @@ export async function GET(
 
   const { data: group } = await supabase
     .from("groups")
-    .select("id, name, level, section, capacity, price, payment_mode, group_members(count)")
+    .select("id, name, level, section, capacity, price, payment_mode, schedules, group_members(count)")
     .eq("join_code", code.toUpperCase())
     .maybeSingle();
 
@@ -42,6 +42,7 @@ export async function GET(
     capacity: group.capacity,
     price: group.price,
     payment_mode: group.payment_mode,
+    schedules: group.schedules || [],
     member_count: memberCount,
     existing_request: existingRequest || null,
   });
@@ -62,7 +63,7 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { full_name, phone, parent_phone, level, section, notes } = body;
+  const { full_name, phone, parent_phone, level, section, notes, selected_schedules } = body;
 
   if (!full_name?.trim() || !level?.trim() || !parent_phone?.trim()) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
@@ -117,6 +118,7 @@ export async function POST(
         level: level.trim(),
         section: section?.trim() || null,
         notes: notes?.trim() || null,
+        selected_schedules: Array.isArray(selected_schedules) && selected_schedules.length > 0 ? selected_schedules : null,
       })
       .eq("id", existing.id);
 
@@ -141,6 +143,7 @@ export async function POST(
       level: level.trim(),
       section: section?.trim() || null,
       notes: notes?.trim() || null,
+      selected_schedules: Array.isArray(selected_schedules) && selected_schedules.length > 0 ? selected_schedules : null,
     });
 
   if (error) {

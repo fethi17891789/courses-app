@@ -188,6 +188,8 @@
     "alreadyRequested": "Vous avez deja envoye une demande",
     "ownGroup": "Vous ne pouvez pas rejoindre votre propre groupe",
     "groupFull": "Ce groupe est complet",
+    "chooseSchedules": "Choisissez vos seances",
+    "noScheduleSelected": "Veuillez selectionner au moins une seance.",
     "missingFields": "Veuillez remplir votre nom, niveau et telephone du parent.",
     "notesPlaceholder": "Informations supplementaires pour le professeur...",
     "generic": "Une erreur est survenue. Veuillez reessayer.",
