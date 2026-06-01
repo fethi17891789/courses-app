@@ -246,7 +246,6 @@ export function JoinGroup({
         } else if (data.existing_request.status === "accepted") {
           setError("requestAccepted");
         }
-        // rejected: no error set, show form so student can re-send
       }
     } else {
       setNotFound(true);

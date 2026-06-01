@@ -104,6 +104,8 @@ export async function PATCH(
     const studentSection = req.section || group.section;
     const studentNotes = req.notes || null;
 
+    const authUserId = req.student_id;
+
     let studentRecord = await supabase
       .from("students")
       .select("id")
@@ -115,6 +117,10 @@ export async function PATCH(
 
     if (studentRecord.data) {
       studentId = studentRecord.data.id;
+      await supabase
+        .from("students")
+        .update({ auth_user_id: authUserId })
+        .eq("id", studentId);
     } else {
       const { data: newStudent, error: studentError } = await supabase
         .from("students")
@@ -126,6 +132,7 @@ export async function PATCH(
           level: studentLevel,
           section: studentSection,
           notes: studentNotes,
+          auth_user_id: authUserId,
         })
         .select("id")
         .single();

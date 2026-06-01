@@ -97,6 +97,7 @@
     "reject": "رفض",
     "removeStudent": "إزالة",
     "removeConfirm": "إزالة هذا التلميذ من الفوج؟",
+    "removeError": "خطأ أثناء الإزالة. يرجى المحاولة مرة أخرى.",
     "deleteGroup": "حذف الفوج",
     "deleteConfirm": "حذف هذا الفوج نهائيا مع جميع أعضائه؟",
     "cancel": "إلغاء",

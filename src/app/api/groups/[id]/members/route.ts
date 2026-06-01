@@ -182,43 +182,48 @@ export async function DELETE(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  // Get the student_id before deleting, to clean up the join_request
-  const { data: member } = await supabase
-    .from("group_members")
-    .select("student_id")
-    .eq("id", memberId)
-    .eq("group_id", groupId)
-    .maybeSingle();
-
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("group_members")
     .delete()
     .eq("id", memberId)
-    .eq("group_id", groupId);
+    .eq("group_id", groupId)
+    .select("student_id");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (member?.student_id) {
-    // Clean up any accepted join_request so the student can re-request
-    await supabase
-      .from("join_requests")
-      .delete()
-      .eq("group_id", groupId)
-      .eq("status", "accepted");
+  if (!deleted || deleted.length === 0) {
+    return NextResponse.json({ error: "delete_failed" }, { status: 500 });
+  }
 
-    // If the student is no longer in any group, delete the student record
-    const { count: otherGroups } = await supabase
+  const studentId = deleted[0].student_id;
+  if (studentId) {
+    const { data: student } = await supabase
+      .from("students")
+      .select("auth_user_id")
+      .eq("id", studentId)
+      .single();
+
+    if (student?.auth_user_id) {
+      await supabase
+        .from("join_requests")
+        .delete()
+        .eq("group_id", groupId)
+        .eq("student_id", student.auth_user_id)
+        .eq("status", "accepted");
+    }
+
+    const { count } = await supabase
       .from("group_members")
       .select("*", { count: "exact", head: true })
-      .eq("student_id", member.student_id);
+      .eq("student_id", studentId);
 
-    if (otherGroups === 0) {
+    if (count === 0) {
       await supabase
         .from("students")
         .delete()
-        .eq("id", member.student_id);
+        .eq("id", studentId);
     }
   }
 

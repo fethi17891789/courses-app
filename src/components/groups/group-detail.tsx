@@ -78,6 +78,7 @@ export function GroupDetail({
   const [addError, setAddError] = useState<string | null>(null);
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState(false);
   const [editSessionsMemberId, setEditSessionsMemberId] = useState<string | null>(null);
   const [editSessionsDays, setEditSessionsDays] = useState<number[]>([]);
 
@@ -152,15 +153,24 @@ export function GroupDetail({
   async function confirmRemoveMember() {
     if (!removeMemberId) return;
     setRemoving(true);
-    const res = await fetch(
-      `/api/groups/${group.id}/members?memberId=${removeMemberId}`,
-      { method: "DELETE" }
-    );
-    if (res.ok) {
-      setMembers((prev) => prev.filter((m) => m.id !== removeMemberId));
+    setRemoveError(false);
+    try {
+      const res = await fetch(
+        `/api/groups/${group.id}/members?memberId=${removeMemberId}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        setMembers((prev) => prev.filter((m) => m.id !== removeMemberId));
+        setRemoveMemberId(null);
+        router.refresh();
+      } else {
+        setRemoveError(true);
+      }
+    } catch {
+      setRemoveError(true);
+    } finally {
+      setRemoving(false);
     }
-    setRemoving(false);
-    setRemoveMemberId(null);
   }
 
   function openEditSessions(member: GroupMember) {
@@ -616,7 +626,7 @@ export function GroupDetail({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 px-5"
-            onClick={() => setRemoveMemberId(null)}
+            onClick={() => { setRemoveMemberId(null); setRemoveError(false); }}
           >
             <motion.div
               initial={{ y: 40, opacity: 0 }}
@@ -633,9 +643,14 @@ export function GroupDetail({
               <p className="mt-2 text-[12px] font-semibold text-[#1e1b4b]/50">
                 {t("removeConfirm")}
               </p>
+              {removeError && (
+                <p className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-600">
+                  {t("removeError")}
+                </p>
+              )}
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setRemoveMemberId(null)}
+                  onClick={() => { setRemoveMemberId(null); setRemoveError(false); }}
                   className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed] transition-[transform] duration-[80ms] active:translate-y-[2px]"
                 >
                   {t("cancel")}

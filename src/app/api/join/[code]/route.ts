@@ -105,7 +105,6 @@ export async function POST(
     if (existing.status === "accepted") {
       return NextResponse.json({ error: "already_requested", status: "accepted" }, { status: 409 });
     }
-    // Rejected: update the existing request to re-send
     const { error } = await supabase
       .from("join_requests")
       .update({

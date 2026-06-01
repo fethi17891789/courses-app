@@ -97,6 +97,7 @@
     "reject": "Refuser",
     "removeStudent": "Retirer",
     "removeConfirm": "Retirer cet eleve du groupe ?",
+    "removeError": "Erreur lors du retrait. Veuillez reessayer.",
     "deleteGroup": "Supprimer le groupe",
     "deleteConfirm": "Supprimer definitivement ce groupe et tous ses membres ?",
     "cancel": "Annuler",

@@ -7,6 +7,7 @@ export type Student = {
   level: string;
   section: string | null;
   notes: string | null;
+  auth_user_id: string | null;
   status: "active" | "inactive";
   created_at: string;
   group_count?: number;
