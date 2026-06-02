@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { getLevelDef, levels, hasSections, categoryLabels, type LevelCategory } from "@/lib/levels";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { Html5Qrcode } from "html5-qrcode";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -197,6 +198,53 @@ export function JoinGroup({
   const [selectedSchedules, setSelectedSchedules] = useState<number[]>([]);
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scanContainerRef = useRef<string>("qr-reader-" + Math.random().toString(36).slice(2, 8));
+
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+      } catch {}
+      scannerRef.current = null;
+    }
+    setScanning(false);
+  }, []);
+
+  const startScanner = useCallback(async () => {
+    setScanning(true);
+    await new Promise((r) => setTimeout(r, 100));
+    const scanner = new Html5Qrcode(scanContainerRef.current);
+    scannerRef.current = scanner;
+    try {
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        (decodedText) => {
+          let extracted = decodedText.trim().toUpperCase();
+          try {
+            const url = new URL(decodedText);
+            const codeParam = url.searchParams.get("code");
+            if (codeParam) extracted = codeParam.toUpperCase();
+          } catch {}
+          setCode(extracted);
+          stopScanner();
+        },
+        () => {},
+      );
+    } catch {
+      stopScanner();
+    }
+  }, [stopScanner]);
+
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, []);
 
   const requestIdRef = useRef<string | null>(null);
 
@@ -347,13 +395,61 @@ export function JoinGroup({
         <motion.div variants={fadeUp}>
           <FieldLabel>{t("enterCode")}</FieldLabel>
           <div className="flex flex-col gap-2">
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder={t("codePlaceholder")}
-              maxLength={6}
-              className="h-12 w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-4 font-mono text-[18px] font-black tracking-[0.15em] text-[#7c3aed] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/20 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
-            />
+            <div className="flex gap-2">
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder={t("codePlaceholder")}
+                maxLength={6}
+                className="h-12 flex-1 rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-4 font-mono text-[18px] font-black tracking-[0.15em] text-[#7c3aed] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/20 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+              />
+              <button
+                onClick={scanning ? stopScanner : startScanner}
+                className="btn-push flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
+                style={{
+                  background: scanning
+                    ? "linear-gradient(135deg, #ef4444, #dc2626)"
+                    : "linear-gradient(135deg, #22c55e, #16a34a)",
+                  "--push-shadow": scanning ? "#b91c1c" : "#15803d",
+                  "--push-glow": scanning ? "rgba(239,68,68,0.4)" : "rgba(34,197,94,0.4)",
+                } as React.CSSProperties}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  {scanning ? (
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  ) : (
+                    <>
+                      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                      <rect x="7" y="7" width="10" height="10" rx="1" />
+                    </>
+                  )}
+                </svg>
+              </button>
+            </div>
+
+            {/* QR Scanner */}
+            <AnimatePresence>
+              {scanning && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div
+                    className="overflow-hidden rounded-xl border-2 border-[#22c55e]"
+                    style={{ boxShadow: "0 3px 0 #15803d, 0 6px 12px -4px rgba(34,197,94,0.3)" }}
+                  >
+                    <div id={scanContainerRef.current} className="w-full" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <button
               onPointerDown={() => setLookupPressed(true)}
               onPointerUp={() => setLookupPressed(false)}
