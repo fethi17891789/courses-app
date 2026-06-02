@@ -106,6 +106,29 @@ export async function GET() {
     return false;
   }
 
+  // Helper: check if today is the first session of the period for a group
+  function isFirstSessionOfPeriod(groupSchedules: any[], mode: string): boolean {
+    if (mode === "per_session") return true;
+
+    const scheduleDays = groupSchedules.map((s: any) => s.day).sort((a: number, b: number) => a - b);
+
+    if (mode === "weekly") {
+      const first = scheduleDays.find((d: number) => d >= 0);
+      return first === dayOfWeek;
+    }
+
+    if (mode === "monthly") {
+      const todayDate = algeriaTime.getDate();
+      for (let d = 1; d < todayDate; d++) {
+        const pastDate = new Date(algeriaTime.getFullYear(), algeriaTime.getMonth(), d);
+        if (scheduleDays.includes(pastDate.getDay())) return false;
+      }
+      return true;
+    }
+
+    return false;
+  }
+
   // Helper: count total sessions in the current period for a group
   function totalSessionsInPeriod(groupSchedules: any[], mode: string): number {
     const scheduleDays = groupSchedules.map((s: any) => s.day);
@@ -137,6 +160,7 @@ export async function GET() {
       if (schedule.day !== dayOfWeek) continue;
 
       const isLastSession = isLastSessionOfPeriod(schedules, group.payment_mode);
+      const isFirstSession = isFirstSessionOfPeriod(schedules, group.payment_mode);
       const totalSessions = totalSessionsInPeriod(schedules, group.payment_mode);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -160,18 +184,27 @@ export async function GET() {
             paymentAmount = group.price;
           } else if (group.payment_mode === "monthly") {
             const alreadyPaid = payDates.some((d: string) => d.startsWith(currentMonth));
-            paymentDue = !alreadyPaid && isLastSession;
-            if (paymentDue && group.refund_absences && totalSessions > 0) {
-              // +1 to count today's session (assuming present since payment is shown)
-              const presentCount = presence.present + 1;
-              paymentAmount = Math.round((group.price / totalSessions) * presentCount);
+            if (group.refund_absences) {
+              // Refund ON: pay at last session with adjusted amount
+              paymentDue = !alreadyPaid && isLastSession;
+              if (paymentDue && totalSessions > 0) {
+                const presentCount = presence.present + 1;
+                paymentAmount = Math.round((group.price / totalSessions) * presentCount);
+              }
+            } else {
+              // Refund OFF: pay at first session, fixed price
+              paymentDue = !alreadyPaid && isFirstSession;
             }
           } else if (group.payment_mode === "weekly") {
             const alreadyPaid = payDates.some((d: string) => d >= weekStartStr);
-            paymentDue = !alreadyPaid && isLastSession;
-            if (paymentDue && group.refund_absences && totalSessions > 0) {
-              const presentCount = presence.present + 1;
-              paymentAmount = Math.round((group.price / totalSessions) * presentCount);
+            if (group.refund_absences) {
+              paymentDue = !alreadyPaid && isLastSession;
+              if (paymentDue && totalSessions > 0) {
+                const presentCount = presence.present + 1;
+                paymentAmount = Math.round((group.price / totalSessions) * presentCount);
+              }
+            } else {
+              paymentDue = !alreadyPaid && isFirstSession;
             }
           }
 
