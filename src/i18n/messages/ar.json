@@ -87,6 +87,13 @@
     "unpaid": "غير مدفوع",
     "undo": "تراجع"
   },
+  "payments": {
+    "title": "المدفوعات",
+    "unpaidStudents": "تلاميذ لم يدفعوا",
+    "allGroups": "كل الأفواج",
+    "allPaid": "كل شيء محدث",
+    "allPaidDesc": "لا مدفوعات متأخرة."
+  },
   "groups": {
     "title": "أفواجي",
     "empty": "لا يوجد أفواج حاليا",
@@ -186,7 +193,14 @@
     "addGroup": "إضافة فوج",
     "removeGroup": "إزالة",
     "allSchedules": "كل الحصص",
-    "groups": "الأفواج"
+    "groups": "الأفواج",
+    "info": "المعلومات",
+    "absences": "الغيابات",
+    "noAbsences": "لا غيابات",
+    "paymentsHistory": "المدفوعات",
+    "noPayments": "لا مدفوعات",
+    "totalPaid": "المجموع المدفوع",
+    "memberOf": "عضو في"
   },
   "join": {
     "title": "الانضمام إلى فوج",

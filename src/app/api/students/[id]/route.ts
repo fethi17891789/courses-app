@@ -17,7 +17,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("students")
-    .select("*, group_members(group_id, groups(name, level))")
+    .select("*, group_members(group_id, enrolled_sessions, groups(name, level, schedules, price, payment_mode))")
     .eq("id", id)
     .eq("teacher_id", user.id)
     .single();
@@ -26,7 +26,22 @@ export async function GET(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  return NextResponse.json(data);
+  const { data: absences } = await supabase
+    .from("attendance")
+    .select("id, group_id, session_day, session_date, status, groups:group_id(name)")
+    .eq("student_id", id)
+    .eq("status", "absent")
+    .order("session_date", { ascending: false })
+    .limit(50);
+
+  const { data: payments } = await supabase
+    .from("payments")
+    .select("id, group_id, amount, session_date, session_day, groups:group_id(name)")
+    .eq("student_id", id)
+    .order("session_date", { ascending: false })
+    .limit(50);
+
+  return NextResponse.json({ ...data, absences: absences || [], payments: payments || [] });
 }
 
 export async function PUT(

@@ -87,6 +87,13 @@
     "unpaid": "Non paye",
     "undo": "Revenir"
   },
+  "payments": {
+    "title": "Paiements",
+    "unpaidStudents": "Eleves avec paiement en retard",
+    "allGroups": "Tous les groupes",
+    "allPaid": "Tout est a jour",
+    "allPaidDesc": "Aucun paiement en retard."
+  },
   "groups": {
     "title": "Mes groupes",
     "empty": "Aucun groupe pour l'instant",
@@ -186,7 +193,14 @@
     "addGroup": "Ajouter un groupe",
     "removeGroup": "Retirer",
     "allSchedules": "Toutes les seances",
-    "groups": "Groupes"
+    "groups": "Groupes",
+    "info": "Informations",
+    "absences": "Absences",
+    "noAbsences": "Aucune absence",
+    "paymentsHistory": "Paiements",
+    "noPayments": "Aucun paiement",
+    "totalPaid": "Total paye",
+    "memberOf": "Membre de"
   },
   "join": {
     "title": "Rejoindre un groupe",

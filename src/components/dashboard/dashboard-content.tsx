@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -238,8 +238,27 @@ export function DashboardContent({ user }: { user: User }) {
     .toUpperCase()
     .slice(0, 2);
   const [pressed, setPressed] = useState<string | null>(null);
+  const [stats, setStats] = useState({ students: 0, groups: 0, sessionsToday: 0, unpaid: 0 });
 
   const greetingKey = useMemo(() => getGreetingKey(), []);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/groups").then((r) => r.json()),
+      fetch("/api/students").then((r) => r.json()),
+      fetch("/api/attendance/today").then((r) => r.json()),
+      fetch("/api/payments/overview").then((r) => r.json()),
+    ])
+      .then(([groups, students, sessions, payments]) => {
+        setStats({
+          groups: Array.isArray(groups) ? groups.length : 0,
+          students: Array.isArray(students) ? students.length : 0,
+          sessionsToday: Array.isArray(sessions) ? sessions.filter((s: any) => s.students.length > 0).length : 0,
+          unpaid: payments?.unpaid_count || 0,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <motion.main
@@ -275,7 +294,7 @@ export function DashboardContent({ user }: { user: User }) {
               {t(greetingKey, { name: fullName })}
             </h1>
             <p className="text-[11px] font-semibold text-[#1e1b4b]/40">
-              {t("sessionsToday", { count: 0 })}
+              {t("sessionsToday", { count: stats.sessionsToday })}
             </p>
           </div>
         </div>
@@ -287,25 +306,25 @@ export function DashboardContent({ user }: { user: User }) {
         className="mx-5 mt-3 grid grid-cols-4 gap-2"
       >
         <StatCard
-          value={0}
+          value={stats.students}
           label={t("statStudents")}
           color="#7c3aed"
           delay={0.15}
         />
         <StatCard
-          value={0}
+          value={stats.groups}
           label={t("statGroups")}
           color="#22c55e"
           delay={0.2}
         />
         <StatCard
-          value={0}
+          value={stats.sessionsToday}
           label={t("statSessions")}
           color="#f97316"
           delay={0.25}
         />
         <StatCard
-          value={0}
+          value={stats.unpaid}
           label={t("statPending")}
           color="#ef4444"
           delay={0.3}
