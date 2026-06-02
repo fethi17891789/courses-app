@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   // Get all groups for filter dropdown
   const { data: groups } = await supabase
     .from("groups")
-    .select("id, name, price, payment_mode, schedules")
+    .select("id, name, price, payment_mode, refund_absences, schedules")
     .eq("teacher_id", user.id);
 
   // Get all attendance records (to know which sessions have been called)
@@ -95,28 +95,89 @@ export async function GET(request: Request) {
     if (!group) continue;
 
     const sessionsCalled = calledMap.get(key) || 0;
-    if (sessionsCalled === 0) continue; // No attendance taken yet, skip
+    if (sessionsCalled === 0) continue;
 
-    const sessionsAttended = attendedMap.get(key) || 0;
     const totalPaid = paidMap.get(key) || 0;
 
-    // Amount owed depends on payment mode
-    let totalDue = 0;
+    // Get this student's attendance records for this group
+    const studentAttendance = (attendance || []).filter(
+      (a: any) => a.student_id === student.id && a.group_id === m.group_id
+    );
+
+    // Get this student's payment dates for this group
+    const studentPayments = (payments || []).filter(
+      (p: any) => p.student_id === student.id && p.group_id === m.group_id
+    );
+    const paidDates = new Set(studentPayments.map((p: any) => p.session_date));
+
+    // Build unpaid sessions list
+    const unpaidSessions: { date: string; day: number; amount: number }[] = [];
+
     if (group.payment_mode === "per_session") {
-      totalDue = sessionsAttended * group.price;
-    } else {
-      // For monthly/weekly, due = sessions_called * price_per_session is not right
-      // For monthly, we count number of distinct months with attendance
-      const months = new Set<string>();
-      for (const a of attendance || []) {
-        if (a.student_id === student.id && a.group_id === m.group_id) {
-          months.add(a.session_date.slice(0, 7));
+      // Each present session without a matching payment date
+      for (const a of studentAttendance) {
+        if (a.status === "present" && !paidDates.has(a.session_date)) {
+          unpaidSessions.push({ date: a.session_date, day: a.session_day, amount: group.price });
         }
       }
-      totalDue = months.size * group.price;
+    } else {
+      // Monthly/weekly: group by period
+      const periods = new Map<string, { present: number; total: number; dates: string[] }>();
+
+      for (const a of studentAttendance) {
+        let periodKey: string;
+        if (group.payment_mode === "monthly") {
+          periodKey = a.session_date.slice(0, 7); // "YYYY-MM"
+        } else {
+          // Weekly: get week start (Sunday)
+          const d = new Date(a.session_date);
+          d.setDate(d.getDate() - d.getDay());
+          periodKey = d.toISOString().split("T")[0];
+        }
+        if (!periods.has(periodKey)) periods.set(periodKey, { present: 0, total: 0, dates: [] });
+        const p = periods.get(periodKey)!;
+        p.total++;
+        if (a.status === "present") p.present++;
+        p.dates.push(a.session_date);
+      }
+
+      for (const [periodKey, info] of periods) {
+        // Check if already paid for this period
+        const hasPaid = info.dates.some((d) => paidDates.has(d)) ||
+          studentPayments.some((p: any) => {
+            if (group.payment_mode === "monthly") return p.session_date.startsWith(periodKey);
+            return p.session_date >= periodKey;
+          });
+        if (hasPaid) continue;
+
+        let amount = group.price;
+        if (group.refund_absences) {
+          const scheduleDays = (group.schedules || []).length;
+          const totalInPeriod = group.payment_mode === "monthly"
+            ? (() => {
+                const [y, mo] = periodKey.split("-").map(Number);
+                const lastDay = new Date(y, mo, 0).getDate();
+                let count = 0;
+                for (let d = 1; d <= lastDay; d++) {
+                  const date = new Date(y, mo - 1, d);
+                  if ((group.schedules || []).some((s: any) => s.day === date.getDay())) count++;
+                }
+                return count;
+              })()
+            : scheduleDays;
+          if (totalInPeriod > 0) {
+            amount = Math.round((group.price / totalInPeriod) * info.present);
+          }
+        }
+
+        if (amount > 0) {
+          const label = group.payment_mode === "monthly" ? periodKey : periodKey;
+          unpaidSessions.push({ date: label, day: -1, amount });
+        }
+      }
     }
 
-    const debt = totalDue - totalPaid;
+    const debt = unpaidSessions.reduce((sum, s) => sum + s.amount, 0);
     if (debt > 0) {
       studentDebts.push({
         student_id: student.id,
@@ -124,9 +185,10 @@ export async function GET(request: Request) {
         student_level: student.level,
         group_id: m.group_id,
         group_name: group.name,
-        total_due: totalDue,
+        total_due: totalPaid + debt,
         total_paid: totalPaid,
         debt,
+        unpaid_sessions: unpaidSessions,
       });
     }
   }

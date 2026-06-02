@@ -100,7 +100,10 @@
     "unpaidStudents": "Eleves avec paiement en retard",
     "allGroups": "Tous les groupes",
     "allPaid": "Tout est a jour",
-    "allPaidDesc": "Aucun paiement en retard."
+    "allPaidDesc": "Aucun paiement en retard.",
+    "unpaidSessions": "Seances non payees",
+    "markPaid": "Regler",
+    "close": "Fermer"
   },
   "groups": {
     "title": "Mes groupes",

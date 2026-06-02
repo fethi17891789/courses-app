@@ -100,7 +100,10 @@
     "unpaidStudents": "تلاميذ لم يدفعوا",
     "allGroups": "كل الأفواج",
     "allPaid": "كل شيء محدث",
-    "allPaidDesc": "لا مدفوعات متأخرة."
+    "allPaidDesc": "لا مدفوعات متأخرة.",
+    "unpaidSessions": "حصص غير مدفوعة",
+    "markPaid": "تسديد",
+    "close": "إغلاق"
   },
   "groups": {
     "title": "أفواجي",
