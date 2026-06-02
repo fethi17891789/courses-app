@@ -66,7 +66,9 @@
     "quizCta": "Commencer",
     "upcoming": "Prochaines seances",
     "noUpcoming": "Rien de prevu aujourd'hui",
-    "viewCalendar": "Voir le calendrier"
+    "viewCalendar": "Voir le calendrier",
+    "schedule": "Emploi du temps",
+    "scheduleDesc": "Consultez votre agenda"
   },
   "attendance": {
     "title": "Faire l'appel",
@@ -86,6 +88,12 @@
     "paid": "Paye",
     "unpaid": "Non paye",
     "undo": "Revenir"
+  },
+  "schedule": {
+    "title": "Emploi du temps",
+    "noSessions": "Aucune seance ce jour",
+    "today": "Aujourd'hui",
+    "paymentSession": "Seance de paiement"
   },
   "payments": {
     "title": "Paiements",

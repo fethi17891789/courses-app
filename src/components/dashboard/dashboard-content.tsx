@@ -395,16 +395,15 @@ export function DashboardContent({ user }: { user: User }) {
           />
         </motion.div>
 
-        {/* Payments full width */}
+        {/* Schedule full width */}
         <motion.div variants={fadeUp} className="mt-3">
           <ActionCard
-            id="pay"
+            id="schedule"
             gradient="linear-gradient(150deg, #fdba74 0%, #f97316 60%, #ea580c 100%)"
             shadow3d="#c2410c"
             shadowGlow="rgba(249,115,22,0.4)"
             icon={
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                {/* Wallet with slot cutout */}
                 <motion.g
                   initial={{ scale: 0.6, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -413,18 +412,18 @@ export function DashboardContent({ user }: { user: User }) {
                   <path
                     fillRule="evenodd"
                     clipRule="evenodd"
-                    d="M3 5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V5zm2 0a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2H5V5zm0 5h14v3h-4.5a2.5 2.5 0 0 0 0 5H19v2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-10z"
+                    d="M6 2a1 1 0 0 1 1 1v1h10V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1zM3 10v9a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-9H3z"
                     fill="white"
                   />
-                  <circle cx="16" cy="15.5" r="1.5" fill="white" />
                 </motion.g>
               </svg>
             }
-            label={t("managePayments")}
-            description={t("managePaymentsDesc")}
-            pressed={pressed === "pay"}
-            onPress={() => setPressed("pay")}
+            label={t("schedule")}
+            description={t("scheduleDesc")}
+            pressed={pressed === "schedule"}
+            onPress={() => setPressed("schedule")}
             onRelease={() => setPressed(null)}
+            onClick={() => router.push(`/${locale}/schedule`)}
             className="w-full"
           />
         </motion.div>
