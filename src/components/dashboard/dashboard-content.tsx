@@ -372,6 +372,7 @@ export function DashboardContent({ user }: { user: User }) {
             pressed={pressed === "appel"}
             onPress={() => setPressed("appel")}
             onRelease={() => setPressed(null)}
+            onClick={() => router.push(`/${locale}/attendance`)}
           />
         </motion.div>
 

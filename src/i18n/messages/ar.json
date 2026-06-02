@@ -68,6 +68,25 @@
     "noUpcoming": "لا شيء مبرمج اليوم",
     "viewCalendar": "عرض التقويم"
   },
+  "attendance": {
+    "title": "تسجيل الحضور",
+    "noSessions": "لا حصص اليوم",
+    "noSessionsDesc": "عد في يوم لديك فيه حصص مبرمجة.",
+    "selectSession": "اختر حصة",
+    "students": "{count} تلاميذ",
+    "swipeRight": "حاضر + دفع",
+    "swipeLeft": "غائب",
+    "swipeUp": "حاضر بدون دفع",
+    "done": "تم تسجيل الحضور !",
+    "doneDesc": "{present} حاضرون، {absent} غائبون",
+    "backToSessions": "العودة للحصص",
+    "backToDashboard": "العودة للرئيسية",
+    "present": "حاضر",
+    "absent": "غائب",
+    "paid": "مدفوع",
+    "unpaid": "غير مدفوع",
+    "undo": "تراجع"
+  },
   "groups": {
     "title": "أفواجي",
     "empty": "لا يوجد أفواج حاليا",

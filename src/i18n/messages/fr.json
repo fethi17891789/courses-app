@@ -68,6 +68,25 @@
     "noUpcoming": "Rien de prevu aujourd'hui",
     "viewCalendar": "Voir le calendrier"
   },
+  "attendance": {
+    "title": "Faire l'appel",
+    "noSessions": "Aucune seance aujourd'hui",
+    "noSessionsDesc": "Revenez un jour ou vous avez des cours programmes.",
+    "selectSession": "Choisissez une seance",
+    "students": "{count} eleves",
+    "swipeRight": "Present + Paye",
+    "swipeLeft": "Absent",
+    "swipeUp": "Present non paye",
+    "done": "Appel termine !",
+    "doneDesc": "{present} presents, {absent} absents",
+    "backToSessions": "Retour aux seances",
+    "backToDashboard": "Retour au tableau de bord",
+    "present": "Present",
+    "absent": "Absent",
+    "paid": "Paye",
+    "unpaid": "Non paye",
+    "undo": "Revenir"
+  },
   "groups": {
     "title": "Mes groupes",
     "empty": "Aucun groupe pour l'instant",
