@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data: groups, error } = await supabase
     .from("groups")
-    .select("id, name, schedules, price, payment_mode, group_members(id, student_id, enrolled_sessions, student:students(id, full_name, phone, level))")
+    .select("id, name, schedules, price, payment_mode, refund_absences, group_members(id, student_id, enrolled_sessions, student:students(id, full_name, phone, level))")
     .eq("teacher_id", user.id);
 
   if (error) {
@@ -53,12 +53,80 @@ export async function GET() {
     .eq("teacher_id", user.id)
     .gte("session_date", `${currentMonth}-01`);
 
-  // Map: "groupId-studentId" -> Set of payment dates
+  // Map: "groupId-studentId" -> payment dates
   const paymentMap = new Map<string, string[]>();
   for (const p of recentPayments || []) {
     const key = `${p.group_id}-${p.student_id}`;
     if (!paymentMap.has(key)) paymentMap.set(key, []);
     paymentMap.get(key)!.push(p.session_date);
+  }
+
+  // Get attendance for current period (month) to count presences for refund calculation
+  const { data: periodAttendance } = await supabase
+    .from("attendance")
+    .select("group_id, student_id, session_day, session_date, status")
+    .eq("teacher_id", user.id)
+    .gte("session_date", `${currentMonth}-01`);
+
+  // Map: "groupId-studentId" -> { present: number, total: number }
+  const presenceMap = new Map<string, { present: number; total: number }>();
+  for (const a of periodAttendance || []) {
+    const key = `${a.group_id}-${a.student_id}`;
+    if (!presenceMap.has(key)) presenceMap.set(key, { present: 0, total: 0 });
+    const entry = presenceMap.get(key)!;
+    entry.total++;
+    if (a.status === "present") entry.present++;
+  }
+
+  // Helper: check if today is the last session of the period for a group
+  function isLastSessionOfPeriod(groupSchedules: any[], mode: string): boolean {
+    if (mode === "per_session") return true; // always charge
+
+    const scheduleDays = groupSchedules.map((s: any) => s.day).sort((a: number, b: number) => a - b);
+
+    if (mode === "weekly") {
+      // Last session day of the week (highest day number still to come or today)
+      const remaining = scheduleDays.filter((d: number) => d >= dayOfWeek);
+      return remaining.length > 0 && remaining[remaining.length - 1] === dayOfWeek;
+    }
+
+    if (mode === "monthly") {
+      // Check if there are more sessions this month after today
+      const todayDate = algeriaTime.getDate();
+      const lastDayOfMonth = new Date(algeriaTime.getFullYear(), algeriaTime.getMonth() + 1, 0).getDate();
+
+      for (let d = todayDate + 1; d <= lastDayOfMonth; d++) {
+        const futureDate = new Date(algeriaTime.getFullYear(), algeriaTime.getMonth(), d);
+        const futureDay = futureDate.getDay();
+        if (scheduleDays.includes(futureDay)) return false;
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  // Helper: count total sessions in the current period for a group
+  function totalSessionsInPeriod(groupSchedules: any[], mode: string): number {
+    const scheduleDays = groupSchedules.map((s: any) => s.day);
+
+    if (mode === "weekly") {
+      return scheduleDays.length;
+    }
+
+    if (mode === "monthly") {
+      let count = 0;
+      const year = algeriaTime.getFullYear();
+      const month = algeriaTime.getMonth();
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      for (let d = 1; d <= lastDay; d++) {
+        const date = new Date(year, month, d);
+        if (scheduleDays.includes(date.getDay())) count++;
+      }
+      return count;
+    }
+
+    return 1;
   }
 
   const sessions = [];
@@ -67,6 +135,9 @@ export async function GET() {
     const schedules = group.schedules || [];
     for (const schedule of schedules) {
       if (schedule.day !== dayOfWeek) continue;
+
+      const isLastSession = isLastSessionOfPeriod(schedules, group.payment_mode);
+      const totalSessions = totalSessionsInPeriod(schedules, group.payment_mode);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const students = (group.group_members || [])
@@ -78,17 +149,33 @@ export async function GET() {
           const s = m.student;
           if (!s) return null;
           const payKey = `${group.id}-${s.id}`;
-          const dates = paymentMap.get(payKey) || [];
-          let paymentDue = true;
+          const payDates = paymentMap.get(payKey) || [];
+          const presence = presenceMap.get(payKey) || { present: 0, total: 0 };
 
-          if (group.payment_mode === "monthly") {
-            paymentDue = !dates.some((d: string) => d.startsWith(currentMonth));
+          let paymentDue = false;
+          let paymentAmount = group.price;
+
+          if (group.payment_mode === "per_session") {
+            paymentDue = true;
+            paymentAmount = group.price;
+          } else if (group.payment_mode === "monthly") {
+            const alreadyPaid = payDates.some((d: string) => d.startsWith(currentMonth));
+            paymentDue = !alreadyPaid && isLastSession;
+            if (paymentDue && group.refund_absences && totalSessions > 0) {
+              // +1 to count today's session (assuming present since payment is shown)
+              const presentCount = presence.present + 1;
+              paymentAmount = Math.round((group.price / totalSessions) * presentCount);
+            }
           } else if (group.payment_mode === "weekly") {
-            paymentDue = !dates.some((d: string) => d >= weekStartStr);
+            const alreadyPaid = payDates.some((d: string) => d >= weekStartStr);
+            paymentDue = !alreadyPaid && isLastSession;
+            if (paymentDue && group.refund_absences && totalSessions > 0) {
+              const presentCount = presence.present + 1;
+              paymentAmount = Math.round((group.price / totalSessions) * presentCount);
+            }
           }
-          // per_session: always due
 
-          return { ...s, payment_due: paymentDue };
+          return { ...s, payment_due: paymentDue, payment_amount: paymentAmount };
         })
         .filter(Boolean);
 

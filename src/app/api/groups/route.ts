@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, level, section, capacity, price, payment_mode, schedules } = body;
+  const { name, level, section, capacity, price, payment_mode, refund_absences, schedules } = body;
 
   if (!name?.trim() || !level?.trim()) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       capacity: capacity || 30,
       price: price || 0,
       payment_mode: payment_mode || "monthly",
+      refund_absences: refund_absences || false,
       schedules: Array.isArray(schedules) ? schedules : [],
     })
     .select()

@@ -39,5 +39,6 @@ export type TodaySession = {
     phone: string | null;
     level: string;
     payment_due: boolean;
+    payment_amount: number;
   }[];
 };

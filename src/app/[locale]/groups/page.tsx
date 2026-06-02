@@ -38,6 +38,7 @@ export default async function GroupsPage({
     capacity: g.capacity,
     price: g.price,
     payment_mode: g.payment_mode,
+    refund_absences: g.refund_absences || false,
     schedules: g.schedules || [],
     join_code: g.join_code,
     created_at: g.created_at,

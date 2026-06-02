@@ -152,6 +152,9 @@
     "day4Short": "Jeu",
     "day5Short": "Ven",
     "day6Short": "Sam",
+    "refundAbsences": "Rembourser les absences",
+    "yes": "Oui",
+    "no": "Non",
     "allSessions": "Toutes les seances",
     "partialSessions": "Seances selectionnees",
     "enrolledSessions": "Seances inscrites"

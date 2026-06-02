@@ -26,6 +26,7 @@ type StudentCard = {
   phone: string | null;
   level: string;
   payment_due: boolean;
+  payment_amount: number;
 };
 
 type SwipeResult = {
@@ -93,7 +94,7 @@ export function AttendanceScreen() {
         session_day: activeSession.day,
         status,
         paid,
-        amount: paid ? activeSession.price : 0,
+        amount: paid ? (student.payment_amount || activeSession.price) : 0,
       }),
     }).catch(() => {});
 

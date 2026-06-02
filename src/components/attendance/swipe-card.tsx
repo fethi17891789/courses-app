@@ -10,6 +10,7 @@ type Student = {
   phone: string | null;
   level: string;
   payment_due: boolean;
+  payment_amount: number;
 };
 
 const SWIPE_THRESHOLD = 100;
@@ -112,7 +113,7 @@ export function SwipeCard({
             }}
           >
             <div className="rounded-xl bg-green-500 px-4 py-2 text-[14px] font-extrabold text-white shadow-[0_3px_0_#15803d]">
-              {student.payment_due ? `P + ${price} DA` : "P"}
+              {student.payment_due ? `P + ${student.payment_amount} DA` : "P"}
             </div>
           </motion.div>
         )}
@@ -175,7 +176,7 @@ export function SwipeCard({
           {/* Price badge */}
           <div className={`mt-4 rounded-xl px-4 py-2 ${student.payment_due ? "bg-[#f0ecff]" : "bg-green-50"}`}>
             <span className={`text-[13px] font-extrabold ${student.payment_due ? "text-[#7c3aed]" : "text-[#22c55e]"}`}>
-              {student.payment_due ? `${price} DA` : "Paye"}
+              {student.payment_due ? `${student.payment_amount} DA` : "Paye"}
             </span>
           </div>
         </div>

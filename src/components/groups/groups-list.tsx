@@ -259,6 +259,7 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
   const [editCapacity, setEditCapacity] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [editPaymentMode, setEditPaymentMode] = useState<PaymentMode>("monthly");
+  const [editRefundAbsences, setEditRefundAbsences] = useState(false);
   const [editSchedules, setEditSchedules] = useState<Schedule[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -272,6 +273,7 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
     setEditCapacity(String(group.capacity));
     setEditPrice(String(group.price));
     setEditPaymentMode(group.payment_mode);
+    setEditRefundAbsences(group.refund_absences || false);
     setEditSchedules(group.schedules || []);
     setWiggleId(null);
   }
@@ -291,6 +293,7 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
           capacity: parseInt(editCapacity) || 30,
           price: parseInt(editPrice) || 0,
           payment_mode: editPaymentMode,
+          refund_absences: editPaymentMode !== "per_session" && editRefundAbsences,
           schedules: editSchedules,
         }),
       });
@@ -627,6 +630,36 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
                   gradientTo="#ea580c"
                 />
               </div>
+
+              {/* Refund absences toggle */}
+              <AnimatePresence initial={false}>
+                {editPaymentMode !== "per_session" && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-4">
+                      <FieldLabel>{t("refundAbsences")}</FieldLabel>
+                      <ToggleGroup
+                        options={[
+                          { id: "no", label: t("no") },
+                          { id: "yes", label: t("yes") },
+                        ]}
+                        value={editRefundAbsences ? "yes" : "no"}
+                        onChange={(id) => setEditRefundAbsences(id === "yes")}
+                        color="#22c55e"
+                        shadow="#15803d"
+                        glow="rgba(34,197,94,0.5)"
+                        gradientFrom="#4ade80"
+                        gradientTo="#16a34a"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Edit schedules */}
               <div className="mt-4">

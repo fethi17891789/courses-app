@@ -131,6 +131,7 @@ export function CreateGroup() {
   const [capacity, setCapacity] = useState("30");
   const [price, setPrice] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("monthly");
+  const [refundAbsences, setRefundAbsences] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +163,7 @@ export function CreateGroup() {
           capacity: parseInt(capacity) || 30,
           price: parseInt(price) || 0,
           payment_mode: paymentMode,
+          refund_absences: paymentMode !== "per_session" && refundAbsences,
           schedules,
         }),
       });
@@ -307,6 +309,36 @@ export function CreateGroup() {
             gradientTo="#ea580c"
           />
         </motion.div>
+
+        {/* Refund absences toggle - only for monthly/weekly */}
+        <AnimatePresence initial={false}>
+          {paymentMode !== "per_session" && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="mt-4">
+                <FieldLabel>{t("refundAbsences")}</FieldLabel>
+                <ToggleGroup
+                  options={[
+                    { id: "no", label: t("no") },
+                    { id: "yes", label: t("yes") },
+                  ]}
+                  value={refundAbsences ? "yes" : "no"}
+                  onChange={(id) => setRefundAbsences(id === "yes")}
+                  color="#22c55e"
+                  shadow="#15803d"
+                  glow="rgba(34,197,94,0.5)"
+                  gradientFrom="#4ade80"
+                  gradientTo="#16a34a"
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Schedules */}
         <motion.div variants={fadeUp} className="mt-4">

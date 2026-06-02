@@ -15,6 +15,7 @@ export type Group = {
   capacity: number;
   price: number;
   payment_mode: PaymentMode;
+  refund_absences: boolean;
   schedules: Schedule[];
   join_code: string;
   created_at: string;

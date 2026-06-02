@@ -69,6 +69,7 @@ export async function PATCH(
   if (body.capacity !== undefined) updates.capacity = body.capacity;
   if (body.price !== undefined) updates.price = body.price;
   if (body.payment_mode !== undefined) updates.payment_mode = body.payment_mode;
+  if (body.refund_absences !== undefined) updates.refund_absences = body.refund_absences;
   if (body.schedules !== undefined) updates.schedules = body.schedules;
 
   const { data, error } = await supabase
