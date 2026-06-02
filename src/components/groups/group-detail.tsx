@@ -289,7 +289,7 @@ export function GroupDetail({
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className="btn-push rounded-xl px-3 py-2 text-[11px] font-bold"
+                className="btn-push rounded-xl px-2.5 py-2 text-[11px] font-bold"
                 style={{
                   background: copied ? "linear-gradient(135deg, #22c55e, #16a34a)" : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
                   color: copied ? "#fff" : "#7c3aed",
@@ -298,12 +298,38 @@ export function GroupDetail({
                   "--push-depth": "2px",
                 } as React.CSSProperties}
               >
-                {copied ? tJoin("copied") : tJoin("share")}
+                {copied ? tJoin("copied") : tJoin("copy")}
               </button>
             </div>
             <div className="mt-3 flex justify-center">
               <QrCode value={`${typeof window !== "undefined" ? window.location.origin : ""}/${locale}/join?code=${group.join_code}`} />
             </div>
+            <button
+              onClick={() => {
+                const joinUrl = `${window.location.origin}/${locale}/join?code=${group.join_code}`;
+                const text = `${tJoin("shareMessage", { name: group.name, code: group.join_code })}\n${joinUrl}`;
+                if (navigator.share) {
+                  navigator.share({ title: group.name, text }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(text);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }
+              }}
+              className="btn-push mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[12px] font-extrabold text-white"
+              style={{
+                background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                "--push-shadow": "#15803d",
+                "--push-glow": "rgba(34,197,94,0.4)",
+              } as React.CSSProperties}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                <polyline points="16 6 12 2 8 6" />
+                <line x1="12" y1="2" x2="12" y2="15" />
+              </svg>
+              {tJoin("shareLink")}
+            </button>
           </div>
         </motion.div>
 

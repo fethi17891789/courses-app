@@ -30,6 +30,7 @@ export type TodaySession = {
   start_time: string;
   end_time: string;
   price: number;
+  payment_mode: string;
   completed: boolean;
   called_student_ids: string[];
   students: {
@@ -37,5 +38,6 @@ export type TodaySession = {
     full_name: string;
     phone: string | null;
     level: string;
+    payment_due: boolean;
   }[];
 };

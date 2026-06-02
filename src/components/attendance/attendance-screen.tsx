@@ -25,6 +25,7 @@ type StudentCard = {
   full_name: string;
   phone: string | null;
   level: string;
+  payment_due: boolean;
 };
 
 type SwipeResult = {
@@ -76,7 +77,7 @@ export function AttendanceScreen() {
     if (!student) return;
 
     const status = direction === "left" ? "absent" : "present";
-    const paid = direction === "right";
+    const paid = direction === "right" && student.payment_due;
 
     const result: SwipeResult = { student_id: student.id, status, paid };
     const newResults = [...results, result];
@@ -251,17 +252,25 @@ export function AttendanceScreen() {
             </div>
 
             {/* Swipe hints */}
-            <div className="mb-4 flex justify-between px-2">
-              <span className="rounded-lg bg-red-50 px-2 py-1 text-[9px] font-bold text-red-500">
-                {t("swipeLeft")}
-              </span>
-              <span className="rounded-lg bg-amber-50 px-2 py-1 text-[9px] font-bold text-amber-600">
-                {t("swipeUp")}
-              </span>
-              <span className="rounded-lg bg-green-50 px-2 py-1 text-[9px] font-bold text-green-600">
-                {t("swipeRight")}
-              </span>
-            </div>
+            {(() => {
+              const currentStudent = remainingStudents[currentIndex];
+              const hasPay = currentStudent?.payment_due;
+              return (
+                <div className={`mb-4 flex px-2 ${hasPay ? "justify-between" : "justify-between"}`}>
+                  <span className="rounded-lg bg-red-50 px-2 py-1 text-[9px] font-bold text-red-500">
+                    {t("swipeLeft")}
+                  </span>
+                  {hasPay && (
+                    <span className="rounded-lg bg-amber-50 px-2 py-1 text-[9px] font-bold text-amber-600">
+                      {t("swipeUp")}
+                    </span>
+                  )}
+                  <span className="rounded-lg bg-green-50 px-2 py-1 text-[9px] font-bold text-green-600">
+                    {hasPay ? t("swipeRight") : t("present")}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Card stack */}
             <div className="relative mx-auto h-[340px] w-full max-w-[300px]">

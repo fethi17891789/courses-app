@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data: groups, error } = await supabase
     .from("groups")
-    .select("id, name, schedules, price, group_members(id, student_id, enrolled_sessions, student:students(id, full_name, phone, level))")
+    .select("id, name, schedules, price, payment_mode, group_members(id, student_id, enrolled_sessions, student:students(id, full_name, phone, level))")
     .eq("teacher_id", user.id);
 
   if (error) {
@@ -41,6 +41,26 @@ export async function GET() {
     calledMap.get(key)!.add(a.student_id);
   }
 
+  // Get payments for current month and current week
+  const currentMonth = today.slice(0, 7); // "YYYY-MM"
+  const weekStart = new Date(algeriaTime);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekStartStr = weekStart.toISOString().split("T")[0];
+
+  const { data: recentPayments } = await supabase
+    .from("payments")
+    .select("group_id, student_id, session_date")
+    .eq("teacher_id", user.id)
+    .gte("session_date", `${currentMonth}-01`);
+
+  // Map: "groupId-studentId" -> Set of payment dates
+  const paymentMap = new Map<string, string[]>();
+  for (const p of recentPayments || []) {
+    const key = `${p.group_id}-${p.student_id}`;
+    if (!paymentMap.has(key)) paymentMap.set(key, []);
+    paymentMap.get(key)!.push(p.session_date);
+  }
+
   const sessions = [];
 
   for (const group of groups || []) {
@@ -54,11 +74,26 @@ export async function GET() {
           if (!m.enrolled_sessions || m.enrolled_sessions.length === 0) return true;
           return m.enrolled_sessions.includes(schedule.day);
         })
-        .map((m: any) => m.student)
+        .map((m: any) => {
+          const s = m.student;
+          if (!s) return null;
+          const payKey = `${group.id}-${s.id}`;
+          const dates = paymentMap.get(payKey) || [];
+          let paymentDue = true;
+
+          if (group.payment_mode === "monthly") {
+            paymentDue = !dates.some((d: string) => d.startsWith(currentMonth));
+          } else if (group.payment_mode === "weekly") {
+            paymentDue = !dates.some((d: string) => d >= weekStartStr);
+          }
+          // per_session: always due
+
+          return { ...s, payment_due: paymentDue };
+        })
         .filter(Boolean);
 
-      const key = `${group.id}-${schedule.day}`;
-      const calledIds = calledMap.get(key) || new Set();
+      const sessionKey = `${group.id}-${schedule.day}`;
+      const calledIds = calledMap.get(sessionKey) || new Set();
       const completed = students.length > 0 && students.every((s: any) => calledIds.has(s.id));
       const calledStudentIds = Array.from(calledIds);
 
@@ -69,6 +104,7 @@ export async function GET() {
         start_time: schedule.start_time,
         end_time: schedule.end_time,
         price: group.price,
+        payment_mode: group.payment_mode,
         students,
         completed,
         called_student_ids: calledStudentIds,

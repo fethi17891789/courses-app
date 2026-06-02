@@ -200,7 +200,11 @@
     "paymentsHistory": "Paiements",
     "noPayments": "Aucun paiement",
     "totalPaid": "Total paye",
-    "memberOf": "Membre de"
+    "memberOf": "Membre de",
+    "addPayment": "Enregistrer un paiement",
+    "amount": "Montant",
+    "paymentSaved": "Paiement enregistre",
+    "close": "Fermer"
   },
   "join": {
     "title": "Rejoindre un groupe",
@@ -235,7 +239,10 @@
     "shareCode": "Code du groupe",
     "shareQr": "QR Code",
     "share": "Partager",
-    "copied": "Code copie !"
+    "copy": "Copier",
+    "copied": "Copie !",
+    "shareLink": "Partager le lien",
+    "shareMessage": "Rejoins mon groupe {name} avec le code {code} :"
   },
   "studentDashboard": {
     "subtitle": "Espace eleve",

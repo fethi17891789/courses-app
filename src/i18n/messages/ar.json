@@ -200,7 +200,11 @@
     "paymentsHistory": "المدفوعات",
     "noPayments": "لا مدفوعات",
     "totalPaid": "المجموع المدفوع",
-    "memberOf": "عضو في"
+    "memberOf": "عضو في",
+    "addPayment": "تسجيل دفع",
+    "amount": "المبلغ",
+    "paymentSaved": "تم تسجيل الدفع",
+    "close": "إغلاق"
   },
   "join": {
     "title": "الانضمام إلى فوج",
@@ -235,7 +239,10 @@
     "shareCode": "رمز الفوج",
     "shareQr": "رمز QR",
     "share": "مشاركة",
-    "copied": "تم نسخ الرمز !"
+    "copy": "نسخ",
+    "copied": "تم النسخ !",
+    "shareLink": "مشاركة الرابط",
+    "shareMessage": "انضم لفوجي {name} بالرمز {code} :"
   },
   "studentDashboard": {
     "subtitle": "فضاء التلميذ",

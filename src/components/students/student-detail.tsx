@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
@@ -71,6 +71,11 @@ export function StudentDetail({ studentId }: { studentId: string }) {
 
   const [student, setStudent] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showPayment, setShowPayment] = useState(false);
+  const [payGroupId, setPayGroupId] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [paying, setPaying] = useState(false);
+  const [paySuccess, setPaySuccess] = useState(false);
 
   useEffect(() => {
     fetch(`/api/students/${studentId}`)
@@ -272,7 +277,168 @@ export function StudentDetail({ studentId }: { studentId: string }) {
             </>
           )}
         </motion.div>
+
+        {/* Add payment button */}
+        {student.group_members.length > 0 && (
+          <motion.div variants={fadeUp} className="mt-4">
+            <button
+              onClick={() => {
+                setPayGroupId(student.group_members[0].group_id);
+                setPayAmount(String(student.group_members[0].groups?.price || ""));
+                setShowPayment(true);
+                setPaySuccess(false);
+              }}
+              className="btn-push flex w-full items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-extrabold text-white"
+              style={{
+                background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                "--push-shadow": "#15803d",
+                "--push-glow": "rgba(34,197,94,0.4)",
+              } as React.CSSProperties}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              {t("addPayment")}
+            </button>
+          </motion.div>
+        )}
       </div>
+
+      {/* Payment overlay */}
+      <AnimatePresence>
+        {showPayment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/30"
+            onClick={() => setShowPayment(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ duration: 0.3, ease }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-2xl bg-white px-5 pb-8 pt-5"
+              style={{ boxShadow: "0 -8px 32px -8px rgba(30,27,75,0.15)" }}
+            >
+              {paySuccess ? (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="py-4 text-center"
+                >
+                  <div
+                    className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl"
+                    style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", boxShadow: "0 3px 0 #15803d" }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </div>
+                  <p className="text-[14px] font-extrabold text-[#1e1b4b]">{t("paymentSaved")}</p>
+                  <button
+                    onClick={() => setShowPayment(false)}
+                    className="btn-push mt-4 w-full rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed]"
+                    style={{ "--push-shadow": "#ddd6fe", "--push-glow": "rgba(124,58,237,0.1)" } as React.CSSProperties}
+                  >
+                    {t("close")}
+                  </button>
+                </motion.div>
+              ) : (
+                <>
+                  <p className="text-[15px] font-extrabold text-[#1e1b4b]">{t("addPayment")}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-[#1e1b4b]/40">{student.full_name}</p>
+
+                  {/* Group select */}
+                  {student.group_members.length > 1 && (
+                    <div className="mt-4">
+                      <p className="mb-1.5 text-[12px] font-bold text-[#1e1b4b]/50">{t("groups")}</p>
+                      <select
+                        value={payGroupId}
+                        onChange={(e) => {
+                          setPayGroupId(e.target.value);
+                          const gm = student.group_members.find((m) => m.group_id === e.target.value);
+                          setPayAmount(String(gm?.groups?.price || ""));
+                        }}
+                        className="w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 py-2.5 text-[12px] font-extrabold text-[#1e1b4b] outline-none focus:border-[#7c3aed]"
+                      >
+                        {student.group_members.map((gm) => (
+                          <option key={gm.group_id} value={gm.group_id}>
+                            {gm.groups?.name || gm.group_id.slice(0, 8)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Amount */}
+                  <div className="mt-4">
+                    <p className="mb-1.5 text-[12px] font-bold text-[#1e1b4b]/50">{t("amount")}</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={payAmount}
+                        onChange={(e) => setPayAmount(e.target.value)}
+                        className="h-12 flex-1 rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-4 text-[18px] font-extrabold text-[#22c55e] outline-none focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+                      />
+                      <span className="text-[14px] font-extrabold text-[#1e1b4b]/40">DA</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setShowPayment(false)}
+                      className="btn-push rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed]"
+                      style={{ "--push-shadow": "#ddd6fe", "--push-glow": "rgba(124,58,237,0.1)" } as React.CSSProperties}
+                    >
+                      {t("cancel")}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!payAmount || Number(payAmount) <= 0) return;
+                        setPaying(true);
+                        const res = await fetch("/api/payments", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            group_id: payGroupId,
+                            student_id: student.id,
+                            amount: Number(payAmount),
+                          }),
+                        });
+                        if (res.ok) {
+                          const newPayment = await res.json();
+                          const gm = student.group_members.find((m) => m.group_id === payGroupId);
+                          setStudent({
+                            ...student,
+                            payments: [{ ...newPayment, groups: gm?.groups ? { name: gm.groups.name } : null }, ...student.payments],
+                          });
+                          setPaySuccess(true);
+                        }
+                        setPaying(false);
+                      }}
+                      disabled={paying || !payAmount || Number(payAmount) <= 0}
+                      className="btn-push rounded-xl py-3 text-[13px] font-extrabold text-white disabled:opacity-60"
+                      style={{
+                        background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                        "--push-shadow": "#15803d",
+                        "--push-glow": "rgba(34,197,94,0.4)",
+                      } as React.CSSProperties}
+                    >
+                      {paying ? "..." : t("confirm")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="h-24 shrink-0" />
       <BottomNav active="students" />
