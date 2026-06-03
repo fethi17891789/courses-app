@@ -382,7 +382,7 @@ export function JoinGroup({
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="flex min-h-[100dvh] flex-col bg-[#f0ecff]"
+      className="flex min-h-[100dvh] flex-col bg-[#f0fdf4]"
     >
       <motion.div variants={fadeUp} className="px-5 pb-1 pt-10">
         <h1 className="text-[20px] font-extrabold text-[#1e1b4b]">
@@ -401,7 +401,7 @@ export function JoinGroup({
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder={t("codePlaceholder")}
                 maxLength={6}
-                className="h-12 flex-1 rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-4 font-mono text-[18px] font-black tracking-[0.15em] text-[#7c3aed] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/20 focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+                className="h-12 flex-1 rounded-xl border-2 border-[#bbf7d0] bg-[#f7fef9] px-4 font-mono text-[18px] font-black tracking-[0.15em] text-[#22c55e] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#1e1b4b]/20 focus:border-[#22c55e] focus:shadow-[0_0_0_4px_rgba(34,197,94,0.12)]"
               />
               <button
                 onClick={scanning ? stopScanner : startScanner}
@@ -458,11 +458,11 @@ export function JoinGroup({
               disabled={lookingUp || !code.trim()}
               className="w-full rounded-xl py-3 text-[14px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-50"
               style={{
-                background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+                background: "linear-gradient(135deg, #4ade80, #16a34a)",
                 transform: `translateY(${lookupPressed ? 3 : 0}px)`,
                 boxShadow: lookupPressed
-                  ? "0 0px 0 #5b21b6"
-                  : "0 3px 0 #5b21b6, 0 6px 12px -4px rgba(124,58,237,0.4)",
+                  ? "0 0px 0 #15803d"
+                  : "0 3px 0 #15803d, 0 6px 12px -4px rgba(34,197,94,0.4)",
               }}
             >
               {lookingUp ? "..." : t("lookup")}

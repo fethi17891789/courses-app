@@ -17,5 +17,6 @@ export default async function SettingsPage({
     redirect(`/${locale}/login`);
   }
 
-  return <SettingsContent user={user} />;
+  const role = user.user_metadata?.role || "prof";
+  return <SettingsContent user={user} role={role} />;
 }

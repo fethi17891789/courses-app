@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -108,15 +108,29 @@ export function StudentDashboard({ user }: { user: User }) {
     .toUpperCase()
     .slice(0, 2);
   const [pressed, setPressed] = useState<string | null>(null);
+  const [stats, setStats] = useState({ groups: 0, sessionsToday: 0 });
 
   const greetingKey = useMemo(() => getGreetingKey(), []);
+
+  useEffect(() => {
+    fetch("/api/student/me")
+      .then((r) => r.json())
+      .then((data) => {
+        const groups = data.groups?.length || 0;
+        const today = new Date().getDay();
+        const schedule = data.schedule || {};
+        const sessionsToday = (schedule[today] || []).length;
+        setStats({ groups, sessionsToday });
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <motion.main
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="flex min-h-[100dvh] flex-col bg-[#f0ecff]"
+      className="flex min-h-[100dvh] flex-col bg-[#f0fdf4]"
     >
       {/* Header */}
       <motion.div variants={fadeUp} className="px-5 pb-1 pt-10">
@@ -149,13 +163,40 @@ export function StudentDashboard({ user }: { user: User }) {
         </div>
       </motion.div>
 
-      <div className="flex-1 overflow-y-auto px-5 pt-5 pb-2 scrollbar-hide">
-        {/* Join group - main action */}
-        <motion.div variants={fadeUp}>
+      {/* Stats strip */}
+      <motion.div
+        variants={fadeUp}
+        className="mx-5 mt-3 grid grid-cols-2 gap-2"
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.15 }}
+          className="flex flex-col items-center gap-1 rounded-xl bg-white px-2 py-3"
+          style={{ boxShadow: "0 3px 0 rgba(34,197,94,0.15), 0 6px 16px -4px rgba(34,197,94,0.08)" }}
+        >
+          <span className="text-[20px] font-extrabold leading-none text-[#22c55e]">{stats.groups}</span>
+          <span className="text-[10px] font-bold text-[#1e1b4b]/50">{tDash("statGroups")}</span>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.2 }}
+          className="flex flex-col items-center gap-1 rounded-xl bg-white px-2 py-3"
+          style={{ boxShadow: "0 3px 0 rgba(249,115,22,0.15), 0 6px 16px -4px rgba(249,115,22,0.08)" }}
+        >
+          <span className="text-[20px] font-extrabold leading-none text-[#f97316]">{stats.sessionsToday}</span>
+          <span className="text-[10px] font-bold text-[#1e1b4b]/50">{tDash("statSessions")}</span>
+        </motion.div>
+      </motion.div>
+
+      <div className="flex-1 overflow-y-auto px-5 pt-4 pb-2 scrollbar-hide">
+        {/* Quick actions - 2 columns: purple left (rejoindre), green right (paiements) */}
+        <motion.div variants={fadeUp} className="grid grid-cols-2 gap-3">
           <ActionCard
-            gradient="linear-gradient(150deg, #86efac 0%, #22c55e 60%, #16a34a 100%)"
-            shadow3d="#15803d"
-            shadowGlow="rgba(34,197,94,0.4)"
+            gradient="linear-gradient(150deg, #a78bfa 0%, #7c3aed 60%, #6d28d9 100%)"
+            shadow3d="#5b21b6"
+            shadowGlow="rgba(124,58,237,0.4)"
             icon={
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                 <motion.g
@@ -178,16 +219,44 @@ export function StudentDashboard({ user }: { user: User }) {
             onPress={() => setPressed("join")}
             onRelease={() => setPressed(null)}
             onClick={() => router.push(`/${locale}/join`)}
-            className="w-full"
+          />
+
+          <ActionCard
+            gradient="linear-gradient(150deg, #86efac 0%, #22c55e 60%, #16a34a 100%)"
+            shadow3d="#15803d"
+            shadowGlow="rgba(34,197,94,0.4)"
+            icon={
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <motion.g
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 16, delay: 0.35 }}
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M3 5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V5zm2 0a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2H5V5zm0 5h14v3h-4.5a2.5 2.5 0 0 0 0 5H19v2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-10z"
+                    fill="white"
+                  />
+                  <circle cx="16" cy="15.5" r="1.5" fill="white" />
+                </motion.g>
+              </svg>
+            }
+            label={t("myPayments")}
+            description={t("myPaymentsDesc")}
+            pressed={pressed === "payments"}
+            onPress={() => setPressed("payments")}
+            onRelease={() => setPressed(null)}
+            onClick={() => router.push(`/${locale}/student/history`)}
           />
         </motion.div>
 
-        {/* Schedule */}
+        {/* Schedule full width (orange) */}
         <motion.div variants={fadeUp} className="mt-3">
           <ActionCard
-            gradient="linear-gradient(150deg, #a78bfa 0%, #7c3aed 60%, #6d28d9 100%)"
-            shadow3d="#5b21b6"
-            shadowGlow="rgba(124,58,237,0.4)"
+            gradient="linear-gradient(150deg, #fdba74 0%, #f97316 60%, #ea580c 100%)"
+            shadow3d="#c2410c"
+            shadowGlow="rgba(249,115,22,0.4)"
             icon={
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                 <motion.g
@@ -214,37 +283,60 @@ export function StudentDashboard({ user }: { user: User }) {
           />
         </motion.div>
 
-        {/* Payments */}
-        <motion.div variants={fadeUp} className="mt-3">
-          <ActionCard
-            gradient="linear-gradient(150deg, #fdba74 0%, #f97316 60%, #ea580c 100%)"
-            shadow3d="#c2410c"
-            shadowGlow="rgba(249,115,22,0.4)"
-            icon={
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <motion.g
-                  initial={{ scale: 0.6, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 16, delay: 0.35 }}
+        {/* Quiz card */}
+        <motion.div variants={fadeUp} className="mt-4">
+          <div
+            className="relative w-full overflow-hidden rounded-xl p-5"
+            style={{
+              background: "linear-gradient(150deg, #fde68a 0%, #fbbf24 60%, #f59e0b 100%)",
+              boxShadow: "0 4px 0 #b45309, 0 8px 20px -6px rgba(251,191,36,0.4)",
+            }}
+          >
+            <div
+              className="absolute -right-6 -top-6 h-28 w-28 rounded-full opacity-20"
+              style={{ background: "radial-gradient(circle, rgba(255,255,255,0.7), transparent 70%)" }}
+            />
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="flex-1">
+                <h3 className="text-[16px] font-extrabold text-white">{t("quiz")}</h3>
+                <p className="mt-1 text-[11px] font-semibold text-white/60">{t("quizDesc")}</p>
+                <button
+                  onPointerDown={() => setPressed("quiz")}
+                  onPointerUp={() => setPressed(null)}
+                  onPointerLeave={() => setPressed(null)}
+                  className="mt-3 inline-flex items-center rounded-xl bg-white px-4 py-2 text-[12px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"
+                  style={{
+                    color: "#b45309",
+                    transform: `translateY(${pressed === "quiz" ? 3 : 0}px)`,
+                    boxShadow: pressed === "quiz"
+                      ? "0 0px 0 #d97706"
+                      : "0 3px 0 #d97706, 0 4px 8px -2px rgba(217,119,6,0.2)",
+                  }}
                 >
-                  <path
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                    d="M3 5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V5zm2 0a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2H5V5zm0 5h14v3h-4.5a2.5 2.5 0 0 0 0 5H19v2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-10z"
-                    fill="white"
-                  />
-                  <circle cx="16" cy="15.5" r="1.5" fill="white" />
-                </motion.g>
-              </svg>
-            }
-            label={t("myPayments")}
-            description={t("myPaymentsDesc")}
-            pressed={pressed === "payments"}
-            onPress={() => setPressed("payments")}
-            onRelease={() => setPressed(null)}
-            onClick={() => router.push(`/${locale}/student/history`)}
-            className="w-full"
-          />
+                  {t("quizCta")}
+                </button>
+              </div>
+              <motion.div
+                initial={{ scale: 0, rotate: -20 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 15, delay: 0.5 }}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20"
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <motion.g
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 16, delay: 0.4 }}
+                  >
+                    <rect x="1" y="11" width="7" height="11" rx="2" fill="white" opacity="0.7" />
+                    <rect x="8.5" y="4" width="7" height="18" rx="2" fill="white" />
+                    <rect x="16" y="14" width="7" height="8" rx="2" fill="white" opacity="0.5" />
+                    <path d="M12 7l1 2.2 2.4.2-1.8 1.6.5 2.4L12 12.2 9.9 13.4l.5-2.4-1.8-1.6 2.4-.2L12 7z" fill="rgba(251,191,36,0.7)" />
+                  </motion.g>
+                </svg>
+              </motion.div>
+            </div>
+          </div>
         </motion.div>
 
         <div className="h-28" />

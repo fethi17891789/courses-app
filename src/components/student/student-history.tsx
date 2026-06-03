@@ -70,19 +70,19 @@ export function StudentHistoryScreen() {
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="flex min-h-[100dvh] flex-col bg-[#f0ecff]"
+      className="flex min-h-[100dvh] flex-col bg-[#f0fdf4]"
     >
       <motion.div variants={fadeUp} className="flex items-center gap-3 px-5 pb-1 pt-10">
         <button
           onClick={() => router.push(`/${locale}/dashboard`)}
           className="btn-push flex h-9 w-9 items-center justify-center rounded-xl"
           style={{
-            background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-            "--push-shadow": "#e9e5f5",
-            "--push-glow": "rgba(124,58,237,0.1)",
+            background: "linear-gradient(135deg, #f0fdf4, #dcfce7)",
+            "--push-shadow": "#bbf7d0",
+            "--push-glow": "rgba(34,197,94,0.1)",
           } as React.CSSProperties}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
@@ -96,14 +96,14 @@ export function StudentHistoryScreen() {
         <motion.div variants={fadeUp}>
           <div
             className="relative grid grid-cols-2 rounded-xl p-1 text-[12px] font-extrabold"
-            style={{ backgroundColor: "rgba(124,58,237,0.07)" }}
+            style={{ backgroundColor: "rgba(34,197,94,0.07)" }}
           >
             {(["absences", "payments"] as const).map((t2) => (
               <button
                 key={t2}
                 onClick={() => setTab(t2)}
                 className="relative z-10 rounded-lg py-2.5 transition-colors duration-200"
-                style={{ color: tab === t2 ? "#ffffff" : "#7c3aed" }}
+                style={{ color: tab === t2 ? "#ffffff" : "#1e1b4b80" }}
               >
                 {t2 === "absences" ? t("myAbsences") : t("myPayments")}
               </button>
@@ -125,12 +125,12 @@ export function StudentHistoryScreen() {
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#7c3aed] border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#22c55e] border-t-transparent" />
           </div>
         ) : tab === "absences" ? (
           <motion.div variants={fadeUp} className="mt-4">
             {absences.length === 0 ? (
-              <div className="rounded-xl bg-white p-6 text-center" style={{ boxShadow: "0 2px 0 #e9e5f5" }}>
+              <div className="rounded-xl bg-white p-6 text-center" style={{ boxShadow: "0 2px 0 #bbf7d0" }}>
                 <div
                   className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl"
                   style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", boxShadow: "0 2px 0 #15803d" }}
@@ -147,7 +147,7 @@ export function StudentHistoryScreen() {
                   <div
                     key={a.id}
                     className="flex items-center gap-3 rounded-xl bg-white px-4 py-3"
-                    style={{ boxShadow: "0 2px 0 #e9e5f5" }}
+                    style={{ boxShadow: "0 2px 0 #bbf7d0" }}
                   >
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-black text-white"
@@ -171,14 +171,14 @@ export function StudentHistoryScreen() {
         ) : (
           <motion.div variants={fadeUp} className="mt-4">
             {payments.length === 0 ? (
-              <div className="rounded-xl bg-white p-6 text-center" style={{ boxShadow: "0 2px 0 #e9e5f5" }}>
+              <div className="rounded-xl bg-white p-6 text-center" style={{ boxShadow: "0 2px 0 #bbf7d0" }}>
                 <p className="text-[13px] font-extrabold text-[#1e1b4b]">{t("noPayments")}</p>
               </div>
             ) : (
               <>
                 <div
                   className="mb-3 rounded-xl bg-white px-4 py-3"
-                  style={{ boxShadow: "0 2px 0 #e9e5f5" }}
+                  style={{ boxShadow: "0 2px 0 #bbf7d0" }}
                 >
                   <p className="text-[11px] font-bold text-[#1e1b4b]/40">{t("totalPaid")}</p>
                   <p className="text-[18px] font-extrabold text-[#22c55e]">{totalPaid} DA</p>
@@ -188,7 +188,7 @@ export function StudentHistoryScreen() {
                     <div
                       key={p.id}
                       className="flex items-center gap-3 rounded-xl bg-white px-4 py-3"
-                      style={{ boxShadow: "0 2px 0 #e9e5f5" }}
+                      style={{ boxShadow: "0 2px 0 #bbf7d0" }}
                     >
                       <div
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-black text-white"

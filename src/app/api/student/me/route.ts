@@ -59,19 +59,66 @@ export async function GET() {
     .order("session_date", { ascending: false })
     .limit(50);
 
-  // Build schedule: day -> sessions
+  // Build schedule: day -> sessions with payment info
+  const now = new Date();
+  const algeriaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Algiers" }));
+  const currentYear = algeriaTime.getFullYear();
+  const currentMonth = algeriaTime.getMonth();
+  const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
   const schedule: Record<number, any[]> = {};
   for (let d = 0; d < 7; d++) schedule[d] = [];
 
   for (const g of groups) {
     const enrolled = g.enrolled_sessions || [];
+    const scheduleDays = g.schedules.map((s: any) => s.day);
+    const refund = g.refund_absences || false;
+
     for (const s of g.schedules) {
       if (enrolled.length > 0 && !enrolled.includes(s.day)) continue;
+
+      let isPaymentSession = false;
+      if (g.payment_mode === "per_session") {
+        isPaymentSession = true;
+      } else if (g.payment_mode === "weekly") {
+        const sorted = [...scheduleDays].sort((a: number, b: number) => a - b);
+        isPaymentSession = refund ? sorted[sorted.length - 1] === s.day : sorted[0] === s.day;
+      } else if (g.payment_mode === "monthly") {
+        if (refund) {
+          let lastScheduleDate = 0;
+          for (let d = 1; d <= lastDayOfMonth; d++) {
+            const date = new Date(currentYear, currentMonth, d);
+            if (scheduleDays.includes(date.getDay())) lastScheduleDate = d;
+          }
+          let lastThisDay = 0;
+          for (let d = 1; d <= lastDayOfMonth; d++) {
+            const date = new Date(currentYear, currentMonth, d);
+            if (date.getDay() === s.day) lastThisDay = d;
+          }
+          isPaymentSession = lastThisDay === lastScheduleDate;
+        } else {
+          let firstScheduleDate = lastDayOfMonth + 1;
+          for (let d = 1; d <= lastDayOfMonth; d++) {
+            const date = new Date(currentYear, currentMonth, d);
+            if (scheduleDays.includes(date.getDay())) { firstScheduleDate = d; break; }
+          }
+          let firstThisDay = lastDayOfMonth + 1;
+          for (let d = 1; d <= lastDayOfMonth; d++) {
+            const date = new Date(currentYear, currentMonth, d);
+            if (date.getDay() === s.day) { firstThisDay = d; break; }
+          }
+          isPaymentSession = firstThisDay === firstScheduleDate;
+        }
+      }
+
       schedule[s.day].push({
         group_name: g.group_name,
         level: g.level,
         start_time: s.start_time,
         end_time: s.end_time,
+        price: g.price,
+        payment_mode: g.payment_mode,
+        is_payment_session: isPaymentSession,
       });
     }
   }

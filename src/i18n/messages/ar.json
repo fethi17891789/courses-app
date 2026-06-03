@@ -261,17 +261,20 @@
   "studentDashboard": {
     "subtitle": "فضاء التلميذ",
     "joinGroup": "الانضمام إلى فوج",
-    "joinGroupDesc": "أدخل رمز الأستاذ",
-    "mySchedule": "جدول حصصي",
-    "myScheduleDesc": "اطّلع على حصصك القادمة",
+    "joinGroupDesc": "برمز الأستاذ",
+    "mySchedule": "جدول الحصص",
+    "myScheduleDesc": "حصصك القادمة",
     "myPayments": "مدفوعاتي",
-    "myPaymentsDesc": "تتبع حالة مدفوعاتك",
+    "myPaymentsDesc": "مدفوعاتك",
     "noGroups": "لست مسجلا في أي فوج",
     "noGroupsDesc": "انضم إلى فوج برمز الأستاذ",
     "myAbsences": "غياباتي",
     "noAbsences": "لا غيابات",
     "noPayments": "لا مدفوعات",
-    "totalPaid": "المجموع المدفوع"
+    "totalPaid": "المجموع المدفوع",
+    "quiz": "اختبار",
+    "quizDesc": "انضم إلى اختبار الأستاذ",
+    "quizCta": "انضم"
   },
   "settings": {
     "logout": "تسجيل الخروج",
