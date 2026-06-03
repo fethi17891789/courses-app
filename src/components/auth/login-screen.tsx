@@ -367,13 +367,7 @@ function LoginScreenInner({
   const [role, setRole] = useState<Role>("prof");
   const [submitPressed, setSubmitPressed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "true") {
-      window.history.replaceState(null, "", window.location.pathname);
-      return null;
-    }
-    return null;
-  });
+  const [error, setError] = useState<string | null>(null);
   const [expiredMessage, setExpiredMessage] = useState(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "true") {
       return true;
@@ -391,6 +385,11 @@ function LoginScreenInner({
       hasSignedOutOnMount.current = true;
       const supabase = createClient();
       supabase.auth.signOut().then(() => {
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("expired");
+          window.history.replaceState(null, "", url.pathname + url.search);
+        }
         router.refresh();
       });
     }
