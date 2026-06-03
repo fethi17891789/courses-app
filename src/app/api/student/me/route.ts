@@ -12,17 +12,13 @@ export async function GET() {
   }
 
   // Find student records linked to this auth user
-  const { data: students, error: studentsError } = await supabase
+  const { data: students } = await supabase
     .from("students")
     .select("id, full_name, teacher_id, group_members(group_id, enrolled_sessions, groups:groups(id, name, level, section, schedules, price, payment_mode, teacher_id))")
     .eq("auth_user_id", user.id);
 
-  if (studentsError) {
-    return NextResponse.json({ debug: "students_error", error: studentsError.message, user_id: user.id });
-  }
-
   if (!students || students.length === 0) {
-    return NextResponse.json({ debug: "no_students_found", user_id: user.id, groups: [], absences: [], payments: [] });
+    return NextResponse.json({ groups: [], schedule: {}, absences: [], payments: [] });
   }
 
   const studentIds = students.map((s) => s.id);
