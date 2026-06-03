@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { rateLimitByIp } from "@/lib/rate-limit";
 
 function getSupabaseAdmin() {
   return createClient(
@@ -10,6 +11,11 @@ function getSupabaseAdmin() {
 }
 
 export async function POST(request: Request) {
+  const { allowed } = rateLimitByIp(request, "renew", 5, 15 * 60 * 1000);
+  if (!allowed) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const supabase = await createServerClient();
   const {
     data: { user },

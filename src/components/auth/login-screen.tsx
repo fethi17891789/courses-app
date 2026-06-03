@@ -9,7 +9,7 @@ import { PageTransition } from "@/components/auth/page-transition";
 import frMessages from "@/i18n/messages/fr.json";
 import arMessages from "@/i18n/messages/ar.json";
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "forgot";
 type Role = "prof" | "eleve" | "parent";
 type Locale = "fr" | "ar";
 
@@ -139,6 +139,71 @@ const fieldIcons: Record<string, (color: string, filled: boolean) => React.React
 };
 
 const layoutTransition = { type: "spring" as const, stiffness: 200, damping: 28 };
+
+function getPasswordScore(pw: string) {
+  const hasMinLength = pw.length >= 8;
+  const hasLetter = /[a-zA-Z]/.test(pw);
+  const hasNumber = /[0-9]/.test(pw);
+  return { hasMinLength, hasLetter, hasNumber, score: [hasMinLength, hasLetter, hasNumber].filter(Boolean).length };
+}
+
+function PasswordStrengthBar({ password, theme }: { password: string; theme: Theme }) {
+  const t = useTranslations("auth");
+  const { hasMinLength, hasLetter, hasNumber, score } = getPasswordScore(password);
+
+  if (password.length === 0) return null;
+
+  const levels = [
+    { label: t("passwordWeak"), color: "#ef4444", width: "33%" },
+    { label: t("passwordFair"), color: "#f97316", width: "66%" },
+    { label: t("passwordGood"), color: "#22c55e", width: "100%" },
+  ];
+  const level = levels[Math.max(0, score - 1)];
+
+  const criteria = [
+    { met: hasMinLength, text: t("passwordMinLength") },
+    { met: hasLetter, text: t("passwordHasLetter") },
+    { met: hasNumber, text: t("passwordHasNumber") },
+  ];
+
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      className="overflow-hidden"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: `${theme.primary}15` }}>
+          <div
+            className="h-full rounded-full transition-all duration-300 ease-out"
+            style={{ width: level.width, backgroundColor: level.color }}
+          />
+        </div>
+        <span className="text-[10px] font-bold shrink-0 transition-colors duration-200" style={{ color: level.color }}>
+          {level.label}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+        {criteria.map(({ met, text }) => (
+          <span
+            key={text}
+            className="text-[10px] font-semibold transition-colors duration-200 flex items-center gap-1"
+            style={{ color: met ? "#22c55e" : "#1e1b4b40" }}
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              {met
+                ? <path d="M3 8.5 6.5 12 13 4" />
+                : <><path d="M4 4 12 12" /><path d="M12 4 4 12" /></>}
+            </svg>
+            {text}
+          </span>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
 
 function Field({
   label,
@@ -422,6 +487,33 @@ function LoginScreenInner({
     setExpiredMessage(false);
   }
 
+  async function handleForgotPassword() {
+    setError(null);
+    setSuccess(null);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      setError(t("errorEmail"));
+      return;
+    }
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: `${origin}/api/auth/callback?next=/${activeLocale}/reset-password`,
+      });
+      if (resetError) {
+        setError(t("errorGeneric"));
+        return;
+      }
+      setSuccess(t("forgotSuccess"));
+    } catch {
+      setError(t("errorGeneric"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSubmit() {
     setError(null);
     setSuccess(null);
@@ -431,9 +523,17 @@ function LoginScreenInner({
       setError(t("errorEmail"));
       return;
     }
-    if (password.length < 6) {
-      setError(t("errorPassword"));
-      return;
+    if (mode === "login") {
+      if (password.length < 6) {
+        setError(t("errorPassword"));
+        return;
+      }
+    } else if (mode === "signup") {
+      const { score } = getPasswordScore(password);
+      if (score < 3) {
+        setError(t("errorPasswordWeak"));
+        return;
+      }
     }
 
     setLoading(true);
@@ -466,6 +566,7 @@ function LoginScreenInner({
                 invalid_key: t("errorInvalidKey"),
                 key_already_used: t("errorKeyUsed"),
                 missing_key: t("errorMissingKey"),
+                too_many_requests: t("errorTooManyRequests"),
               };
               await supabase.auth.signOut();
               setExpiredMessage(true);
@@ -506,6 +607,8 @@ function LoginScreenInner({
             key_already_used: t("errorKeyUsed"),
             key_expired: t("errorKeyExpired"),
             missing_key: t("errorMissingKey"),
+            too_many_requests: t("errorTooManyRequests"),
+            weak_password: t("errorPasswordWeak"),
           };
           setError(errorMap[data.error] || t("errorGeneric"));
           return;
@@ -632,36 +735,44 @@ function LoginScreenInner({
               className="text-[18px] font-extrabold text-[#1e1b4b]"
               {...textAnim}
             >
-              {mode === "login" ? t("welcomeBack") : t("getStarted")}
+              {mode === "forgot" ? t("forgotTitle") : mode === "login" ? t("welcomeBack") : t("getStarted")}
             </motion.h2>
           </AnimatePresence>
         </div>
 
         {/* toggle */}
-        <div
-          className="relative mb-3 grid grid-cols-2 rounded-xl p-1 text-[13px] font-bold transition-colors duration-300"
-          style={{ backgroundColor: `${theme.primary}12` }}
-        >
-          {(["login", "signup"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => switchMode(m)}
-              className="relative z-10 rounded-lg py-2 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-              style={{ color: mode === m ? "#ffffff" : theme.primary }}
-            >
-              <FlipText locale={activeLocale}>{t(m)}</FlipText>
-            </button>
-          ))}
+        {mode !== "forgot" && (
           <div
-            className="absolute inset-y-1 w-[calc(50%-0.25rem)] overflow-hidden rounded-lg transition-[inset-inline-start,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
-            style={{
-              insetInlineStart: mode === "login" ? "0.25rem" : "calc(50%)",
-              boxShadow: `0 3px 0 ${theme.shadow3d}, 0 6px 12px -2px ${theme.shadowGlow}`,
-            }}
+            className="relative mb-3 grid grid-cols-2 rounded-xl p-1 text-[13px] font-bold transition-colors duration-300"
+            style={{ backgroundColor: `${theme.primary}12` }}
           >
-            <GradientLayers activeRole={role} rtl={isRtl} />
+            {(["login", "signup"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className="relative z-10 rounded-lg py-2 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                style={{ color: mode === m ? "#ffffff" : theme.primary }}
+              >
+                <FlipText locale={activeLocale}>{t(m)}</FlipText>
+              </button>
+            ))}
+            <div
+              className="absolute inset-y-1 w-[calc(50%-0.25rem)] overflow-hidden rounded-lg transition-[inset-inline-start,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
+              style={{
+                insetInlineStart: mode === "login" ? "0.25rem" : "calc(50%)",
+                boxShadow: `0 3px 0 ${theme.shadow3d}, 0 6px 12px -2px ${theme.shadowGlow}`,
+              }}
+            >
+              <GradientLayers activeRole={role} rtl={isRtl} />
+            </div>
           </div>
-        </div>
+        )}
+
+        {mode === "forgot" && (
+          <p className="mb-3 text-[12px] font-semibold text-[#1e1b4b]/60">
+            {t("forgotSubtitle")}
+          </p>
+        )}
 
         {/* fields */}
         <div className="flex flex-col gap-2.5">
@@ -770,14 +881,44 @@ function LoginScreenInner({
             onValueChange={setEmail}
           />
 
-          <Field
-            label={t("password")}
-            type="password"
-            theme={theme}
-            locale={activeLocale}
-            value={password}
-            onValueChange={setPassword}
-          />
+          {mode !== "forgot" && (
+            <Field
+              label={t("password")}
+              type="password"
+              theme={theme}
+              locale={activeLocale}
+              value={password}
+              onValueChange={setPassword}
+            />
+          )}
+
+          <AnimatePresence>
+            {mode === "signup" && (
+              <PasswordStrengthBar password={password} theme={theme} />
+            )}
+          </AnimatePresence>
+
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={() => switchMode("forgot")}
+              className="self-end text-[11px] font-bold transition-colors duration-150"
+              style={{ color: theme.primary }}
+            >
+              {t("forgotPassword")}
+            </button>
+          )}
+
+          {mode === "forgot" && (
+            <button
+              type="button"
+              onClick={() => switchMode("login")}
+              className="self-start text-[11px] font-bold transition-colors duration-150"
+              style={{ color: theme.primary }}
+            >
+              {t("backToLogin")}
+            </button>
+          )}
         </div>
 
         {/* error / success / expired messages */}
@@ -842,7 +983,7 @@ function LoginScreenInner({
           disabled={loading}
           onPressStart={() => setSubmitPressed(true)}
           onPressEnd={() => setSubmitPressed(false)}
-          onClick={handleSubmit}
+          onClick={mode === "forgot" ? handleForgotPassword : handleSubmit}
           className="mt-4 w-full py-3"
         >
           <GradientLayers activeRole={role} rtl={isRtl} />
@@ -857,9 +998,11 @@ function LoginScreenInner({
                   ? t("loading")
                   : expiredMessage
                     ? t("renewCta")
-                    : mode === "login"
-                      ? t("loginCta")
-                      : t("signupCta")}
+                    : mode === "forgot"
+                      ? t("forgotCta")
+                      : mode === "login"
+                        ? t("loginCta")
+                        : t("signupCta")}
               </motion.span>
             </AnimatePresence>
           </span>

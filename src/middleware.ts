@@ -31,6 +31,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const isLoginPage = pathname.startsWith(`/${locale}/login`);
+  const isResetPage = pathname.startsWith(`/${locale}/reset-password`);
   const isRootPage =
     pathname === "/" ||
     pathname === `/${locale}` ||
@@ -73,14 +74,14 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Redirect logic
-  if (!user && !isLoginPage && !isRootPage) {
+  if (!user && !isLoginPage && !isResetPage && !isRootPage) {
     const url = request.nextUrl.clone();
     const targetLocale = preferredLocale || locale;
     url.pathname = `/${targetLocale}/login`;
     return NextResponse.redirect(url);
   }
 
-  if (user && !isLoginPage && user.user_metadata?.role === "prof") {
+  if (user && !isLoginPage && !isResetPage && user.user_metadata?.role === "prof") {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (serviceKey && supabaseUrl) {
       try {

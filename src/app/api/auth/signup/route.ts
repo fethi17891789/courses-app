@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { rateLimitByIp } from "@/lib/rate-limit";
 
 function getSupabaseAdmin() {
   return createClient(
@@ -9,6 +10,11 @@ function getSupabaseAdmin() {
 }
 
 export async function POST(request: Request) {
+  const { allowed } = rateLimitByIp(request, "signup", 5, 15 * 60 * 1000);
+  if (!allowed) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const supabaseAdmin = getSupabaseAdmin();
   const body = await request.json();
   const { email, password, fullName, phone, role, activationKey } = body;
@@ -16,6 +22,13 @@ export async function POST(request: Request) {
   if (!email || !password) {
     return NextResponse.json(
       { error: "missing_fields" },
+      { status: 400 }
+    );
+  }
+
+  if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return NextResponse.json(
+      { error: "weak_password" },
       { status: 400 }
     );
   }

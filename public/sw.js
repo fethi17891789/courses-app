@@ -23,7 +23,19 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
+  const url = new URL(event.request.url);
+  const isApi = url.pathname.startsWith("/api/");
   const isNavigate = event.request.mode === "navigate";
+
+  if (isApi) {
+    event.respondWith(
+      fetch(event.request).catch(() => new Response('{"error":"offline"}', {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }))
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)

@@ -33,7 +33,7 @@ export async function GET(
     .order("joined_at", { ascending: true });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
   return NextResponse.json(data || []);
@@ -94,7 +94,7 @@ export async function POST(
     if (error.code === "23505") {
       return NextResponse.json({ error: "already_member" }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
   return NextResponse.json(data);
@@ -144,7 +144,7 @@ export async function PATCH(
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
   return NextResponse.json(data);
@@ -190,7 +190,7 @@ export async function DELETE(
     .select("student_id");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
   if (!deleted || deleted.length === 0) {

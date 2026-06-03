@@ -1,10 +1,16 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { rateLimitByIp } from "@/lib/rate-limit";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ code: string }> }
 ) {
+  const { allowed } = rateLimitByIp(_request, "join", 10, 15 * 60 * 1000);
+  if (!allowed) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const { code } = await params;
   const supabase = await createClient();
   const {
@@ -123,7 +129,7 @@ export async function POST(
       .eq("id", existing.id);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
     }
     return NextResponse.json({ id: existing.id, status: "pending" });
   }
@@ -147,7 +153,7 @@ export async function POST(
     });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
   return NextResponse.json({ id: requestId, status: "pending" });
