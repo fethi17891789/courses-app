@@ -500,7 +500,7 @@ function LoginScreenInner({
       const supabase = createClient();
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-        redirectTo: `${origin}/api/auth/callback?next=/${activeLocale}/reset-password`,
+        redirectTo: `${origin}/${activeLocale}/reset-password`,
       });
       if (resetError) {
         setError(t("errorGeneric"));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId } from "react";
+import { useState, useEffect, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -225,6 +225,44 @@ export function ResetPasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setReady(true);
+        setInitializing(false);
+      }
+    });
+
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error: codeError }) => {
+        if (codeError) {
+          router.push(`/${locale}/login`);
+        } else {
+          url.searchParams.delete("code");
+          window.history.replaceState(null, "", url.pathname);
+          setReady(true);
+          setInitializing(false);
+        }
+      });
+    } else {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          setReady(true);
+        } else {
+          router.push(`/${locale}/login`);
+        }
+        setInitializing(false);
+      });
+    }
+  }, [locale, router]);
 
   async function handleReset() {
     setError(null);
@@ -304,7 +342,14 @@ export function ResetPasswordForm() {
         transition={{ type: "spring", stiffness: 120, damping: 18, delay: 0.15 }}
         className="-mt-6 relative z-10 mx-5 rounded-[28px] bg-white px-5 pb-5 pt-5 shadow-[0_16px_48px_-12px_rgba(30,27,75,0.15)]"
       >
-        {!success ? (
+        {initializing ? (
+          <div className="flex items-center justify-center py-10">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-3 border-t-transparent"
+              style={{ borderColor: "#ddd6fe", borderTopColor: "#7c3aed" }}
+            />
+          </div>
+        ) : !ready ? null : !success ? (
           <>
             <h2 className="text-[18px] font-extrabold text-[#1e1b4b] mb-1">
               {t("resetTitle")}
