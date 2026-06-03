@@ -40,8 +40,12 @@
     "errorEmailTaken": "Cette adresse e-mail est deja utilisee",
     "errorInvalidKey": "Cle d'activation invalide",
     "errorKeyUsed": "Cette cle d'activation a deja ete utilisee",
+    "errorKeyExpired": "Cette cle d'activation a expire",
     "errorMissingKey": "Veuillez entrer votre cle d'activation",
-    "signupSuccess": "Compte cree ! Verifiez votre e-mail pour confirmer."
+    "signupSuccess": "Compte cree ! Verifiez votre e-mail pour confirmer.",
+    "subscriptionExpired": "Votre abonnement a expire. Entrez une nouvelle cle d'activation pour continuer.",
+    "newActivationKey": "Nouvelle cle d'activation",
+    "renewCta": "Renouveler"
   },
   "dashboard": {
     "welcome": "Bienvenue, {name}",
@@ -280,6 +284,9 @@
     "logout": "Se deconnecter",
     "language": "Langue",
     "french": "Francais",
-    "arabic": "Arabe"
+    "arabic": "Arabe",
+    "subscription": "Abonnement",
+    "premiumActive": "Premium actif",
+    "expiresAt": "Expire le {date}"
   }
 }

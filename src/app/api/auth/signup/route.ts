@@ -20,6 +20,8 @@ export async function POST(request: Request) {
     );
   }
 
+  let durationDays: number | null = null;
+
   if (role === "prof") {
     if (!activationKey || !activationKey.trim()) {
       return NextResponse.json(
@@ -30,7 +32,7 @@ export async function POST(request: Request) {
 
     const { data: keyRow, error: keyError } = await supabaseAdmin
       .from("activation_keys")
-      .select("id, used_by")
+      .select("id, used_by, expires_at, duration_days")
       .eq("key", activationKey.trim())
       .single();
 
@@ -47,6 +49,8 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    durationDays = keyRow.duration_days;
   }
 
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -74,11 +78,17 @@ export async function POST(request: Request) {
   }
 
   if (role === "prof" && authData.user) {
+    const now = new Date();
+    const expiresAt = durationDays
+      ? new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
     await supabaseAdmin
       .from("activation_keys")
       .update({
         used_by: authData.user.id,
-        used_at: new Date().toISOString(),
+        used_at: now.toISOString(),
+        expires_at: expiresAt,
       })
       .eq("key", activationKey.trim());
   }

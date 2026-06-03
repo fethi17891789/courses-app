@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,10 @@ import { createClient } from "@/lib/supabase";
 import { PageTransition } from "@/components/auth/page-transition";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { User } from "@supabase/supabase-js";
+
+type PremiumStatus =
+  | { premium: true; key: string; expires_at: string | null; activated_at: string | null }
+  | { premium: false; reason: string };
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -44,6 +48,15 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
   const [langTransitioning, setLangTransitioning] = useState(false);
   const [logoutPressed, setLogoutPressed] = useState(false);
   const pendingLocale = useState<string | null>(null);
+  const [premiumStatus, setPremiumStatus] = useState<PremiumStatus | null>(null);
+
+  useEffect(() => {
+    if (isStudent) return;
+    fetch("/api/auth/premium")
+      .then((r) => r.json())
+      .then((data) => setPremiumStatus(data))
+      .catch(() => {});
+  }, [isStudent]);
 
   function handleSwitchLocale(newLocale: string) {
     if (newLocale === locale) return;
@@ -116,6 +129,48 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
             </p>
           </div>
         </motion.div>
+
+        {/* Premium status (prof only) */}
+        {!isStudent && premiumStatus?.premium && (
+          <motion.div variants={fadeUp} className="mt-5">
+            <p className="mb-2 text-[12px] font-bold uppercase text-[#1e1b4b]/30">
+              {t("subscription")}
+            </p>
+            <div
+              className="rounded-xl bg-white p-4"
+              style={{
+                boxShadow: "0 3px 0 #bbf7d0, 0 6px 16px -4px rgba(34,197,94,0.08)",
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[14px] font-black text-white"
+                  style={{
+                    background: "linear-gradient(135deg, #4ade80, #16a34a)",
+                    boxShadow: "0 2px 0 #15803d",
+                  }}
+                >
+                  P
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-extrabold text-[#1e1b4b]">
+                    {t("premiumActive")}
+                  </p>
+                  <p className="text-[11px] font-semibold text-[#1e1b4b]/40">
+                    {premiumStatus.expires_at
+                      ? t("expiresAt", {
+                          date: new Date(premiumStatus.expires_at).toLocaleDateString(
+                            locale === "ar" ? "ar-DZ" : "fr-FR",
+                            { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
+                          ),
+                        })
+                      : t("premiumActive")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Language toggle */}
         <motion.div variants={fadeUp} className="mt-5">

@@ -367,7 +367,19 @@ function LoginScreenInner({
   const [role, setRole] = useState<Role>("prof");
   const [submitPressed, setSubmitPressed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "true") {
+      window.history.replaceState(null, "", window.location.pathname);
+      return null;
+    }
+    return null;
+  });
+  const [expiredMessage, setExpiredMessage] = useState(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "true") {
+      return true;
+    }
+    return false;
+  });
   const [success, setSuccess] = useState<string | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const pendingNav = useRef<string | null>(null);
@@ -378,6 +390,7 @@ function LoginScreenInner({
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [activationKey, setActivationKey] = useState("");
+  const [renewalKey, setRenewalKey] = useState("");
 
   const theme = themes[role];
   const isRtl = activeLocale === "ar";
@@ -396,6 +409,7 @@ function LoginScreenInner({
     setMode(m);
     setError(null);
     setSuccess(null);
+    setExpiredMessage(false);
   }
 
   async function handleSubmit() {
@@ -427,6 +441,36 @@ function LoginScreenInner({
           return;
         }
 
+        const premiumRes = await fetch("/api/auth/premium");
+        const premiumData = await premiumRes.json();
+        if (premiumData.premium === false && premiumData.reason === "expired") {
+          if (renewalKey.trim()) {
+            const renewRes = await fetch("/api/auth/renew", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ activationKey: renewalKey.trim() }),
+            });
+            const renewData = await renewRes.json();
+            if (!renewRes.ok) {
+              const errorMap: Record<string, string> = {
+                invalid_key: t("errorInvalidKey"),
+                key_already_used: t("errorKeyUsed"),
+                missing_key: t("errorMissingKey"),
+              };
+              await supabase.auth.signOut();
+              setExpiredMessage(true);
+              setError(errorMap[renewData.error] || t("errorGeneric"));
+              return;
+            }
+            pendingNav.current = `/${activeLocale}/dashboard`;
+            setTransitioning(true);
+            return;
+          }
+          await supabase.auth.signOut();
+          setExpiredMessage(true);
+          return;
+        }
+
         pendingNav.current = `/${activeLocale}/dashboard`;
         setTransitioning(true);
       } else {
@@ -450,6 +494,7 @@ function LoginScreenInner({
             email_taken: t("errorEmailTaken"),
             invalid_key: t("errorInvalidKey"),
             key_already_used: t("errorKeyUsed"),
+            key_expired: t("errorKeyExpired"),
             missing_key: t("errorMissingKey"),
           };
           setError(errorMap[data.error] || t("errorGeneric"));
@@ -725,9 +770,36 @@ function LoginScreenInner({
           />
         </div>
 
-        {/* error / success messages */}
+        {/* error / success / expired messages */}
         <AnimatePresence mode="wait">
-          {error && (
+          {expiredMessage && (
+            <motion.div
+              key="expired"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2 }}
+              className="mt-3 space-y-2.5"
+            >
+              <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-[12px] font-semibold text-amber-700">
+                {t("subscriptionExpired")}
+              </p>
+              <Field
+                label={t("newActivationKey")}
+                iconType="key"
+                theme={theme}
+                locale={activeLocale}
+                value={renewalKey}
+                onValueChange={(v) => { setRenewalKey(v); setError(null); }}
+              />
+              {error && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600">
+                  {error}
+                </p>
+              )}
+            </motion.div>
+          )}
+          {error && !expiredMessage && (
             <motion.p
               key="error"
               initial={{ opacity: 0, y: -4 }}
@@ -773,9 +845,11 @@ function LoginScreenInner({
               >
                 {loading
                   ? t("loading")
-                  : mode === "login"
-                    ? t("loginCta")
-                    : t("signupCta")}
+                  : expiredMessage
+                    ? t("renewCta")
+                    : mode === "login"
+                      ? t("loginCta")
+                      : t("signupCta")}
               </motion.span>
             </AnimatePresence>
           </span>

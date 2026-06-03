@@ -40,8 +40,12 @@
     "errorEmailTaken": "هذا البريد الإلكتروني مستخدم بالفعل",
     "errorInvalidKey": "مفتاح التفعيل غير صالح",
     "errorKeyUsed": "تم استخدام مفتاح التفعيل هذا بالفعل",
+    "errorKeyExpired": "انتهت صلاحية مفتاح التفعيل هذا",
     "errorMissingKey": "يرجى إدخال مفتاح التفعيل",
-    "signupSuccess": "تم إنشاء الحساب! تحقق من بريدك الإلكتروني للتأكيد."
+    "signupSuccess": "تم إنشاء الحساب! تحقق من بريدك الإلكتروني للتأكيد.",
+    "subscriptionExpired": "انتهى اشتراكك. أدخل مفتاح تفعيل جديد للمتابعة.",
+    "newActivationKey": "مفتاح تفعيل جديد",
+    "renewCta": "تجديد"
   },
   "dashboard": {
     "welcome": "مرحبا، {name}",
@@ -280,6 +284,9 @@
     "logout": "تسجيل الخروج",
     "language": "اللغة",
     "french": "الفرنسية",
-    "arabic": "العربية"
+    "arabic": "العربية",
+    "subscription": "الاشتراك",
+    "premiumActive": "بريميوم مفعل",
+    "expiresAt": "ينتهي في {date}"
   }
 }

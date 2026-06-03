@@ -80,6 +80,39 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (user && !isLoginPage && user.user_metadata?.role === "prof") {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceKey && supabaseUrl) {
+      try {
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/activation_keys?select=expires_at&used_by=eq.${user.id}&limit=1`,
+          {
+            headers: {
+              apikey: serviceKey,
+              Authorization: `Bearer ${serviceKey}`,
+            },
+          }
+        );
+        const rows = await res.json();
+        const keyRow = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+
+        const expired = !keyRow
+          || (keyRow.expires_at && new Date(keyRow.expires_at) < new Date());
+
+        if (expired) {
+          await supabase.auth.signOut();
+          const url = request.nextUrl.clone();
+          const targetLocale = preferredLocale || locale;
+          url.pathname = `/${targetLocale}/login`;
+          url.searchParams.set("expired", "true");
+          return NextResponse.redirect(url);
+        }
+      } catch {
+        // Si la verification echoue, on laisse passer
+      }
+    }
+  }
+
   if (user && isLoginPage) {
     const url = request.nextUrl.clone();
     const targetLocale = preferredLocale || locale;
