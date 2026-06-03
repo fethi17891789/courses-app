@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { validateString, validatePhone, validateEnrolledSessions, firstError } from "@/lib/validate";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     .eq("teacher_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (search) {
+  if (search && search.length <= 100) {
     query = query.ilike("full_name", `%${search}%`);
   }
 
@@ -57,20 +58,26 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { full_name, phone, parent_phone, level, section, notes, group_id, groups: groupAssignments } = body;
 
-  if (!full_name?.trim() || !level?.trim()) {
-    return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  const validationError = firstError(
+    validateString(full_name, "full_name", { max: 100 }),
+    validateString(level, "level", { max: 50 }),
+    validatePhone(phone),
+    validatePhone(parent_phone),
+  );
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   const { data: student, error } = await supabase
     .from("students")
     .insert({
       teacher_id: user.id,
-      full_name: full_name.trim(),
-      phone: phone?.trim() || null,
-      parent_phone: parent_phone?.trim() || null,
-      level: level.trim(),
-      section: section?.trim() || null,
-      notes: notes?.trim() || null,
+      full_name: full_name.trim().slice(0, 100),
+      phone: phone?.trim().slice(0, 20) || null,
+      parent_phone: parent_phone?.trim().slice(0, 20) || null,
+      level: level.trim().slice(0, 50),
+      section: section?.trim().slice(0, 50) || null,
+      notes: notes?.trim().slice(0, 500) || null,
     })
     .select()
     .single();

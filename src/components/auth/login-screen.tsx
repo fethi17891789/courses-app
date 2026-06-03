@@ -404,7 +404,7 @@ export function LoginScreen() {
   const switchLocale = useCallback(() => {
     const next = activeLocale === "fr" ? "ar" : "fr";
     setActiveLocale(next);
-    document.cookie = `preferred-locale=${next};path=/;max-age=31536000;SameSite=Lax`;
+    document.cookie = `preferred-locale=${next};path=/;max-age=31536000;SameSite=Lax;Secure`;
     window.history.replaceState(null, "", `/${next}/login`);
   }, [activeLocale]);
 

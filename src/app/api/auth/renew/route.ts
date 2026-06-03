@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { rateLimitByIp } from "@/lib/rate-limit";
+import { hashKey } from "@/lib/hash-key";
 
 function getSupabaseAdmin() {
   return createClient(
@@ -34,10 +35,11 @@ export async function POST(request: Request) {
 
   const admin = getSupabaseAdmin();
 
+  const hashedKey = hashKey(activationKey);
   const { data: keyRow, error: keyError } = await admin
     .from("activation_keys")
     .select("id, used_by, duration_days")
-    .eq("key", activationKey.trim())
+    .eq("key", hashedKey)
     .single();
 
   if (keyError || !keyRow) {
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
       used_at: now.toISOString(),
       expires_at: expiresAt,
     })
-    .eq("key", activationKey.trim());
+    .eq("key", hashedKey);
 
   return NextResponse.json({ success: true, expires_at: expiresAt });
 }

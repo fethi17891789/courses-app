@@ -56,14 +56,25 @@ export async function POST(request: Request) {
   }
 
   if (paid && amount > 0) {
-    await supabase.from("payments").insert({
-      group_id,
-      student_id,
-      teacher_id: user.id,
-      amount,
-      session_date: today,
-      session_day,
-    });
+    const { data: existingPayment } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("group_id", group_id)
+      .eq("student_id", student_id)
+      .eq("session_date", today)
+      .eq("session_day", session_day)
+      .maybeSingle();
+
+    if (!existingPayment) {
+      await supabase.from("payments").insert({
+        group_id,
+        student_id,
+        teacher_id: user.id,
+        amount,
+        session_date: today,
+        session_day,
+      });
+    }
   }
 
   return NextResponse.json({ success: true });

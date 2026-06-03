@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { rateLimitByIp } from "@/lib/rate-limit";
+import { hashKey } from "@/lib/hash-key";
 
 function getSupabaseAdmin() {
   return createClient(
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
   }
 
   let durationDays: number | null = null;
+  let hashedKey = "";
 
   if (role === "prof") {
     if (!activationKey || !activationKey.trim()) {
@@ -43,10 +45,11 @@ export async function POST(request: Request) {
       );
     }
 
+    hashedKey = hashKey(activationKey);
     const { data: keyRow, error: keyError } = await supabaseAdmin
       .from("activation_keys")
       .select("id, used_by, expires_at, duration_days")
-      .eq("key", activationKey.trim())
+      .eq("key", hashedKey)
       .single();
 
     if (keyError || !keyRow) {
@@ -103,7 +106,7 @@ export async function POST(request: Request) {
         used_at: now.toISOString(),
         expires_at: expiresAt,
       })
-      .eq("key", activationKey.trim());
+      .eq("key", hashedKey);
   }
 
   return NextResponse.json({ success: true });

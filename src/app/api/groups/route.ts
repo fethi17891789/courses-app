@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { validateString, validateNumber, validateSchedules, firstError } from "@/lib/validate";
 
 export async function GET() {
   const supabase = await createClient();
@@ -43,20 +44,30 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { name, level, section, capacity, price, payment_mode, refund_absences, schedules } = body;
 
-  if (!name?.trim() || !level?.trim()) {
-    return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  const validationError = firstError(
+    validateString(name, "name", { max: 100 }),
+    validateString(level, "level", { max: 50 }),
+    capacity !== undefined ? validateNumber(capacity, "capacity", { min: 1, max: 200 }) : null,
+    price !== undefined ? validateNumber(price, "price", { min: 0, max: 100_000 }) : null,
+    validateSchedules(schedules),
+  );
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
+
+  const allowedModes = ["monthly", "per_session", "weekly"];
+  const safeMode = allowedModes.includes(payment_mode) ? payment_mode : "monthly";
 
   const { data, error } = await supabase
     .from("groups")
     .insert({
       teacher_id: user.id,
-      name: name.trim(),
-      level: level.trim(),
-      section: section?.trim() || null,
+      name: name.trim().slice(0, 100),
+      level: level.trim().slice(0, 50),
+      section: section?.trim().slice(0, 50) || null,
       capacity: capacity || 30,
       price: price || 0,
-      payment_mode: payment_mode || "monthly",
+      payment_mode: safeMode,
       refund_absences: refund_absences || false,
       schedules: Array.isArray(schedules) ? schedules : [],
     })

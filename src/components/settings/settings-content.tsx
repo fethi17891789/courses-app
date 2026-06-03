@@ -60,7 +60,7 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
 
   function handleSwitchLocale(newLocale: string) {
     if (newLocale === locale) return;
-    document.cookie = `preferred-locale=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
+    document.cookie = `preferred-locale=${newLocale};path=/;max-age=31536000;SameSite=Lax;Secure`;
     pendingLocale[1](newLocale);
     setLangTransitioning(true);
   }

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { validateEnrolledSessions } from "@/lib/validate";
 
 export async function GET(
   _request: Request,
@@ -129,6 +130,11 @@ export async function PATCH(
 
   if (!memberId) {
     return NextResponse.json({ error: "missing_member_id" }, { status: 400 });
+  }
+
+  const sessionsError = validateEnrolledSessions(enrolled_sessions);
+  if (sessionsError) {
+    return NextResponse.json({ error: sessionsError }, { status: 400 });
   }
 
   const { data, error } = await supabase
