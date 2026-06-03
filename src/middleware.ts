@@ -100,12 +100,24 @@ export async function middleware(request: NextRequest) {
           || (keyRow.expires_at && new Date(keyRow.expires_at) < new Date());
 
         if (expired) {
-          await supabase.auth.signOut();
+          // Do NOT call supabase.auth.signOut() here — it doesn't reliably
+          // clear browser session cookies from Edge middleware.
+          // Instead, redirect to login with ?expired=true so the client can
+          // call signOut() itself and properly clear the session.
           const url = request.nextUrl.clone();
           const targetLocale = preferredLocale || locale;
           url.pathname = `/${targetLocale}/login`;
           url.searchParams.set("expired", "true");
-          return NextResponse.redirect(url);
+
+          // Clear the Supabase session cookies in the redirect response
+          // so the browser doesn't keep sending them on subsequent requests.
+          const redirectResponse = NextResponse.redirect(url);
+          request.cookies.getAll().forEach(({ name }) => {
+            if (name.startsWith("sb-")) {
+              redirectResponse.cookies.delete(name);
+            }
+          });
+          return redirectResponse;
         }
       } catch {
         // Si la verification echoue, on laisse passer
@@ -114,10 +126,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && isLoginPage) {
-    const url = request.nextUrl.clone();
-    const targetLocale = preferredLocale || locale;
-    url.pathname = `/${targetLocale}/dashboard`;
-    return NextResponse.redirect(url);
+    const isExpiredParam = request.nextUrl.searchParams.get("expired") === "true";
+    if (!isExpiredParam) {
+      const url = request.nextUrl.clone();
+      const targetLocale = preferredLocale || locale;
+      url.pathname = `/${targetLocale}/dashboard`;
+      return NextResponse.redirect(url);
+    }
   }
 
   // Copy intl headers (locale, etc.) onto the response

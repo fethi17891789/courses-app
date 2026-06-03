@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useId, useCallback } from "react";
+import { useState, useRef, useId, useCallback, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { NextIntlClientProvider, useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -384,6 +384,17 @@ function LoginScreenInner({
   const [transitioning, setTransitioning] = useState(false);
   const pendingNav = useRef<string | null>(null);
   const changeSource = useRef<"mode" | "locale">("mode");
+  const hasSignedOutOnMount = useRef(false);
+
+  useEffect(() => {
+    if (expiredMessage && !hasSignedOutOnMount.current) {
+      hasSignedOutOnMount.current = true;
+      const supabase = createClient();
+      supabase.auth.signOut().then(() => {
+        router.refresh();
+      });
+    }
+  }, [expiredMessage, router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
