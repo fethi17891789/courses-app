@@ -265,7 +265,13 @@
     "mySchedule": "Mon emploi du temps",
     "myScheduleDesc": "Consultez vos prochains cours",
     "myPayments": "Mes paiements",
-    "myPaymentsDesc": "Suivez l'etat de vos reglements"
+    "myPaymentsDesc": "Suivez l'etat de vos reglements",
+    "noGroups": "Vous n'etes inscrit a aucun groupe",
+    "noGroupsDesc": "Rejoignez un groupe avec le code de votre professeur",
+    "myAbsences": "Mes absences",
+    "noAbsences": "Aucune absence",
+    "noPayments": "Aucun paiement",
+    "totalPaid": "Total paye"
   },
   "settings": {
     "logout": "Se deconnecter",

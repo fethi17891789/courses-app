@@ -209,6 +209,7 @@ export function StudentDashboard({ user }: { user: User }) {
             pressed={pressed === "schedule"}
             onPress={() => setPressed("schedule")}
             onRelease={() => setPressed(null)}
+            onClick={() => router.push(`/${locale}/student/schedule`)}
             className="w-full"
           />
         </motion.div>
@@ -241,6 +242,7 @@ export function StudentDashboard({ user }: { user: User }) {
             pressed={pressed === "payments"}
             onPress={() => setPressed("payments")}
             onRelease={() => setPressed(null)}
+            onClick={() => router.push(`/${locale}/student/history`)}
             className="w-full"
           />
         </motion.div>

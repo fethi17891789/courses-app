@@ -265,7 +265,13 @@
     "mySchedule": "جدول حصصي",
     "myScheduleDesc": "اطّلع على حصصك القادمة",
     "myPayments": "مدفوعاتي",
-    "myPaymentsDesc": "تتبع حالة مدفوعاتك"
+    "myPaymentsDesc": "تتبع حالة مدفوعاتك",
+    "noGroups": "لست مسجلا في أي فوج",
+    "noGroupsDesc": "انضم إلى فوج برمز الأستاذ",
+    "myAbsences": "غياباتي",
+    "noAbsences": "لا غيابات",
+    "noPayments": "لا مدفوعات",
+    "totalPaid": "المجموع المدفوع"
   },
   "settings": {
     "logout": "تسجيل الخروج",
