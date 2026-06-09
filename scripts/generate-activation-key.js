@@ -2,12 +2,16 @@
  * Generate a new activation key for a customer.
  *
  * Usage:
- *   node scripts/generate-activation-key.js [duration_days]
+ *   node scripts/generate-activation-key.js <plan> <formula>
+ *
+ * Plans:    starter | pro
+ * Formulas: monthly | annual
  *
  * Examples:
- *   node scripts/generate-activation-key.js          -> key without expiry
- *   node scripts/generate-activation-key.js 30       -> key valid 30 days
- *   node scripts/generate-activation-key.js 365      -> key valid 1 year
+ *   node scripts/generate-activation-key.js starter monthly  -> Starter 30 jours
+ *   node scripts/generate-activation-key.js starter annual   -> Starter 9 mois (ou 12 si premiere inscription)
+ *   node scripts/generate-activation-key.js pro monthly      -> Pro 30 jours
+ *   node scripts/generate-activation-key.js pro annual       -> Pro 9 mois (ou 12 si premiere inscription)
  *
  * The plain-text key is shown ONCE in the terminal.
  * Only the SHA-256 hash is stored in the database.
@@ -56,8 +60,28 @@ function hashKey(key) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+const FORMULAS = {
+  monthly: 30,
+  annual: 270, // 9 mois par defaut, 12 mois (365j) si premiere inscription
+};
+
 async function run() {
-  const durationDays = process.argv[2] ? parseInt(process.argv[2], 10) : null;
+  const plan = process.argv[2];
+  const formula = process.argv[3];
+
+  if (!plan || !["starter", "pro"].includes(plan)) {
+    console.error("Plan requis: starter | pro");
+    console.error("Usage: node scripts/generate-activation-key.js <plan> <formula>");
+    process.exit(1);
+  }
+
+  if (!formula || !["monthly", "annual"].includes(formula)) {
+    console.error("Formule requise: monthly | annual");
+    console.error("Usage: node scripts/generate-activation-key.js <plan> <formula>");
+    process.exit(1);
+  }
+
+  const durationDays = FORMULAS[formula];
 
   const plainKey = generateCode();
   const hashed = hashKey(plainKey);
@@ -65,6 +89,7 @@ async function run() {
   const { error } = await supabase.from("activation_keys").insert({
     key: hashed,
     duration_days: durationDays,
+    plan: plan,
   });
 
   if (error) {
@@ -72,13 +97,18 @@ async function run() {
     process.exit(1);
   }
 
+  const planLabel = plan === "starter" ? "Starter (45 eleves max)" : "Pro (illimite)";
+  const formulaLabel = formula === "monthly" ? "Mensuel (30 jours)" : "Annuel (9 mois, ou 12 si 1ere inscription)";
+
   console.log("");
   console.log("=".repeat(50));
   console.log("  NEW ACTIVATION KEY GENERATED");
   console.log("=".repeat(50));
   console.log("");
   console.log("  Code client :  " + plainKey);
-  console.log("  Duree :        " + (durationDays ? durationDays + " jours" : "illimitee"));
+  console.log("  Plan :         " + planLabel);
+  console.log("  Formule :      " + formulaLabel);
+  console.log("  Duree :        " + durationDays + " jours");
   console.log("");
   console.log("  IMPORTANT: Ce code ne sera plus jamais");
   console.log("  affiche. Copiez-le maintenant.");

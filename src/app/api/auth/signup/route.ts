@@ -36,6 +36,7 @@ export async function POST(request: Request) {
 
   let durationDays: number | null = null;
   let hashedKey = "";
+  let plan: string = "starter";
 
   if (role === "prof") {
     if (!activationKey || !activationKey.trim()) {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     hashedKey = hashKey(activationKey);
     const { data: keyRow, error: keyError } = await supabaseAdmin
       .from("activation_keys")
-      .select("id, used_by, expires_at, duration_days")
+      .select("id, used_by, expires_at, duration_days, plan")
       .eq("key", hashedKey)
       .single();
 
@@ -67,6 +68,12 @@ export async function POST(request: Request) {
     }
 
     durationDays = keyRow.duration_days;
+    plan = keyRow.plan || "starter";
+
+    // Signup = toujours premiere inscription -> annuel 9 mois devient 12 mois
+    if (durationDays === 270) {
+      durationDays = 365;
+    }
   }
 
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -77,6 +84,7 @@ export async function POST(request: Request) {
       full_name: fullName?.trim() || "",
       phone: phone?.trim() || "",
       role,
+      plan: role === "prof" ? plan : undefined,
     },
   });
 

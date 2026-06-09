@@ -262,7 +262,8 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
       });
 
       if (!res.ok) {
-        setError("generic");
+        const data = await res.json().catch(() => ({}));
+        setError(data.error === "student_limit_reached" ? "student_limit_reached" : "generic");
         return;
       }
 
@@ -505,7 +506,9 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
               ? "Veuillez remplir le nom et le niveau."
               : error === "no_schedule"
                 ? "Veuillez selectionner au moins une seance par groupe."
-                : "Une erreur est survenue."}
+                : error === "student_limit_reached"
+                  ? "Limite de 45 eleves atteinte. Passez au plan Pro pour ajouter plus d'eleves."
+                  : "Une erreur est survenue."}
           </motion.p>
         )}
 

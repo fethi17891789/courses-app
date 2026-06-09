@@ -97,6 +97,17 @@ export async function PATCH(
   }
 
   if (action === "accept") {
+    const plan = user.user_metadata?.plan || "starter";
+    if (plan === "starter") {
+      const { count } = await supabase
+        .from("students")
+        .select("id", { count: "exact", head: true })
+        .eq("teacher_id", user.id);
+
+      if ((count ?? 0) >= 45) {
+        return NextResponse.json({ error: "student_limit_reached" }, { status: 403 });
+      }
+    }
     const studentName = req.student_name || "Eleve";
     const studentPhone = req.phone || null;
     const studentParentPhone = req.parent_phone || null;

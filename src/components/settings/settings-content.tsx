@@ -10,7 +10,7 @@ import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { User } from "@supabase/supabase-js";
 
 type PremiumStatus =
-  | { premium: true; key: string; expires_at: string | null; activated_at: string | null }
+  | { premium: true; plan: string; max_students: number | null; key: string; expires_at: string | null; activated_at: string | null }
   | { premium: false; reason: string };
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -130,47 +130,103 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
           </div>
         </motion.div>
 
-        {/* Premium status (prof only) */}
-        {!isStudent && premiumStatus?.premium && (
-          <motion.div variants={fadeUp} className="mt-5">
-            <p className="mb-2 text-[12px] font-bold uppercase text-[#1e1b4b]/30">
-              {t("subscription")}
-            </p>
-            <div
-              className="rounded-xl bg-white p-4"
-              style={{
-                boxShadow: "0 3px 0 #bbf7d0, 0 6px 16px -4px rgba(34,197,94,0.08)",
-              }}
-            >
-              <div className="flex items-center gap-2.5">
+        {/* Subscription card (prof only) */}
+        {!isStudent && premiumStatus?.premium && (() => {
+          const isPro = premiumStatus.plan === "pro";
+          return (
+            <motion.div variants={fadeUp} className="mt-5">
+              <p className="mb-2 text-[12px] font-bold uppercase text-[#1e1b4b]/30">
+                {t("subscription")}
+              </p>
+              <div
+                className="relative overflow-hidden rounded-2xl p-4"
+                style={{
+                  background: isPro
+                    ? "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)"
+                    : "#ffffff",
+                  boxShadow: isPro
+                    ? "0 4px 0 #0f0e2a, 0 8px 24px -4px rgba(30,27,75,0.3)"
+                    : "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
+                }}
+              >
+                {isPro && (
+                  <>
+                    <div
+                      className="absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-15"
+                      style={{ background: "radial-gradient(circle, #a78bfa, transparent 70%)" }}
+                    />
+                    <div
+                      className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full opacity-10"
+                      style={{ background: "radial-gradient(circle, #f59e0b, transparent 70%)" }}
+                    />
+                  </>
+                )}
+                <div className="relative flex items-center gap-3">
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[13px] font-black tracking-tight text-white"
+                    style={{
+                      background: isPro
+                        ? "linear-gradient(135deg, #f59e0b, #d97706)"
+                        : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+                      boxShadow: isPro
+                        ? "0 3px 0 #92400e, 0 6px 12px -2px rgba(245,158,11,0.4)"
+                        : "0 3px 0 #5b21b6, 0 6px 12px -2px rgba(124,58,237,0.3)",
+                    }}
+                  >
+                    {isPro ? "PRO" : "S"}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p
+                        className="text-[15px] font-extrabold"
+                        style={{ color: isPro ? "#ffffff" : "#1e1b4b" }}
+                      >
+                        {isPro ? t("planPro") : t("planStarter")}
+                      </p>
+                      {isPro && (
+                        <span
+                          className="rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider"
+                          style={{
+                            background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                            color: "#1e1b4b",
+                          }}
+                        >
+                          VIP
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className="mt-0.5 text-[11px] font-semibold"
+                      style={{ color: isPro ? "rgba(255,255,255,0.5)" : "rgba(30,27,75,0.4)" }}
+                    >
+                      {isPro ? t("planProDesc") : t("planStarterDesc")}
+                    </p>
+                  </div>
+                </div>
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[14px] font-black text-white"
+                  className="relative mt-3 rounded-lg px-3 py-2"
                   style={{
-                    background: "linear-gradient(135deg, #4ade80, #16a34a)",
-                    boxShadow: "0 2px 0 #15803d",
+                    background: isPro ? "rgba(255,255,255,0.08)" : "rgba(124,58,237,0.05)",
                   }}
                 >
-                  P
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-extrabold text-[#1e1b4b]">
-                    {t("premiumActive")}
-                  </p>
-                  <p className="text-[11px] font-semibold text-[#1e1b4b]/40">
+                  <p
+                    className="text-[11px] font-semibold"
+                    style={{ color: isPro ? "rgba(255,255,255,0.6)" : "rgba(30,27,75,0.4)" }}
+                  >
                     {premiumStatus.expires_at
                       ? t("expiresAt", {
                           date: new Date(premiumStatus.expires_at).toLocaleDateString(
                             locale === "ar" ? "ar-DZ" : "fr-FR",
-                            { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
+                            { day: "numeric", month: "long", year: "numeric" }
                           ),
                         })
                       : t("premiumActive")}
                   </p>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          );
+        })()}
 
         {/* Language toggle */}
         <motion.div variants={fadeUp} className="mt-5">

@@ -309,6 +309,10 @@
     "arabic": "Arabe",
     "subscription": "Abonnement",
     "premiumActive": "Premium actif",
+    "planStarter": "Starter",
+    "planPro": "Pro",
+    "planStarterDesc": "45 eleves maximum",
+    "planProDesc": "Eleves illimites",
     "expiresAt": "Expire le {date}"
   }
 }

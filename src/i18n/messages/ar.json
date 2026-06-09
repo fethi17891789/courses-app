@@ -309,6 +309,10 @@
     "arabic": "العربية",
     "subscription": "الاشتراك",
     "premiumActive": "بريميوم مفعل",
+    "planStarter": "Starter",
+    "planPro": "Pro",
+    "planStarterDesc": "45 طالب كحد أقصى",
+    "planProDesc": "طلاب غير محدودين",
     "expiresAt": "ينتهي في {date}"
   }
 }

@@ -26,8 +26,10 @@ export async function GET() {
   const admin = getSupabaseAdmin();
   const { data: keyRow } = await admin
     .from("activation_keys")
-    .select("key, expires_at, used_at")
+    .select("key, expires_at, used_at, plan")
     .eq("used_by", user.id)
+    .order("used_at", { ascending: false })
+    .limit(1)
     .single();
 
   if (!keyRow) {
@@ -42,8 +44,12 @@ export async function GET() {
     });
   }
 
+  const plan = keyRow.plan || "starter";
+
   return NextResponse.json({
     premium: true,
+    plan,
+    max_students: plan === "starter" ? 45 : null,
     key: keyRow.key,
     expires_at: keyRow.expires_at,
     activated_at: keyRow.used_at,

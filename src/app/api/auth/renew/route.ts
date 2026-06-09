@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   const hashedKey = hashKey(activationKey);
   const { data: keyRow, error: keyError } = await admin
     .from("activation_keys")
-    .select("id, used_by, duration_days")
+    .select("id, used_by, duration_days, plan")
     .eq("key", hashedKey)
     .single();
 
@@ -50,9 +50,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "key_already_used" }, { status: 400 });
   }
 
+  let durationDays = keyRow.duration_days;
+
+  // Verifier si c'est la premiere inscription de cet utilisateur
+  if (durationDays === 270) {
+    const { count } = await admin
+      .from("activation_keys")
+      .select("id", { count: "exact", head: true })
+      .eq("used_by", user.id);
+
+    if ((count ?? 0) === 0) {
+      durationDays = 365;
+    }
+  }
+
   const now = new Date();
-  const expiresAt = keyRow.duration_days
-    ? new Date(now.getTime() + keyRow.duration_days * 24 * 60 * 60 * 1000).toISOString()
+  const expiresAt = durationDays
+    ? new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString()
     : null;
 
   await admin
@@ -64,5 +78,10 @@ export async function POST(request: Request) {
     })
     .eq("key", hashedKey);
 
-  return NextResponse.json({ success: true, expires_at: expiresAt });
+  const plan = keyRow.plan || "starter";
+  await admin.auth.admin.updateUserById(user.id, {
+    user_metadata: { plan },
+  });
+
+  return NextResponse.json({ success: true, expires_at: expiresAt, plan });
 }

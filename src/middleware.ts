@@ -86,7 +86,7 @@ export async function middleware(request: NextRequest) {
     if (serviceKey && supabaseUrl) {
       try {
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/activation_keys?select=expires_at&used_by=eq.${user.id}&limit=1`,
+          `${supabaseUrl}/rest/v1/activation_keys?select=expires_at&used_by=eq.${user.id}&order=used_at.desc&limit=1`,
           {
             headers: {
               apikey: serviceKey,
