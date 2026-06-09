@@ -397,7 +397,7 @@ function PushButton({
   );
 }
 
-export function LoginScreen() {
+export function LoginScreen({ referralCode = null }: { referralCode?: string | null }) {
   const initialLocale = useLocale() as Locale;
   const [activeLocale, setActiveLocale] = useState<Locale>(initialLocale);
 
@@ -413,6 +413,7 @@ export function LoginScreen() {
       <LoginScreenInner
         activeLocale={activeLocale}
         switchLocale={switchLocale}
+        referralCode={referralCode}
       />
     </NextIntlClientProvider>
   );
@@ -421,14 +422,16 @@ export function LoginScreen() {
 function LoginScreenInner({
   activeLocale,
   switchLocale,
+  referralCode,
 }: {
   activeLocale: Locale;
   switchLocale: () => void;
+  referralCode: string | null;
 }) {
   const t = useTranslations("auth");
   const router = useRouter();
   const reduced = useReducedMotion();
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(referralCode ? "signup" : "login");
   const [role, setRole] = useState<Role>("prof");
   const [submitPressed, setSubmitPressed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -464,8 +467,11 @@ function LoginScreenInner({
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [activationKey, setActivationKey] = useState("");
+  const [activationKey, setActivationKey] = useState(referralCode ?? "");
   const [renewalKey, setRenewalKey] = useState("");
+  const [referralPrefilled, setReferralPrefilled] = useState(
+    referralCode !== null
+  );
 
   const theme = themes[role];
   const isRtl = activeLocale === "ar";
@@ -604,6 +610,7 @@ function LoginScreenInner({
           const errorMap: Record<string, string> = {
             email_taken: t("errorEmailTaken"),
             invalid_key: t("errorInvalidKey"),
+            referral_cooldown: t("errorReferralCooldown"),
             key_already_used: t("errorKeyUsed"),
             key_expired: t("errorKeyExpired"),
             missing_key: t("errorMissingKey"),
@@ -856,14 +863,22 @@ function LoginScreenInner({
                         className="overflow-hidden"
                       >
                         <Field
-                          label={t("activationKey")}
+                          label={t("activationKeyOrReferral")}
                           type="text"
                           iconType="key"
                           theme={theme}
                           locale={activeLocale}
                           value={activationKey}
-                          onValueChange={setActivationKey}
+                          onValueChange={(v) => {
+                            setActivationKey(v);
+                            setReferralPrefilled(false);
+                          }}
                         />
+                        {referralPrefilled && (
+                          <p className="mt-1.5 rounded-lg bg-green-50 px-3 py-2 text-[11px] font-bold text-green-600">
+                            {t("referralApplied")}
+                          </p>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>

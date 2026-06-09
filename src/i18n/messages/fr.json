@@ -67,7 +67,10 @@
     "resetCta": "Changer le mot de passe",
     "resetSuccess": "Mot de passe modifie avec succes !",
     "errorPasswordMismatch": "Les mots de passe ne correspondent pas",
-    "redirecting": "Redirection..."
+    "redirecting": "Redirection...",
+    "activationKeyOrReferral": "Cle d'activation ou code parrain",
+    "errorReferralCooldown": "Ce code parrain a deja ete utilise recemment. Reessayez dans quelques jours.",
+    "referralApplied": "Code parrain detecte : 2 semaines offertes a l'inscription"
   },
   "dashboard": {
     "welcome": "Bienvenue, {name}",
@@ -317,6 +320,29 @@
     "subscriptionPaused": "Abonnement en pause (compteur gele)",
     "pauseSubscription": "Mettre en pause (ete)",
     "resumeSubscription": "Reprendre l'abonnement",
-    "pauseAlreadyUsed": "Pause estivale deja utilisee cette annee"
+    "pauseAlreadyUsed": "Pause estivale deja utilisee cette annee",
+    "referral": "Parrainage",
+    "referralTitle": "Invite un collegue",
+    "referralDesc": "Il s'inscrit avec ton code, vous gagnez chacun 2 semaines gratuites",
+    "referralYourCode": "Ton code parrain",
+    "referralCount": "Collegues parraines : {count}",
+    "referralCooldown": "Prochain parrainage possible le {date}",
+    "referralReady": "Parrainage disponible",
+    "copy": "Copier",
+    "copied": "Copie !",
+    "feedback": "Aide-nous a ameliorer",
+    "feedbackDesc": "Un bug ? Une idee ? Dis-le nous, les meilleures contributions peuvent etre recompensees",
+    "feedbackBug": "Signaler un bug",
+    "feedbackIdea": "Proposer une idee",
+    "feedbackBugPlaceholder": "Decris le probleme rencontre...",
+    "feedbackIdeaPlaceholder": "Decris ton idee...",
+    "feedbackSend": "Envoyer",
+    "feedbackSending": "Envoi...",
+    "feedbackSuccess": "Merci ! Ton message a bien ete envoye.",
+    "feedbackError": "Une erreur est survenue. Reessaye.",
+    "feedbackTooShort": "Quelques mots de plus ? (10 caracteres minimum)",
+    "feedbackTooMany": "Trop de messages envoyes. Reessaye plus tard.",
+    "referralShareLink": "Partager le lien d'invitation",
+    "referralShareHint": "Rejoins-moi sur Courses, l'appli de gestion de cours de soutien. Inscris-toi avec mon code, on gagne chacun 2 semaines gratuites :"
   }
 }

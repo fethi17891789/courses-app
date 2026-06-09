@@ -67,7 +67,10 @@
     "resetCta": "تغيير كلمة المرور",
     "resetSuccess": "تم تغيير كلمة المرور بنجاح!",
     "errorPasswordMismatch": "كلمتا المرور غير متطابقتين",
-    "redirecting": "جاري التوجيه..."
+    "redirecting": "جاري التوجيه...",
+    "activationKeyOrReferral": "مفتاح التفعيل أو رمز الإحالة",
+    "errorReferralCooldown": "تم استخدام رمز الإحالة هذا مؤخرا. حاول مجددا بعد أيام.",
+    "referralApplied": "تم اكتشاف رمز الإحالة : أسبوعان مجانا عند التسجيل"
   },
   "dashboard": {
     "welcome": "مرحبا، {name}",
@@ -317,6 +320,29 @@
     "subscriptionPaused": "الاشتراك متوقف مؤقتا (العداد مجمد)",
     "pauseSubscription": "إيقاف مؤقت (الصيف)",
     "resumeSubscription": "استئناف الاشتراك",
-    "pauseAlreadyUsed": "تم استخدام الإيقاف الصيفي هذا العام"
+    "pauseAlreadyUsed": "تم استخدام الإيقاف الصيفي هذا العام",
+    "referral": "الإحالة",
+    "referralTitle": "ادعُ زميلا",
+    "referralDesc": "يسجل برمزك وتربحان معا أسبوعين مجانا",
+    "referralYourCode": "رمز الإحالة الخاص بك",
+    "referralCount": "الزملاء المُحالون : {count}",
+    "referralCooldown": "الإحالة القادمة ممكنة في {date}",
+    "referralReady": "الإحالة متاحة",
+    "copy": "نسخ",
+    "copied": "تم النسخ !",
+    "feedback": "ساعدنا على التحسين",
+    "feedbackDesc": "وجدت خللا ؟ لديك فكرة ؟ أخبرنا، أفضل المساهمات قد تكافأ",
+    "feedbackBug": "الإبلاغ عن خلل",
+    "feedbackIdea": "اقتراح فكرة",
+    "feedbackBugPlaceholder": "صف المشكلة التي واجهتها...",
+    "feedbackIdeaPlaceholder": "صف فكرتك...",
+    "feedbackSend": "إرسال",
+    "feedbackSending": "جار الإرسال...",
+    "feedbackSuccess": "شكرا ! تم إرسال رسالتك بنجاح.",
+    "feedbackError": "حدث خطأ. حاول مجددا.",
+    "feedbackTooShort": "بضع كلمات إضافية ؟ (10 أحرف على الأقل)",
+    "feedbackTooMany": "تم إرسال رسائل كثيرة. حاول لاحقا.",
+    "referralShareLink": "مشاركة رابط الدعوة",
+    "referralShareHint": "انضم إلي في تطبيق Courses لتسيير الدروس الخصوصية. سجل برمزي ونربح معا أسبوعين مجانا :"
   }
 }

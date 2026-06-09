@@ -2,6 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { rateLimitByIp } from "@/lib/rate-limit";
 import { hashKey } from "@/lib/hash-key";
+import {
+  normalizeReferralCode,
+  REFERRAL_BONUS_DAYS,
+  REFERRAL_COOLDOWN_DAYS,
+} from "@/lib/referral";
 
 function getSupabaseAdmin() {
   return createClient(
@@ -37,6 +42,8 @@ export async function POST(request: Request) {
   let durationDays: number | null = null;
   let hashedKey = "";
   let plan: string = "starter";
+  let referrerId: string | null = null;
+  let referralCode = "";
 
   if (role === "prof") {
     if (!activationKey || !activationKey.trim()) {
@@ -47,32 +54,64 @@ export async function POST(request: Request) {
     }
 
     hashedKey = hashKey(activationKey);
-    const { data: keyRow, error: keyError } = await supabaseAdmin
+    const { data: keyRow } = await supabaseAdmin
       .from("activation_keys")
       .select("id, used_by, expires_at, duration_days, plan")
       .eq("key", hashedKey)
       .single();
 
-    if (keyError || !keyRow) {
-      return NextResponse.json(
-        { error: "invalid_key" },
-        { status: 400 }
-      );
-    }
+    if (keyRow) {
+      if (keyRow.used_by) {
+        return NextResponse.json(
+          { error: "key_already_used" },
+          { status: 400 }
+        );
+      }
 
-    if (keyRow.used_by) {
-      return NextResponse.json(
-        { error: "key_already_used" },
-        { status: 400 }
-      );
-    }
+      durationDays = keyRow.duration_days;
+      plan = keyRow.plan || "starter";
 
-    durationDays = keyRow.duration_days;
-    plan = keyRow.plan || "starter";
+      // Signup = toujours premiere inscription -> annuel 12 mois devient 15 mois (bonus 3 mois)
+      if (durationDays === 365) {
+        durationDays = 456;
+      }
+    } else {
+      // Not an activation key: maybe a referral code from a colleague
+      referralCode = normalizeReferralCode(activationKey);
+      const { data: refRow } = await supabaseAdmin
+        .from("referral_codes")
+        .select("user_id, code")
+        .eq("code", referralCode)
+        .single();
 
-    // Signup = toujours premiere inscription -> annuel 12 mois devient 15 mois (bonus 3 mois)
-    if (durationDays === 365) {
-      durationDays = 456;
+      if (!refRow) {
+        return NextResponse.json(
+          { error: "invalid_key" },
+          { status: 400 }
+        );
+      }
+
+      // One successful referral per cooldown window for the referrer
+      const cooldownStart = new Date(
+        Date.now() - REFERRAL_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+      const { count: recentCount } = await supabaseAdmin
+        .from("referrals")
+        .select("id", { count: "exact", head: true })
+        .eq("referrer_id", refRow.user_id)
+        .gte("created_at", cooldownStart);
+
+      if ((recentCount ?? 0) > 0) {
+        return NextResponse.json(
+          { error: "referral_cooldown" },
+          { status: 400 }
+        );
+      }
+
+      referrerId = refRow.user_id;
+      hashedKey = "";
+      durationDays = REFERRAL_BONUS_DAYS;
+      plan = "starter";
     }
   }
 
@@ -107,14 +146,56 @@ export async function POST(request: Request) {
       ? new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    await supabaseAdmin
-      .from("activation_keys")
-      .update({
+    if (referrerId) {
+      // Track who referred who
+      await supabaseAdmin.from("referrals").insert({
+        referrer_id: referrerId,
+        referred_id: authData.user.id,
+        referred_name: fullName?.trim() || email,
+        code: referralCode,
+      });
+
+      // Free trial for the new prof (synthetic activation key, one per user)
+      await supabaseAdmin.from("activation_keys").insert({
+        key: hashKey(`referral-${authData.user.id}`),
+        plan: "starter",
+        duration_days: REFERRAL_BONUS_DAYS,
         used_by: authData.user.id,
         used_at: now.toISOString(),
         expires_at: expiresAt,
-      })
-      .eq("key", hashedKey);
+      });
+
+      // Bonus for the referrer: extend the current subscription
+      const { data: referrerKey } = await supabaseAdmin
+        .from("activation_keys")
+        .select("id, expires_at")
+        .eq("used_by", referrerId)
+        .order("used_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (referrerKey && referrerKey.expires_at) {
+        const base = new Date(referrerKey.expires_at) > now
+          ? new Date(referrerKey.expires_at)
+          : now;
+        const newExpiry = new Date(
+          base.getTime() + REFERRAL_BONUS_DAYS * 24 * 60 * 60 * 1000
+        ).toISOString();
+        await supabaseAdmin
+          .from("activation_keys")
+          .update({ expires_at: newExpiry })
+          .eq("id", referrerKey.id);
+      }
+    } else {
+      await supabaseAdmin
+        .from("activation_keys")
+        .update({
+          used_by: authData.user.id,
+          used_at: now.toISOString(),
+          expires_at: expiresAt,
+        })
+        .eq("key", hashedKey);
+    }
   }
 
   return NextResponse.json({ success: true });

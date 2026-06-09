@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { PageTransition } from "@/components/auth/page-transition";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { ReferralCard } from "@/components/settings/referral-card";
+import { FeedbackCard } from "@/components/settings/feedback-card";
 import type { User } from "@supabase/supabase-js";
 
 type PremiumStatus =
@@ -228,6 +230,9 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
           );
         })()}
 
+        {/* Referral (prof only) */}
+        {!isStudent && <ReferralCard />}
+
         {/* Language toggle */}
         <motion.div variants={fadeUp} className="mt-5">
           <p className="mb-2 text-[12px] font-bold uppercase text-[#1e1b4b]/30">
@@ -263,6 +268,11 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
               }}
             />
           </div>
+        </motion.div>
+
+        {/* Feedback: bug report / feature idea */}
+        <motion.div variants={fadeUp}>
+          <FeedbackCard isStudent={isStudent} />
         </motion.div>
 
         {/* Logout */}
