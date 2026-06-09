@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Cairo } from "next/font/google";
+import Script from "next/script";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
 
@@ -54,15 +55,9 @@ export default function RootLayout({
       <body className="min-h-dvh flex flex-col">
         {children}
         <PWAInstallPrompt />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js');
-              }
-            `,
-          }}
-        />
+        <Script id="sw-register" strategy="afterInteractive">
+          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`}
+        </Script>
       </body>
     </html>
   );
