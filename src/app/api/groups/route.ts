@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { validateString, validateNumber, validateSchedules, firstError } from "@/lib/validate";
 
+
 export async function GET() {
   const supabase = await createClient();
   const {

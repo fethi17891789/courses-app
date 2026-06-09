@@ -313,6 +313,10 @@
     "planPro": "Pro",
     "planStarterDesc": "45 طالب كحد أقصى",
     "planProDesc": "طلاب غير محدودين",
-    "expiresAt": "ينتهي في {date}"
+    "expiresAt": "ينتهي في {date}",
+    "subscriptionPaused": "الاشتراك متوقف مؤقتا (العداد مجمد)",
+    "pauseSubscription": "إيقاف مؤقت (الصيف)",
+    "resumeSubscription": "استئناف الاشتراك",
+    "pauseAlreadyUsed": "تم استخدام الإيقاف الصيفي هذا العام"
   }
 }

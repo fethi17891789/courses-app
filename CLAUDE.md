@@ -39,6 +39,7 @@ docs/
 - Imports : utiliser l'alias `@/*` pour `src/*`
 - JAMAIS d'emoji dans le code, les textes UI, les traductions, les commentaires ou les commits
 - JAMAIS creer de nouveaux styles de boutons, inputs ou assets UI sauf demande explicite de l'utilisateur. Reutiliser uniquement les styles existants dans la page login (login-screen.tsx) : boutons 3D poussoirs, champs avec bordure coloree, toggles gradient, etc.
+- JAMAIS inventer ou creer un nouveau design, layout ou composant visuel. Toujours respecter les assets, boutons, cartes, couleurs et patterns deja presents dans l'application. Se referer aux fichiers .md du projet (CLAUDE.md, cahier-des-charges.md) pour toute decision de design ou de fonctionnalite. Seule une demande explicite de l'utilisateur autorise une deviation.
 - JAMAIS de scrollbar visible. L'app est mobile-first, l'utilisateur scroll avec ses doigts. Utiliser des classes comme `scrollbar-hide` ou `overflow-y-auto` sans barre visible.
 
 ## Design

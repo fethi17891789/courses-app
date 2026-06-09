@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -58,6 +59,8 @@ export async function PUT(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+
+
   const body = await request.json();
   const { full_name, phone, parent_phone, level, section, notes, status } = body;
 
@@ -97,6 +100,8 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+
 
   const { error } = await supabase
     .from("students")

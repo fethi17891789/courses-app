@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -60,6 +61,8 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+
+
   const body = await request.json();
   const updates: Record<string, unknown> = {};
 
@@ -100,6 +103,8 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+
 
   const { error } = await supabase
     .from("groups")

@@ -3,6 +3,7 @@ import { createClient as createAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { validateString, validatePhone, validateEnrolledSessions, firstError } from "@/lib/validate";
 
+
 function getSupabaseAdmin() {
   return createAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { validateEnrolledSessions } from "@/lib/validate";
 
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -53,6 +54,7 @@ export async function POST(
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
 
   const { student_id, enrolled_sessions } = await request.json();
 
@@ -115,6 +117,7 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+
   const { data: group } = await supabase
     .from("groups")
     .select("id")
@@ -169,6 +172,7 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
 
   const { searchParams } = new URL(request.url);
   const memberId = searchParams.get("memberId");

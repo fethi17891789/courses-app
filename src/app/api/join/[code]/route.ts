@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { rateLimitByIp } from "@/lib/rate-limit";
 
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ code: string }> }
@@ -88,6 +89,8 @@ export async function POST(
   if (group.teacher_id === user.id) {
     return NextResponse.json({ error: "own_group" }, { status: 400 });
   }
+
+
 
   const { count } = await supabase
     .from("group_members")

@@ -9,9 +9,9 @@
  *
  * Examples:
  *   node scripts/generate-activation-key.js starter monthly  -> Starter 30 jours
- *   node scripts/generate-activation-key.js starter annual   -> Starter 9 mois (ou 12 si premiere inscription)
+ *   node scripts/generate-activation-key.js starter annual   -> Starter 12 mois (ou 15 si premiere inscription)
  *   node scripts/generate-activation-key.js pro monthly      -> Pro 30 jours
- *   node scripts/generate-activation-key.js pro annual       -> Pro 9 mois (ou 12 si premiere inscription)
+ *   node scripts/generate-activation-key.js pro annual       -> Pro 12 mois (ou 15 si premiere inscription)
  *
  * The plain-text key is shown ONCE in the terminal.
  * Only the SHA-256 hash is stored in the database.
@@ -62,7 +62,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const FORMULAS = {
   monthly: 30,
-  annual: 270, // 9 mois par defaut, 12 mois (365j) si premiere inscription
+  annual: 365, // 12 mois par defaut, 15 mois (456j) si premiere inscription
 };
 
 async function run() {
@@ -98,7 +98,7 @@ async function run() {
   }
 
   const planLabel = plan === "starter" ? "Starter (45 eleves max)" : "Pro (illimite)";
-  const formulaLabel = formula === "monthly" ? "Mensuel (30 jours)" : "Annuel (9 mois, ou 12 si 1ere inscription)";
+  const formulaLabel = formula === "monthly" ? "Mensuel (30 jours)" : "Annuel (12 mois, ou 15 si 1ere inscription)";
 
   console.log("");
   console.log("=".repeat(50));

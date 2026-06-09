@@ -313,6 +313,10 @@
     "planPro": "Pro",
     "planStarterDesc": "45 eleves maximum",
     "planProDesc": "Eleves illimites",
-    "expiresAt": "Expire le {date}"
+    "expiresAt": "Expire le {date}",
+    "subscriptionPaused": "Abonnement en pause (compteur gele)",
+    "pauseSubscription": "Mettre en pause (ete)",
+    "resumeSubscription": "Reprendre l'abonnement",
+    "pauseAlreadyUsed": "Pause estivale deja utilisee cette annee"
   }
 }
