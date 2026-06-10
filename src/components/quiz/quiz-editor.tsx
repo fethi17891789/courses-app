@@ -3,8 +3,7 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { useLocale, useTranslations } from "next-intl";
 import type { Quiz, QuizQuestion, QuizChoice } from "@/types/quiz";
 import { CHOICE_COLORS } from "@/types/quiz";
 
@@ -74,6 +73,7 @@ function QuestionCard({
   onDelete: () => void;
   canDelete: boolean;
 }) {
+  const t = useTranslations("quiz");
   const [expanded, setExpanded] = useState(index === 0);
 
   function updateChoice(i: number, field: keyof DraftChoice, value: string | boolean) {
@@ -103,7 +103,7 @@ function QuestionCard({
             {index + 1}
           </div>
           <div className="text-[14px] font-bold text-[#1e1b4b]">
-            {q.question_text || <span className="text-[#1e1b4b]/40">Question {index + 1}</span>}
+            {q.question_text || <span className="text-[#1e1b4b]/40">{t("questionLabel", { n: index + 1 })}</span>}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -132,13 +132,13 @@ function QuestionCard({
               <textarea
                 value={q.question_text}
                 onChange={(e) => onUpdate({ ...q, question_text: e.target.value })}
-                placeholder="Ecrivez votre question ici..."
+                placeholder={t("questionPlaceholder")}
                 rows={2}
                 className="w-full resize-none rounded-xl border-2 border-[#ede9fe] bg-[#f5f3ff] px-3 py-2.5 text-[14px] font-medium text-[#1e1b4b] placeholder:text-[#1e1b4b]/30 focus:border-[#a78bfa] focus:outline-none"
               />
 
               <div className="mt-3 flex items-center gap-2">
-                <span className="text-[12px] font-bold text-[#1e1b4b]/50">Temps :</span>
+                <span className="text-[12px] font-bold text-[#1e1b4b]/50">{t("time")}</span>
                 <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
                   {TIME_OPTIONS.map((t) => (
                     <button
@@ -183,7 +183,7 @@ function QuestionCard({
                         <input
                           value={choice.text}
                           onChange={(e) => updateChoice(ci, "text", e.target.value)}
-                          placeholder={`Reponse ${ci + 1}`}
+                          placeholder={t("answerPlaceholder", { n: ci + 1 })}
                           className="w-full bg-transparent text-[13px] font-medium text-[#1e1b4b] placeholder:text-[#1e1b4b]/30 focus:outline-none"
                         />
                       </div>
@@ -197,7 +197,7 @@ function QuestionCard({
                   onClick={onDelete}
                   className="mt-3 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] font-bold"
                   style={{ background: "#fff1f2", color: "#ef4444" }}>
-                  <TrashIcon /> Supprimer cette question
+                  <TrashIcon /> {t("deleteQuestion")}
                 </button>
               )}
             </div>
@@ -223,6 +223,7 @@ function draftFromQuiz(quiz: Quiz): { title: string; description: string; questi
 }
 
 export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
+  const t = useTranslations("quiz");
   const locale = useLocale();
   const router = useRouter();
   const isEdit = !!initialQuiz;
@@ -252,12 +253,12 @@ export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
 
   async function handleSave() {
     setError("");
-    if (!title.trim()) { setError("Le titre est obligatoire."); return; }
-    if (questions.length === 0) { setError("Ajoutez au moins une question."); return; }
+    if (!title.trim()) { setError(t("errTitle")); return; }
+    if (questions.length === 0) { setError(t("errNoQuestion")); return; }
     for (const [i, q] of questions.entries()) {
-      if (!q.question_text.trim()) { setError(`La question ${i + 1} est vide.`); return; }
-      if (!q.choices.some((c) => c.is_correct)) { setError(`Marquez la bonne reponse pour la question ${i + 1}.`); return; }
-      if (!q.choices.some((c) => c.text.trim())) { setError(`Ajoutez au moins une reponse pour la question ${i + 1}.`); return; }
+      if (!q.question_text.trim()) { setError(t("errEmptyQuestion", { n: i + 1 })); return; }
+      if (!q.choices.some((c) => c.is_correct)) { setError(t("errNoCorrect", { n: i + 1 })); return; }
+      if (!q.choices.some((c) => c.text.trim())) { setError(t("errNoAnswer", { n: i + 1 })); return; }
     }
 
     setSaving(true);
@@ -291,12 +292,13 @@ export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error || "Erreur lors de la sauvegarde.");
+      setError(data.error || t("errSave"));
       setSaving(false);
       return;
     }
 
     router.push(`/${locale}/quiz`);
+    router.refresh();
   }
 
   return (
@@ -310,7 +312,7 @@ export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
               onPointerUp={() => setPressedBack(false)}
               onPointerLeave={() => setPressedBack(false)}
               onClick={() => router.push(`/${locale}/quiz`)}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl text-[#7c3aed] transition-[transform,box-shadow] duration-[80ms]"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl text-[#7c3aed] transition-[transform,box-shadow] duration-[80ms] rtl:rotate-180"
               style={{
                 background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
                 transform: `translateY(${pressedBack ? 2 : 0}px)`,
@@ -320,10 +322,10 @@ export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
             </button>
             <div>
               <div className="text-[22px] font-extrabold text-[#1e1b4b] leading-tight">
-                {isEdit ? "Modifier le quiz" : "Creer un quiz"}
+                {isEdit ? t("editTitle") : t("newTitle")}
               </div>
               <div className="text-[13px] font-medium text-[#1e1b4b]/50">
-                {questions.length} question{questions.length > 1 ? "s" : ""}
+                {t("questionsCount", { count: questions.length })}
               </div>
             </div>
           </motion.div>
@@ -333,13 +335,13 @@ export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Titre du quiz"
+              placeholder={t("titlePlaceholder")}
               className="w-full rounded-xl border-2 border-[#ede9fe] bg-[#f5f3ff] px-3 py-2.5 text-[15px] font-bold text-[#1e1b4b] placeholder:text-[#1e1b4b]/30 focus:border-[#a78bfa] focus:outline-none"
             />
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optionnel)"
+              placeholder={t("descPlaceholder")}
               className="mt-2 w-full rounded-xl border-2 border-[#ede9fe] bg-[#f5f3ff] px-3 py-2.5 text-[13px] font-medium text-[#1e1b4b] placeholder:text-[#1e1b4b]/30 focus:border-[#a78bfa] focus:outline-none"
             />
           </motion.div>
@@ -362,7 +364,7 @@ export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
               onClick={addQuestion}
               className="flex w-full items-center justify-center gap-2 rounded-[22px] py-4 text-[14px] font-bold text-[#7c3aed] transition-colors"
               style={{ background: "rgba(124,58,237,0.06)", border: "2px dashed #c4b5fd" }}>
-              <PlusIcon /> Ajouter une question
+              <PlusIcon /> {t("addQuestion")}
             </button>
           </motion.div>
 
@@ -400,7 +402,7 @@ export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
                 : "0 4px 0 #5b21b6, 0 8px 24px -6px rgba(124,58,237,0.5)",
               opacity: saving ? 0.7 : 1,
             }}>
-            {saving ? "Sauvegarde..." : isEdit ? "Enregistrer les modifications" : "Creer le quiz"}
+            {saving ? t("saving") : isEdit ? t("saveEdit") : t("saveNew")}
           </button>
         </div>
       </div>

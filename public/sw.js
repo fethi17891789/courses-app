@@ -1,4 +1,4 @@
-const CACHE_NAME = "courses-v2";
+const CACHE_NAME = "courses-v3";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {

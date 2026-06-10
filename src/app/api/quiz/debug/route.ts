@@ -18,6 +18,13 @@ export async function GET() {
     .select("id, title")
     .limit(5);
 
+  // EXACT list-page query, run in the user's authenticated session (RLS applies)
+  const { data: listQuery, error: listQueryError } = await supabase
+    .from("quizzes")
+    .select("id, prof_id, title, description, created_at, updated_at, quiz_questions(id)")
+    .eq("prof_id", userId)
+    .order("updated_at", { ascending: false });
+
   // Test quiz_sessions table
   const { data: sessions, error: sessionsError } = await supabase
     .from("quiz_sessions")
@@ -38,6 +45,9 @@ export async function GET() {
     roleIsProf: role === "prof",
     quizzes: quizzes ?? [],
     quizzesError: quizzesError?.message ?? null,
+    listQueryCount: listQuery?.length ?? 0,
+    listQuery: listQuery ?? [],
+    listQueryError: listQueryError?.message ?? null,
     sessions: sessions ?? [],
     sessionsError: sessionsError?.message ?? null,
     sessionInsertError: insertError?.message ?? "insert ok (unexpected — should fail on fk)",

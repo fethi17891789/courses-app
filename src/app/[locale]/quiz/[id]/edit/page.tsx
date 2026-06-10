@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
-import { QuizDetail } from "@/components/quiz/quiz-detail";
+import { QuizEditor } from "@/components/quiz/quiz-editor";
 
-export default async function QuizDetailPage({
+export default async function EditQuizPage({
   params,
 }: {
   params: Promise<{ locale: string; id: string }>;
@@ -28,5 +28,5 @@ export default async function QuizDetailPage({
     }
   }
 
-  return <QuizDetail quiz={quiz} />;
+  return <QuizEditor initialQuiz={quiz} />;
 }

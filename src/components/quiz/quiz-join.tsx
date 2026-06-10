@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase";
 import type { SessionPlayer, QuizQuestion, QuizChoice, SessionStatus } from "@/types/quiz";
 import { CHOICE_COLORS, AVATAR_COLORS } from "@/types/quiz";
@@ -51,7 +51,7 @@ function ConfettiCanvas() {
 }
 
 // ── Score popup ───────────────────────────────────────────────────────────────
-function ScorePopup({ points, correct }: { points: number; correct: boolean }) {
+function ScorePopup({ correct, title, subtitle }: { correct: boolean; title: string; subtitle: string }) {
   return (
     <AnimatePresence>
       <motion.div
@@ -59,14 +59,28 @@ function ScorePopup({ points, correct }: { points: number; correct: boolean }) {
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.5, opacity: 0, y: -20 }}
         transition={{ type: "spring", stiffness: 400, damping: 20 }}
-        className="flex flex-col items-center gap-1">
-        <div className="text-[64px]">{correct ? "🎉" : "😢"}</div>
-        <div className="text-[28px] font-extrabold text-white">
-          {correct ? `+${points} pts` : "Raté !"}
-        </div>
-        <div className="text-[14px] font-medium text-white/60">
-          {correct ? "Bonne reponse !" : "Mauvaise reponse"}
-        </div>
+        className="flex flex-col items-center gap-3">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.1, type: "spring", stiffness: 400, damping: 18 }}
+          className="flex h-20 w-20 items-center justify-center rounded-full"
+          style={{
+            background: correct ? "linear-gradient(135deg, #4ade80, #22c55e)" : "linear-gradient(135deg, #f87171, #ef4444)",
+            boxShadow: correct ? "0 6px 0 #15803d" : "0 6px 0 #b91c1c",
+          }}>
+          {correct ? (
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          ) : (
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          )}
+        </motion.div>
+        <div className="text-[28px] font-extrabold text-white">{title}</div>
+        <div className="text-[14px] font-medium text-white/60">{subtitle}</div>
       </motion.div>
     </AnimatePresence>
   );
@@ -74,86 +88,130 @@ function ScorePopup({ points, correct }: { points: number; correct: boolean }) {
 
 type GamePhase =
   | { kind: "join" }
-  | { kind: "naming"; sessionId: string; joinCode: string; quizTitle: string }
   | { kind: "waiting"; sessionId: string; playerId: string; playerName: string; avatarColor: string; players: SessionPlayer[] }
   | { kind: "countdown"; sessionId: string; playerId: string; playerName: string }
   | { kind: "question"; sessionId: string; playerId: string; question: QuizQuestion & { quiz_choices: QuizChoice[] }; qIndex: number; qTotal: number; startedAt: string; answered: boolean; selectedChoiceId?: string }
-  | { kind: "result"; correct: boolean; points: number; totalScore: number; correctChoiceId: string; selectedChoiceId?: string; choices: QuizChoice[]; question: string }
+  | { kind: "result"; correct: boolean; points: number; totalScore?: number; correctChoiceId: string; selectedChoiceId?: string; choices: QuizChoice[]; question: string }
   | { kind: "leaderboard"; players: SessionPlayer[]; playerId: string; sessionId: string; qIndex: number; qTotal: number; isLast: boolean }
   | { kind: "finished"; players: SessionPlayer[]; playerId: string };
 
-export function QuizJoin({ prefillCode }: { prefillCode: string }) {
-  const locale = useLocale();
+type SessionRow = {
+  status: SessionStatus;
+  current_question_index: number;
+  question_started_at: string | null;
+};
+type PlayerCtx = { sessionId: string; playerId: string; playerName: string };
+
+export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; displayName: string }) {
+  const t = useTranslations("quiz");
   const [phase, setPhase] = useState<GamePhase>({ kind: "join" });
   const [code, setCode] = useState(prefillCode);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const ctxRef = useRef<PlayerCtx | null>(null);
+  // Last status:index already applied, so realtime + polling never double-apply
+  // (which would reset the timer or wipe an already-submitted answer).
+  const appliedRef = useRef<string>("");
+  const [avatarColor] = useState(() => AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
 
-  // Subscribe to session changes for player
+  // Apply a session state transition (shared by realtime + polling fallback)
+  const applySessionState = useCallback(async (s: SessionRow, ctx: PlayerCtx) => {
+    const key = `${s.status}:${s.current_question_index}`;
+    if (appliedRef.current === key) return;
+    appliedRef.current = key;
+    const { sessionId, playerId, playerName } = ctx;
+
+    if (s.status === "countdown") {
+      setPhase({ kind: "countdown", sessionId, playerId, playerName });
+    } else if (s.status === "question") {
+      const res = await fetch(`/api/quiz/sessions/${sessionId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const questions = data.session?.quizzes?.quiz_questions ?? [];
+      const q = questions[s.current_question_index];
+      if (!q) return;
+      setPhase({
+        kind: "question",
+        sessionId,
+        playerId,
+        question: q,
+        qIndex: s.current_question_index,
+        qTotal: questions.length,
+        startedAt: s.question_started_at ?? new Date().toISOString(),
+        answered: false,
+      });
+    } else if (s.status === "reveal") {
+      // Player who didn't answer in time: show the correct answer instead of staying stuck.
+      setPhase((prev) => {
+        if (prev.kind !== "question") return prev;
+        const correctChoice = prev.question.quiz_choices.find((c) => c.is_correct);
+        return {
+          kind: "result",
+          correct: false,
+          points: 0,
+          correctChoiceId: correctChoice?.id ?? "",
+          choices: prev.question.quiz_choices,
+          question: prev.question.question_text,
+        };
+      });
+    } else if (s.status === "leaderboard") {
+      const res = await fetch(`/api/quiz/sessions/${sessionId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const questions = data.session?.quizzes?.quiz_questions ?? [];
+      setPhase({
+        kind: "leaderboard",
+        players: data.players ?? [],
+        playerId,
+        sessionId,
+        qIndex: s.current_question_index,
+        qTotal: questions.length,
+        isLast: s.current_question_index >= questions.length - 1,
+      });
+    } else if (s.status === "finished") {
+      playFanfare();
+      const res = await fetch(`/api/quiz/sessions/${sessionId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPhase({ kind: "finished", players: data.players ?? [], playerId });
+    }
+  }, []);
+
+  // Subscribe to session changes for player (realtime)
   const subscribeToSession = useCallback((sessionId: string, playerId: string, playerName: string) => {
     if (channelRef.current) supabase.removeChannel(channelRef.current);
-
     const ch = supabase.channel(`player-session-${sessionId}`)
       .on("postgres_changes", {
         event: "UPDATE",
         schema: "public",
         table: "quiz_sessions",
         filter: `id=eq.${sessionId}`,
-      }, async (payload) => {
-        const s = payload.new as {
-          status: SessionStatus;
-          current_question_index: number;
-          question_started_at: string | null;
-          quiz_id: string;
-        };
-
-        if (s.status === "countdown") {
-          setPhase({ kind: "countdown", sessionId, playerId, playerName });
-        } else if (s.status === "question") {
-          // Fetch question details
-          const res = await fetch(`/api/quiz/sessions/${sessionId}`);
-          if (!res.ok) return;
-          const data = await res.json();
-          const questions = data.session?.quizzes?.quiz_questions ?? [];
-          const q = questions[s.current_question_index];
-          if (!q) return;
-          setPhase({
-            kind: "question",
-            sessionId,
-            playerId,
-            question: q,
-            qIndex: s.current_question_index,
-            qTotal: questions.length,
-            startedAt: s.question_started_at ?? new Date().toISOString(),
-            answered: false,
-          });
-        } else if (s.status === "leaderboard") {
-          const res = await fetch(`/api/quiz/sessions/${sessionId}`);
-          if (!res.ok) return;
-          const data = await res.json();
-          const questions = data.session?.quizzes?.quiz_questions ?? [];
-          setPhase((prev) => ({
-            kind: "leaderboard",
-            players: data.players ?? [],
-            playerId,
-            sessionId,
-            qIndex: s.current_question_index,
-            qTotal: questions.length,
-            isLast: s.current_question_index >= questions.length - 1,
-          }));
-        } else if (s.status === "finished") {
-          playFanfare();
-          const res = await fetch(`/api/quiz/sessions/${sessionId}`);
-          if (!res.ok) return;
-          const data = await res.json();
-          setPhase({ kind: "finished", players: data.players ?? [], playerId });
-        }
+      }, (payload) => {
+        applySessionState(payload.new as SessionRow, { sessionId, playerId, playerName });
       })
       .subscribe();
     channelRef.current = ch;
-  }, [supabase]);
+  }, [supabase, applySessionState]);
+
+  // Polling fallback: works even when Supabase Realtime is not enabled.
+  useEffect(() => {
+    const livePhases = ["waiting", "countdown", "question", "result", "leaderboard"];
+    if (!livePhases.includes(phase.kind) || !ctxRef.current) return;
+    const ctx = ctxRef.current;
+    const iv = setInterval(async () => {
+      const res = await fetch(`/api/quiz/sessions/${ctx.sessionId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.session) return;
+      setPhase((prev) =>
+        prev.kind === "waiting" ? { ...prev, players: data.players ?? prev.players } : prev
+      );
+      applySessionState(data.session as SessionRow, ctx);
+    }, 2500);
+    return () => clearInterval(iv);
+  }, [phase.kind, applySessionState]);
 
   // Subscribe to new players joining (waiting phase)
   useEffect(() => {
@@ -183,61 +241,49 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
     };
   }, [supabase]);
 
-  // ── Step 1: find session by code ────────────────────────────────────────────
+  // ── Find session by code, then join directly with the logged-in user's name ──
   async function handleCodeSubmit() {
     setError("");
-    if (!code.trim()) { setError("Entrez le code de la salle."); return; }
+    if (!code.trim()) { setError(t("errEnterCode")); return; }
     setLoading(true);
     const res = await fetch(`/api/quiz/sessions?code=${code.trim().toUpperCase()}`);
-    setLoading(false);
     if (!res.ok) {
+      setLoading(false);
       const d = await res.json().catch(() => ({}));
-      setError(d.error === "not_found" ? "Code invalide ou session terminee." : "Erreur reseau.");
+      setError(d.error === "not_found" ? t("errInvalidCode") : t("errNetwork"));
       return;
     }
     const { session } = await res.json();
-    setPhase({
-      kind: "naming",
-      sessionId: session.id,
-      joinCode: code.trim().toUpperCase(),
-      quizTitle: session.quiz?.title ?? "Quiz",
-    });
-  }
 
-  // ── Step 2: choose name + join ───────────────────────────────────────────────
-  const [playerName, setPlayerName] = useState("");
-  const avatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
-
-  async function handleJoin() {
-    if (phase.kind !== "naming") return;
-    setError("");
-    if (!playerName.trim()) { setError("Entrez votre pseudo."); return; }
-    setLoading(true);
-    const res = await fetch(`/api/quiz/sessions/${phase.sessionId}/join`, {
+    // Auto-join: the user is logged in, no need to ask for a nickname.
+    const joinRes = await fetch(`/api/quiz/sessions/${session.id}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player_name: playerName.trim(), avatar_color: avatarColor }),
+      body: JSON.stringify({ player_name: displayName, avatar_color: avatarColor }),
     });
-    setLoading(false);
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      setError(d.error === "already_joined" ? "Vous etes deja dans cette salle." : "Erreur lors de l'entree dans la salle.");
+    if (!joinRes.ok) {
+      setLoading(false);
+      const d = await joinRes.json().catch(() => ({}));
+      console.error("[quiz join]", joinRes.status, d);
+      if (d.error === "already_joined") { setError(t("errAlreadyJoined")); return; }
+      setError(`${t("errJoin")} (${d.error ?? joinRes.status})`);
       return;
     }
-    const { player } = await res.json();
-    // Get current players
-    const sessRes = await fetch(`/api/quiz/sessions/${phase.sessionId}`);
+    const { player } = await joinRes.json();
+    const sessRes = await fetch(`/api/quiz/sessions/${session.id}`);
     const sessData = sessRes.ok ? await sessRes.json() : { players: [] };
 
+    ctxRef.current = { sessionId: session.id, playerId: player.id, playerName: displayName };
+    appliedRef.current = "waiting:0";
     setPhase({
       kind: "waiting",
-      sessionId: phase.sessionId,
+      sessionId: session.id,
       playerId: player.id,
-      playerName: playerName.trim(),
+      playerName: displayName,
       avatarColor,
       players: sessData.players ?? [],
     });
-    subscribeToSession(phase.sessionId, player.id, playerName.trim());
+    subscribeToSession(session.id, player.id, displayName);
     resumeAudio();
   }
 
@@ -283,7 +329,11 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "#1e1b4b" }}>
         <div className="mb-4 text-[14px] font-bold text-white/50 text-center">{question}</div>
-        <ScorePopup points={points} correct={correct} />
+        <ScorePopup
+          correct={correct}
+          title={correct ? t("pointsEarned", { points }) : t("missed")}
+          subtitle={correct ? t("correct") : t("wrong")}
+        />
         <div className="mt-8 w-full max-w-sm grid grid-cols-2 gap-2">
           {choices.map((c) => {
             const col = CHOICE_COLORS[c.color];
@@ -304,10 +354,12 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
             );
           })}
         </div>
-        <div className="mt-6 text-[13px] font-bold text-white/40">
-          Score total : {totalScore} pts
-        </div>
-        <div className="mt-2 text-[12px] font-medium text-white/30">En attente du classement...</div>
+        {typeof totalScore === "number" && (
+          <div className="mt-6 text-[13px] font-bold text-white/40">
+            {t("totalScore", { score: totalScore })}
+          </div>
+        )}
+        <div className="mt-2 text-[12px] font-medium text-white/30">{t("waitingLeaderboard")}</div>
       </div>
     );
   }
@@ -323,12 +375,12 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
         <div className="mx-auto w-full max-w-md px-4 pt-10">
           <div className="mb-6 text-center">
             <div className="text-[13px] font-bold text-white/50 uppercase tracking-wider">
-              Classement — Q{phase.qIndex + 1}/{phase.qTotal}
+              {t("leaderboard")} — Q{phase.qIndex + 1}/{phase.qTotal}
             </div>
             {myRank >= 0 && (
               <div className="mt-1 text-[28px] font-extrabold"
                 style={{ color: myRank === 0 ? "#f59e0b" : "#a78bfa" }}>
-                {myRank === 0 ? "1er" : `${myRank + 1}eme`}
+                {myRank === 0 ? t("rankFirst") : t("rankNth", { rank: myRank + 1 })}
               </div>
             )}
           </div>
@@ -356,7 +408,7 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[14px] font-bold text-white truncate">
-                      {p.player_name} {p.id === playerId && <span className="text-[11px] text-white/50">(vous)</span>}
+                      {p.player_name} {p.id === playerId && <span className="text-[11px] text-white/50">{t("you")}</span>}
                     </div>
                     <div className="mt-1 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                       <motion.div
@@ -377,7 +429,7 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
           </div>
 
           <div className="mt-6 text-center text-[12px] font-medium text-white/30">
-            {phase.isLast ? "Derniere question — fin bientot..." : "Prochaine question bientot..."}
+            {phase.isLast ? t("lastSoon") : t("nextSoon")}
           </div>
         </div>
       </div>
@@ -396,11 +448,14 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease }}
           className="relative z-10 w-full max-w-md px-4 text-center">
-          <div className="mb-2 text-[40px] font-extrabold text-white">Quiz termine !</div>
+          <div className="mb-2 text-[40px] font-extrabold text-white">{t("quizFinished")}</div>
           {myRank >= 0 && (
             <div className="mb-6 text-[18px] font-bold"
               style={{ color: myRank === 0 ? "#f59e0b" : "#a78bfa" }}>
-              Vous etes {myRank === 0 ? "1er" : `${myRank + 1}eme`} — {players.find((p) => p.id === playerId)?.score ?? 0} pts
+              {t("youRankScore", {
+                rank: myRank === 0 ? t("rankFirst") : t("rankNth", { rank: myRank + 1 }),
+                score: players.find((p) => p.id === playerId)?.score ?? 0,
+              })}
             </div>
           )}
 
@@ -438,9 +493,9 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "#1e1b4b" }}>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
-          <div className="mb-2 text-[22px] font-extrabold text-white">Salle d&apos;attente</div>
+          <div className="mb-2 text-[22px] font-extrabold text-white">{t("waitingRoom")}</div>
           <div className="mb-6 text-[14px] font-medium text-white/50">
-            Le prof va lancer le quiz...
+            {t("waitingProfStart")}
           </div>
           <div className="mb-6 overflow-hidden rounded-[22px] bg-white/10 p-5"
             style={{ border: "2px solid rgba(255,255,255,0.12)" }}>
@@ -449,7 +504,7 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
               {phase.playerName.slice(0, 2).toUpperCase()}
             </div>
             <div className="text-[16px] font-bold text-white">{phase.playerName}</div>
-            <div className="mt-1 text-[12px] text-white/40">{players.length} joueur{players.length !== 1 ? "s" : ""} dans la salle</div>
+            <div className="mt-1 text-[12px] text-white/40">{t("playersInRoom", { count: players.length })}</div>
           </div>
 
           <div className="flex flex-wrap gap-2 justify-center">
@@ -518,51 +573,9 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
 
         {answered && (
           <div className="py-4 text-center text-[13px] font-bold text-white/40">
-            Reponse enregistree — en attente du resultat...
+            {t("answerSaved")}
           </div>
         )}
-      </div>
-    );
-  }
-
-  // ── Naming screen ─────────────────────────────────────────────────────────────
-  if (phase.kind === "naming") {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "#1e1b4b" }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
-          <div className="mb-2 text-center text-[22px] font-extrabold text-white">Rejoindre</div>
-          <div className="mb-6 text-center text-[14px] font-medium text-white/50">{phase.quizTitle}</div>
-
-          <div className="mb-4 overflow-hidden rounded-[22px] bg-white/10 p-5"
-            style={{ border: "2px solid rgba(255,255,255,0.12)" }}>
-            <div className="mb-1.5 text-[12px] font-bold text-white/50">Votre pseudo</div>
-            <input
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-              placeholder="Ex: Ahmed, Sara..."
-              maxLength={20}
-              autoFocus
-              className="w-full bg-transparent text-[18px] font-extrabold text-white placeholder:text-white/20 focus:outline-none"
-            />
-          </div>
-
-          {error && (
-            <div className="mb-3 rounded-2xl bg-red-500/20 px-4 py-3 text-[13px] font-bold text-red-300">{error}</div>
-          )}
-
-          <button
-            onClick={handleJoin}
-            disabled={loading || !playerName.trim()}
-            className="w-full rounded-2xl py-4 text-[16px] font-extrabold text-white transition-opacity"
-            style={{
-              background: "linear-gradient(135deg, #a78bfa, #7c3aed)",
-              boxShadow: "0 4px 0 #5b21b6, 0 8px 24px -6px rgba(124,58,237,0.5)",
-              opacity: loading || !playerName.trim() ? 0.6 : 1,
-            }}>
-            {loading ? "..." : "Rejoindre le quiz"}
-          </button>
-        </motion.div>
       </div>
     );
   }
@@ -571,9 +584,9 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "#1e1b4b" }}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
-        <div className="mb-2 text-center text-[28px] font-extrabold text-white">Rejoindre un quiz</div>
+        <div className="mb-2 text-center text-[28px] font-extrabold text-white">{t("joinTitle")}</div>
         <div className="mb-8 text-center text-[14px] font-medium text-white/50">
-          Entrez le code donne par votre professeur
+          {t("joinSubtitle")}
         </div>
 
         <div className="mb-4 overflow-hidden rounded-[22px] bg-white/10 p-5"
@@ -582,11 +595,15 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === "Enter" && handleCodeSubmit()}
-            placeholder="CODE"
+            placeholder={t("codePlaceholder")}
             maxLength={8}
             autoFocus
             className="w-full bg-transparent text-center text-[36px] font-extrabold text-white tracking-[0.2em] placeholder:text-white/20 focus:outline-none"
           />
+        </div>
+
+        <div className="mb-4 text-center text-[12px] font-semibold text-white/40">
+          {t("joinAs", { name: displayName })}
         </div>
 
         {error && (
@@ -602,7 +619,7 @@ export function QuizJoin({ prefillCode }: { prefillCode: string }) {
             boxShadow: "0 4px 0 #5b21b6, 0 8px 24px -6px rgba(124,58,237,0.5)",
             opacity: loading || !code.trim() ? 0.6 : 1,
           }}>
-          {loading ? "Recherche..." : "Continuer"}
+          {loading ? t("searching") : t("joinCta")}
         </button>
       </motion.div>
     </div>

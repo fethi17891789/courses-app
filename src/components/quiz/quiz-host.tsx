@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase";
 import type { QuizSession, SessionPlayer, QuizQuestion, QuizChoice, SessionStatus } from "@/types/quiz";
 import { CHOICE_COLORS } from "@/types/quiz";
@@ -179,6 +179,7 @@ function CountdownDisplay({ onDone }: { onDone: () => void }) {
 
 // ── Main host component ───────────────────────────────────────────────────────
 export function QuizHost({ sessionId }: { sessionId: string }) {
+  const t = useTranslations("quiz");
   const locale = useLocale();
   const router = useRouter();
 
@@ -192,6 +193,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
   const [answerCount, setAnswerCount] = useState(0);
   const [pressedBtn, setPressedBtn] = useState<string | null>(null);
   const [countdownDone, setCountdownDone] = useState(false);
+  const [showQuit, setShowQuit] = useState(false);
   const supabase = createClient();
   const playerCountRef = useRef(0);
 
@@ -225,6 +227,14 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [sessionId, supabase]);
+
+  // Polling fallback (works even if Supabase Realtime is not enabled):
+  // refresh the player list while in the waiting room.
+  useEffect(() => {
+    if (data?.session?.status !== "waiting") return;
+    const iv = setInterval(fetchData, 3000);
+    return () => clearInterval(iv);
+  }, [data?.session?.status, fetchData]);
 
   // Realtime: player answers count
   useEffect(() => {
@@ -281,10 +291,21 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
     await fetchData();
   }
 
+  function handleQuit() {
+    setShowQuit(false);
+    // Close the session for everyone, then leave.
+    fetch(`/api/quiz/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "finish" }),
+    });
+    router.push(`/${locale}/quiz`);
+  }
+
   if (loading || !data) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ background: "#f0ecff" }}>
-        <div className="text-[16px] font-bold text-[#7c3aed]">Chargement...</div>
+        <div className="text-[16px] font-bold text-[#7c3aed]">{t("loading")}</div>
       </div>
     );
   }
@@ -293,6 +314,61 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
   const questions = session.quizzes?.quiz_questions ?? [];
   const currentQuestion = questions[session.current_question_index];
   const isLastQuestion = session.current_question_index >= questions.length - 1;
+
+  const quitUI = (
+    <>
+      <button
+        onClick={() => setShowQuit(true)}
+        aria-label={t("quit")}
+        className="fixed left-3 top-3 z-[55] flex h-9 w-9 items-center justify-center rounded-full"
+        style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.25)", backdropFilter: "blur(4px)" }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+      <AnimatePresence>
+        {showQuit && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-5"
+            onClick={() => setShowQuit(false)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ duration: 0.25, ease }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl bg-white p-5"
+              style={{ boxShadow: "0 4px 0 #e9e5f5, 0 16px 48px -12px rgba(30,27,75,0.3)" }}
+            >
+              <p className="text-[15px] font-extrabold text-[#1e1b4b]">{t("quitTitle")}</p>
+              <p className="mt-2 text-[13px] font-semibold text-[#1e1b4b]/50">{t("quitConfirm")}</p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowQuit(false)}
+                  className="rounded-xl bg-[#f0ecff] py-3 text-[13px] font-extrabold text-[#7c3aed]"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  onClick={handleQuit}
+                  className="rounded-xl py-3 text-[13px] font-extrabold text-white"
+                  style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}
+                >
+                  {t("quit")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
 
   function PushBtn({
     id, onClick, bg, shadow, textColor = "white", children, fullWidth = false,
@@ -330,6 +406,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
   if (session.status === "waiting") {
     return (
       <div className="relative flex min-h-screen flex-col overflow-y-auto scrollbar-hide" style={{ background: "#1e1b4b", paddingBottom: 100 }}>
+        {quitUI}
         <div className="mx-auto w-full max-w-md px-4 pt-10">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease }}>
             <div className="mb-2 text-[13px] font-bold text-white/50 text-center uppercase tracking-widest">
@@ -338,7 +415,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
 
             <div className="mb-6 overflow-hidden rounded-[28px] bg-white/10 p-6 text-center backdrop-blur-sm"
               style={{ border: "2px solid rgba(255,255,255,0.15)" }}>
-              <div className="text-[13px] font-bold text-white/60 uppercase tracking-wider mb-2">Code de la salle</div>
+              <div className="text-[13px] font-bold text-white/60 uppercase tracking-wider mb-2">{t("roomCode")}</div>
               <motion.div
                 animate={{ scale: [1, 1.04, 1] }}
                 transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
@@ -347,15 +424,15 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
                 {session.join_code}
               </motion.div>
               <div className="mt-3 text-[12px] font-medium text-white/40">
-                Entrez ce code sur votre tableau de bord
+                {t("roomCodeHint")}
               </div>
             </div>
 
             <div className="mb-4 flex items-center justify-between">
               <div className="text-[14px] font-bold text-white/70">
-                {players.length} joueur{players.length !== 1 ? "s" : ""}
+                {t("players", { count: players.length })}
               </div>
-              <div className="text-[12px] font-medium text-white/40">En attente...</div>
+              <div className="text-[12px] font-medium text-white/40">{t("waiting")}</div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -384,11 +461,11 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
           <div className="mx-auto max-w-md">
             {players.length === 0 ? (
               <div className="rounded-2xl bg-white/10 py-4 text-center text-[14px] font-bold text-white/50">
-                En attente des joueurs...
+                {t("waitingPlayers")}
               </div>
             ) : (
               <PushBtn id="start" fullWidth onClick={() => advance("start_countdown")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
-                Lancer avec {players.length} joueur{players.length !== 1 ? "s" : ""}
+                {t("startWith", { count: players.length })}
               </PushBtn>
             )}
           </div>
@@ -401,12 +478,13 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
   if (session.status === "question" && currentQuestion) {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#1e1b4b" }}>
-        <div className="flex items-center justify-between px-4 pt-8 pb-3">
+        {quitUI}
+        <div className="flex items-center justify-between pl-14 pr-4 pt-8 pb-3">
           <div className="text-[12px] font-bold text-white/50 uppercase tracking-wider">
             Q{session.current_question_index + 1} / {questions.length}
           </div>
           <div className="text-[12px] font-bold text-white/50">
-            {answerCount}/{players.length} reponses
+            {t("answers", { count: answerCount, total: players.length })}
           </div>
         </div>
 
@@ -446,7 +524,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
 
         <div className="px-4 py-4" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
           <PushBtn id="reveal" fullWidth onClick={() => { playRevealDrum(); advance("reveal"); }} bg="linear-gradient(135deg, #f97316, #ea580c)" shadow="#c2410c">
-            Reveler la reponse
+            {t("reveal")}
           </PushBtn>
         </div>
       </div>
@@ -457,6 +535,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
   if (session.status === "reveal" && currentQuestion) {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#1e1b4b" }}>
+        {quitUI}
         <div className="px-4 pt-8 pb-4 text-center">
           <div className="text-[13px] font-bold text-white/50 uppercase tracking-wider mb-2">
             Q{session.current_question_index + 1} / {questions.length}
@@ -498,7 +577,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
 
         <div className="px-4 py-4" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
           <PushBtn id="leaderboard" fullWidth onClick={() => advance("leaderboard")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
-            Voir le classement
+            {t("viewLeaderboard")}
           </PushBtn>
         </div>
       </div>
@@ -511,10 +590,11 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
     const maxScore = sorted[0]?.score || 1;
     return (
       <div className="flex min-h-screen flex-col overflow-y-auto scrollbar-hide" style={{ background: "#1e1b4b", paddingBottom: 100 }}>
+        {quitUI}
         <div className="mx-auto w-full max-w-md px-4 pt-8">
           <div className="mb-6 text-center">
             <div className="text-[13px] font-bold text-white/50 uppercase tracking-wider">
-              Classement — Q{session.current_question_index + 1}/{questions.length}
+              {t("leaderboard")} — Q{session.current_question_index + 1}/{questions.length}
             </div>
           </div>
 
@@ -561,11 +641,11 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
           <div className="mx-auto flex max-w-md gap-3">
             {isLastQuestion ? (
               <PushBtn id="finish" fullWidth onClick={() => { playFanfare(); advance("finish"); }} bg="linear-gradient(135deg, #4ade80, #22c55e)" shadow="#15803d">
-                Terminer le quiz
+                {t("finishQuiz")}
               </PushBtn>
             ) : (
               <PushBtn id="next" fullWidth onClick={() => advance("next_question")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
-                Question suivante
+                {t("nextQuestion")}
               </PushBtn>
             )}
           </div>
@@ -589,7 +669,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
               className="text-[40px] font-extrabold text-white leading-tight">
-              Fin du quiz !
+              {t("quizEnd")}
             </motion.div>
             <div className="mt-1 text-[14px] font-medium text-white/50">{session.quizzes?.title}</div>
           </div>
@@ -629,7 +709,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
               onClick={() => router.push(`/${locale}/quiz`)}
               className="flex-1 rounded-2xl py-4 text-[15px] font-extrabold text-white"
               style={{ background: "rgba(255,255,255,0.1)", border: "2px solid rgba(255,255,255,0.2)" }}>
-              Retour
+              {t("back")}
             </button>
           </div>
         </motion.div>

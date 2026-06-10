@@ -15,5 +15,10 @@ export default async function QuizPlayPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/${locale}/login`);
 
-  return <QuizJoin prefillCode={code?.toUpperCase() ?? ""} />;
+  const displayName =
+    user.user_metadata?.full_name?.trim() ||
+    user.email?.split("@")[0] ||
+    "Joueur";
+
+  return <QuizJoin prefillCode={code?.toUpperCase() ?? ""} displayName={displayName} />;
 }
