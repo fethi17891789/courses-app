@@ -151,6 +151,7 @@ function QuizCard({
 export function QuizList({ quizzes: initial }: { quizzes: Quiz[] }) {
   const [quizzes, setQuizzes] = useState(initial);
   const [launching, setLaunching] = useState<string | null>(null);
+  const [launchError, setLaunchError] = useState("");
   const [pressedCreate, setPressedCreate] = useState(false);
   const router = useRouter();
   const locale = useLocale();
@@ -159,16 +160,24 @@ export function QuizList({ quizzes: initial }: { quizzes: Quiz[] }) {
   async function handleLaunch(quiz: Quiz) {
     if (launching) return;
     setLaunching(quiz.id);
+    setLaunchError("");
     try {
       const res = await fetch("/api/quiz/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quiz_id: quiz.id }),
       });
-      if (!res.ok) throw new Error();
-      const { session } = await res.json();
-      router.push(`/${locale}/quiz/host/${session.id}`);
-    } catch {
+      const data = await res.json();
+      console.log("[quiz launch]", res.status, data);
+      if (!res.ok) {
+        setLaunchError(`Erreur ${res.status}: ${data.error ?? "inconnue"}`);
+        setLaunching(null);
+        return;
+      }
+      router.push(`/${locale}/quiz/host/${data.session.id}`);
+    } catch (e) {
+      console.error("[quiz launch error]", e);
+      setLaunchError("Erreur reseau. Verifie ta connexion.");
       setLaunching(null);
     }
   }
@@ -209,6 +218,17 @@ export function QuizList({ quizzes: initial }: { quizzes: Quiz[] }) {
               <PlusIcon /> Creer
             </button>
           </motion.div>
+
+          <AnimatePresence>
+            {launchError && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="mb-4 rounded-2xl px-4 py-3 text-[13px] font-bold text-[#ef4444]"
+                style={{ background: "#fff1f2", border: "2px solid #fca5a5" }}>
+                {launchError}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {quizzes.length === 0 ? (
             <motion.div variants={fadeUp}

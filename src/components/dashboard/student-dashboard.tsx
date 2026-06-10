@@ -304,6 +304,7 @@ export function StudentDashboard({ user }: { user: User }) {
                   onPointerDown={() => setPressed("quiz")}
                   onPointerUp={() => setPressed(null)}
                   onPointerLeave={() => setPressed(null)}
+                  onClick={() => router.push(`/${locale}/quiz/play`)}
                   className="mt-3 inline-flex items-center rounded-xl bg-white px-4 py-2 text-[12px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"
                   style={{
                     color: "#b45309",
