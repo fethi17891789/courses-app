@@ -135,6 +135,7 @@ function QuizCard({
   pressed,
   onPress,
   onRelease,
+  onClick,
   label,
   description,
   cta,
@@ -142,6 +143,7 @@ function QuizCard({
   pressed: boolean;
   onPress: () => void;
   onRelease: () => void;
+  onClick: () => void;
   label: string;
   description: string;
   cta: string;
@@ -174,6 +176,7 @@ function QuizCard({
             onPointerDown={onPress}
             onPointerUp={onRelease}
             onPointerLeave={onRelease}
+            onClick={onClick}
             className="mt-3 inline-flex items-center rounded-xl bg-white px-4 py-2 text-[12px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"
             style={{
               color: "#b45309",
@@ -434,6 +437,7 @@ export function DashboardContent({ user }: { user: User }) {
             pressed={pressed === "quiz"}
             onPress={() => setPressed("quiz")}
             onRelease={() => setPressed(null)}
+            onClick={() => router.push(`/${locale}/quiz`)}
             label={t("createQuiz")}
             description={t("createQuizDesc")}
             cta={t("quizCta")}

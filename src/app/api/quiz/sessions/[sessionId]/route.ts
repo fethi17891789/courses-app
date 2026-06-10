@@ -1,0 +1,91 @@
+import { createClient } from "@/lib/supabase-server";
+import { NextResponse } from "next/server";
+import type { SessionStatus } from "@/types/quiz";
+
+type Params = { params: Promise<{ sessionId: string }> };
+
+export async function GET(_req: Request, { params }: Params) {
+  const { sessionId } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const { data: session } = await supabase
+    .from("quiz_sessions")
+    .select(`
+      *,
+      quizzes(
+        title,
+        quiz_questions(
+          id, question_text, time_limit, points, order_index,
+          quiz_choices(id, text, is_correct, color, order_index)
+        )
+      )
+    `)
+    .eq("id", sessionId)
+    .single();
+
+  if (!session) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  // Sort
+  if (session.quizzes?.quiz_questions) {
+    session.quizzes.quiz_questions.sort((a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index);
+    for (const q of session.quizzes.quiz_questions) {
+      q.quiz_choices?.sort((a: { order_index: number }, b: { order_index: number }) => a.order_index - b.order_index);
+    }
+  }
+
+  const { data: players } = await supabase
+    .from("session_players")
+    .select("id, player_name, avatar_color, score, streak")
+    .eq("session_id", sessionId)
+    .order("score", { ascending: false });
+
+  return NextResponse.json({ session, players: players ?? [] });
+}
+
+// Prof advances game state
+export async function PATCH(request: Request, { params }: Params) {
+  const { sessionId } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.user_metadata?.role !== "prof") {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { data: session } = await supabase
+    .from("quiz_sessions")
+    .select("prof_id, status, current_question_index, quiz_id")
+    .eq("id", sessionId)
+    .single();
+
+  if (!session || session.prof_id !== user.id) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { action } = body;
+
+  const updates: Partial<{ status: SessionStatus; current_question_index: number; question_started_at: string }> = {};
+
+  if (action === "start_countdown") {
+    updates.status = "countdown";
+  } else if (action === "start_question") {
+    updates.status = "question";
+    updates.question_started_at = new Date().toISOString();
+  } else if (action === "reveal") {
+    updates.status = "reveal";
+  } else if (action === "leaderboard") {
+    updates.status = "leaderboard";
+  } else if (action === "next_question") {
+    updates.status = "countdown";
+    updates.current_question_index = session.current_question_index + 1;
+  } else if (action === "finish") {
+    updates.status = "finished";
+  } else {
+    return NextResponse.json({ error: "invalid_action" }, { status: 400 });
+  }
+
+  await supabase.from("quiz_sessions").update(updates).eq("id", sessionId);
+  return NextResponse.json({ success: true });
+}
