@@ -385,6 +385,7 @@
     "missed": "Rate !",
     "totalScore": "Score total : {score} pts",
     "waitingLeaderboard": "En attente du classement...",
+    "waitingReveal": "En attente de la correction...",
     "rankFirst": "1er",
     "rankNth": "{rank}eme",
     "you": "(vous)",
@@ -392,7 +393,8 @@
     "lastSoon": "Derniere question — fin bientot...",
     "quizFinished": "Quiz termine !",
     "youRankScore": "Vous etes {rank} — {score} pts",
-    "answerSaved": "Reponse enregistree — en attente du resultat..."
+    "answerSaved": "Reponse enregistree — en attente du resultat...",
+    "timeUp": "Temps ecoule — en attente de la correction..."
   },
   "settings": {
     "logout": "Se deconnecter",

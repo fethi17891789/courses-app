@@ -10,6 +10,9 @@ import {
   resumeAudio, playCountdownBeep, playGo, playCorrect, playWrong, playPoints, playFanfare,
 } from "@/lib/quiz-sounds";
 
+const STORAGE_KEY = "quiz_active_session";
+type StoredSession = { sessionId: string; playerId: string; playerName: string; avatarColor: string };
+
 const ease = [0.23, 1, 0.32, 1] as const;
 
 // ── Confetti (reused here too) ────────────────────────────────────────────────
@@ -89,8 +92,8 @@ function ScorePopup({ correct, title, subtitle }: { correct: boolean; title: str
 type GamePhase =
   | { kind: "join" }
   | { kind: "waiting"; sessionId: string; playerId: string; playerName: string; avatarColor: string; players: SessionPlayer[] }
-  | { kind: "countdown"; sessionId: string; playerId: string; playerName: string }
-  | { kind: "question"; sessionId: string; playerId: string; question: QuizQuestion & { quiz_choices: QuizChoice[] }; qIndex: number; qTotal: number; startedAt: string; answered: boolean; selectedChoiceId?: string }
+  | { kind: "countdown"; sessionId: string; playerId: string; playerName: string; startedAt: string }
+  | { kind: "question"; sessionId: string; playerId: string; question: QuizQuestion & { quiz_choices: QuizChoice[] }; qIndex: number; qTotal: number; startedAt: string; answered: boolean; selectedChoiceId?: string; pendingResult?: { correct: boolean; points: number; totalScore?: number } }
   | { kind: "result"; correct: boolean; points: number; totalScore?: number; correctChoiceId: string; selectedChoiceId?: string; choices: QuizChoice[]; question: string }
   | { kind: "leaderboard"; players: SessionPlayer[]; playerId: string; sessionId: string; qIndex: number; qTotal: number; isLast: boolean }
   | { kind: "finished"; players: SessionPlayer[]; playerId: string };
@@ -99,6 +102,7 @@ type SessionRow = {
   status: SessionStatus;
   current_question_index: number;
   question_started_at: string | null;
+  countdown_started_at: string | null;
 };
 type PlayerCtx = { sessionId: string; playerId: string; playerName: string };
 
@@ -124,14 +128,18 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
     const { sessionId, playerId, playerName } = ctx;
 
     if (s.status === "countdown") {
-      setPhase({ kind: "countdown", sessionId, playerId, playerName });
+      setPhase({ kind: "countdown", sessionId, playerId, playerName, startedAt: s.countdown_started_at ?? new Date().toISOString() });
     } else if (s.status === "question") {
       const res = await fetch(`/api/quiz/sessions/${sessionId}`);
       if (!res.ok) return;
       const data = await res.json();
       const questions = data.session?.quizzes?.quiz_questions ?? [];
       const q = questions[s.current_question_index];
-      if (!q) return;
+      if (!q) {
+        // No question at this index (e.g. empty quiz) — treat as finished
+        setPhase({ kind: "finished", players: data.players ?? [], playerId });
+        return;
+      }
       setPhase({
         kind: "question",
         sessionId,
@@ -143,15 +151,17 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
         answered: false,
       });
     } else if (s.status === "reveal") {
-      // Player who didn't answer in time: show the correct answer instead of staying stuck.
       setPhase((prev) => {
         if (prev.kind !== "question") return prev;
         const correctChoice = prev.question.quiz_choices.find((c) => c.is_correct);
+        const pending = prev.pendingResult;
         return {
           kind: "result",
-          correct: false,
-          points: 0,
+          correct: pending?.correct ?? false,
+          points: pending?.points ?? 0,
+          totalScore: pending?.totalScore,
           correctChoiceId: correctChoice?.id ?? "",
+          selectedChoiceId: prev.selectedChoiceId,
           choices: prev.question.quiz_choices,
           question: prev.question.question_text,
         };
@@ -171,6 +181,7 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
         isLast: s.current_question_index >= questions.length - 1,
       });
     } else if (s.status === "finished") {
+      localStorage.removeItem(STORAGE_KEY);
       playFanfare();
       const res = await fetch(`/api/quiz/sessions/${sessionId}`);
       if (!res.ok) return;
@@ -224,11 +235,12 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
         table: "session_players",
         filter: `session_id=eq.${sessionId}`,
       }, (payload) => {
-        setPhase((prev) =>
-          prev.kind === "waiting"
-            ? { ...prev, players: [...prev.players, payload.new as SessionPlayer] }
-            : prev
-        );
+        const incoming = payload.new as SessionPlayer;
+        setPhase((prev) => {
+          if (prev.kind !== "waiting") return prev;
+          if (prev.players.some((p) => p.id === incoming.id)) return prev;
+          return { ...prev, players: [...prev.players, incoming] };
+        });
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -240,6 +252,66 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [supabase]);
+
+  // On mount: restore active session from localStorage (survives page refresh)
+  useEffect(() => {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    let stored: StoredSession;
+    try { stored = JSON.parse(raw); } catch { localStorage.removeItem(STORAGE_KEY); return; }
+    const { sessionId, playerId, playerName, avatarColor: storedColor } = stored;
+
+    (async () => {
+      const res = await fetch(`/api/quiz/sessions/${sessionId}`);
+      if (!res.ok) { localStorage.removeItem(STORAGE_KEY); return; }
+      const data = await res.json();
+      const session = data.session as (SessionRow & { quizzes?: { quiz_questions?: Array<QuizQuestion & { quiz_choices: QuizChoice[] }> } }) | null;
+      if (!session || session.status === "finished") { localStorage.removeItem(STORAGE_KEY); return; }
+
+      const questions = session.quizzes?.quiz_questions ?? [];
+      ctxRef.current = { sessionId, playerId, playerName };
+      resumeAudio();
+
+      if (session.status === "waiting") {
+        appliedRef.current = "waiting:0";
+        setPhase({ kind: "waiting", sessionId, playerId, playerName, avatarColor: storedColor, players: data.players ?? [] });
+      } else if (session.status === "countdown") {
+        appliedRef.current = `countdown:${session.current_question_index}`;
+        setPhase({ kind: "countdown", sessionId, playerId, playerName, startedAt: session.countdown_started_at ?? new Date().toISOString() });
+      } else if (session.status === "question") {
+        const q = questions[session.current_question_index];
+        if (!q) { localStorage.removeItem(STORAGE_KEY); return; }
+        appliedRef.current = `question:${session.current_question_index}`;
+        setPhase({
+          kind: "question", sessionId, playerId, question: q,
+          qIndex: session.current_question_index, qTotal: questions.length,
+          startedAt: session.question_started_at ?? new Date().toISOString(),
+          answered: false,
+        });
+      } else if (session.status === "reveal") {
+        const q = questions[session.current_question_index];
+        const correctChoice = q?.quiz_choices?.find((c) => c.is_correct);
+        appliedRef.current = `reveal:${session.current_question_index}`;
+        setPhase({
+          kind: "result", correct: false, points: 0,
+          correctChoiceId: correctChoice?.id ?? "",
+          selectedChoiceId: undefined,
+          choices: q?.quiz_choices ?? [],
+          question: q?.question_text ?? "",
+        });
+      } else if (session.status === "leaderboard") {
+        appliedRef.current = `leaderboard:${session.current_question_index}`;
+        setPhase({
+          kind: "leaderboard", players: data.players ?? [], playerId, sessionId,
+          qIndex: session.current_question_index, qTotal: questions.length,
+          isLast: session.current_question_index >= questions.length - 1,
+        });
+      }
+
+      subscribeToSession(sessionId, playerId, playerName);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Find session by code, then join directly with the logged-in user's name ──
   async function handleCodeSubmit() {
@@ -285,6 +357,12 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
     });
     subscribeToSession(session.id, player.id, displayName);
     resumeAudio();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      sessionId: session.id,
+      playerId: player.id,
+      playerName: displayName,
+      avatarColor,
+    }));
   }
 
   // ── Answer submission ─────────────────────────────────────────────────────────
@@ -305,27 +383,23 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
     if (correct) { playCorrect(); } else { playWrong(); }
     if (pointsEarned > 0) setTimeout(playPoints, 500);
 
-    const correctChoice = phase.question.quiz_choices.find((c) => c.is_correct);
-    setPhase({
-      kind: "result",
-      correct,
-      points: pointsEarned,
-      totalScore,
-      correctChoiceId: correctChoice?.id ?? "",
-      selectedChoiceId: choiceId,
-      choices: phase.question.quiz_choices,
-      question: phase.question.question_text,
-    });
+    // Stay on question screen — store result and wait for "reveal" status.
+    setPhase((prev) =>
+      prev.kind === "question"
+        ? { ...prev, pendingResult: { correct, points: pointsEarned, totalScore } }
+        : prev
+    );
   }
 
   // ── Countdown ─────────────────────────────────────────────────────────────────
   if (phase.kind === "countdown") {
-    return <PlayerCountdown />;
+    return <PlayerCountdown startedAt={phase.startedAt} />;
   }
 
-  // ── Result waiting (answered, waiting for reveal) ─────────────────────────────
+  // ── Result (answered — waiting for reveal, or reveal done) ──────────────────
   if (phase.kind === "result") {
     const { correct, points, totalScore, correctChoiceId, selectedChoiceId, choices, question } = phase;
+    const revealed = correctChoiceId !== "";
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "#1e1b4b" }}>
         <div className="mb-4 text-[14px] font-bold text-white/50 text-center">{question}</div>
@@ -338,15 +412,15 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
           {choices.map((c) => {
             const col = CHOICE_COLORS[c.color];
             const isSelected = c.id === selectedChoiceId;
-            const isCorrect = c.id === correctChoiceId;
+            const isCorrect = revealed && c.id === correctChoiceId;
             return (
               <div key={c.id}
                 className="flex items-center gap-2 rounded-2xl p-3"
                 style={{
                   background: isCorrect ? col.bg : "rgba(255,255,255,0.06)",
-                  opacity: isCorrect || isSelected ? 1 : 0.4,
+                  opacity: revealed ? (isCorrect || isSelected ? 1 : 0.35) : (isSelected ? 1 : 0.4),
                   boxShadow: isCorrect ? `0 4px 0 ${col.shadow}` : "none",
-                  outline: isSelected && !isCorrect ? "2px solid #ef4444" : "none",
+                  outline: revealed && isSelected && !isCorrect ? "2px solid #ef4444" : isSelected && !revealed ? "2px solid rgba(255,255,255,0.3)" : "none",
                 }}>
                 <span className="text-[16px]">{col.icon}</span>
                 <span className="text-[12px] font-bold text-white">{c.text}</span>
@@ -359,7 +433,9 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
             {t("totalScore", { score: totalScore })}
           </div>
         )}
-        <div className="mt-2 text-[12px] font-medium text-white/30">{t("waitingLeaderboard")}</div>
+        <div className="mt-2 text-[12px] font-medium text-white/30">
+          {revealed ? t("waitingLeaderboard") : t("waitingReveal")}
+        </div>
       </div>
     );
   }
@@ -537,7 +613,15 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
         </div>
 
         <div className="px-4 mb-4">
-          <PlayerTimerBar timeLimit={question.time_limit} startedAt={startedAt} />
+          <PlayerTimerBar
+            timeLimit={question.time_limit}
+            startedAt={startedAt}
+            onExpire={() => setPhase((prev) =>
+              prev.kind === "question" && !prev.answered
+                ? { ...prev, answered: true }
+                : prev
+            )}
+          />
         </div>
 
         <div className="mx-4 mb-4 overflow-hidden rounded-[22px] bg-white/10 p-5 text-center"
@@ -573,7 +657,7 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
 
         {answered && (
           <div className="py-4 text-center text-[13px] font-bold text-white/40">
-            {t("answerSaved")}
+            {selectedChoiceId ? t("answerSaved") : t("timeUp")}
           </div>
         )}
       </div>
@@ -627,17 +711,33 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
 }
 
 // ── Player countdown (student-side) ───────────────────────────────────────────
-function PlayerCountdown() {
-  const [num, setNum] = useState(3);
-  const [showGo, setShowGo] = useState(false);
+function PlayerCountdown({ startedAt }: { startedAt: string }) {
+  const [num, setNum] = useState(() => {
+    const e = Date.now() - new Date(startedAt).getTime();
+    return e < 1000 ? 3 : e < 2000 ? 2 : 1;
+  });
+  const [showGo, setShowGo] = useState(() => Date.now() - new Date(startedAt).getTime() >= 3000);
 
   useEffect(() => {
-    playCountdownBeep(false);
-    const t1 = setTimeout(() => { setNum(2); playCountdownBeep(false); }, 1000);
-    const t2 = setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000);
-    const t3 = setTimeout(() => { setShowGo(true); playGo(); }, 3000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, []);
+    const elapsed = Date.now() - new Date(startedAt).getTime();
+    // Already past countdown — polling will pick up "question" status shortly
+    if (elapsed >= 3800) return;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    if (elapsed < 1000) {
+      playCountdownBeep(false);
+      timers.push(setTimeout(() => { setNum(2); playCountdownBeep(false); }, 1000 - elapsed));
+      timers.push(setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000 - elapsed));
+      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
+    } else if (elapsed < 2000) {
+      timers.push(setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000 - elapsed));
+      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
+    } else if (elapsed < 3000) {
+      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
+    }
+    return () => timers.forEach(clearTimeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startedAt]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen" style={{ background: "#1e1b4b" }}>
@@ -669,17 +769,25 @@ function PlayerCountdown() {
 }
 
 // ── Player timer bar ──────────────────────────────────────────────────────────
-function PlayerTimerBar({ timeLimit, startedAt }: { timeLimit: number; startedAt: string }) {
+function PlayerTimerBar({ timeLimit, startedAt, onExpire }: { timeLimit: number; startedAt: string; onExpire?: () => void }) {
   const [pct, setPct] = useState(100);
   const [secsLeft, setSecsLeft] = useState(timeLimit);
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
+  const expiredRef = useRef(false);
 
   useEffect(() => {
+    expiredRef.current = false;
     const start = new Date(startedAt).getTime();
     function tick() {
       const elapsed = (Date.now() - start) / 1000;
       const remaining = Math.max(0, timeLimit - elapsed);
       setPct((remaining / timeLimit) * 100);
       setSecsLeft(Math.ceil(remaining));
+      if (remaining <= 0 && !expiredRef.current) {
+        expiredRef.current = true;
+        onExpireRef.current?.();
+      }
     }
     const id = setInterval(tick, 250);
     tick();

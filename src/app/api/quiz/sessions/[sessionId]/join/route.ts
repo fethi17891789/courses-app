@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { AVATAR_COLORS } from "@/types/quiz";
 
@@ -6,11 +7,21 @@ type Params = { params: Promise<{ sessionId: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   const { sessionId } = await params;
+
+  // Verify the user's identity with the authenticated client (JWT check)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { data: session } = await supabase
+  // Use service role for all writes — the INSERT policy on session_players is
+  // missing from the live DB (migration gap). We enforce security manually:
+  // user can only insert as themselves (user_id = user.id, validated above).
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: session } = await admin
     .from("quiz_sessions")
     .select("status")
     .eq("id", sessionId)
@@ -22,7 +33,7 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   // Check if already joined
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("session_players")
     .select("id, player_name, avatar_color, score")
     .eq("session_id", sessionId)
@@ -35,7 +46,7 @@ export async function POST(request: Request, { params }: Params) {
   const playerName = body.player_name?.trim() || user.user_metadata?.full_name || user.email?.split("@")[0] || "Joueur";
   const avatarColor = body.avatar_color || AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 
-  const { data: player, error } = await supabase
+  const { data: player, error } = await admin
     .from("session_players")
     .insert({ session_id: sessionId, user_id: user.id, player_name: playerName, avatar_color: avatarColor })
     .select("id, player_name, avatar_color, score")

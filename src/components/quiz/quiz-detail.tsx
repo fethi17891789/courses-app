@@ -33,6 +33,10 @@ export function QuizDetail({ quiz }: { quiz: Quiz }) {
 
   async function handleLaunch() {
     if (launching) return;
+    if (questions.length === 0) {
+      setError(t("errNoQuestion"));
+      return;
+    }
     setLaunching(true);
     setError("");
     try {

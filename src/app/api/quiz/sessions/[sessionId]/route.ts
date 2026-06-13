@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { SessionStatus } from "@/types/quiz";
 
@@ -10,7 +11,14 @@ export async function GET(_req: Request, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { data: session } = await supabase
+  // Use admin client for reads: the quizzes table has no student SELECT policy, so a
+  // regular authenticated student would get quizzes=null and see no questions.
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: session } = await admin
     .from("quiz_sessions")
     .select(`
       *,
@@ -35,7 +43,7 @@ export async function GET(_req: Request, { params }: Params) {
     }
   }
 
-  const { data: players } = await supabase
+  const { data: players } = await admin
     .from("session_players")
     .select("id, player_name, avatar_color, score, streak")
     .eq("session_id", sessionId)
@@ -66,10 +74,11 @@ export async function PATCH(request: Request, { params }: Params) {
   const body = await request.json();
   const { action } = body;
 
-  const updates: Partial<{ status: SessionStatus; current_question_index: number; question_started_at: string }> = {};
+  const updates: Partial<{ status: SessionStatus; current_question_index: number; question_started_at: string; countdown_started_at: string }> = {};
 
   if (action === "start_countdown") {
     updates.status = "countdown";
+    updates.countdown_started_at = new Date().toISOString();
   } else if (action === "start_question") {
     updates.status = "question";
     updates.question_started_at = new Date().toISOString();
@@ -86,6 +95,19 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "invalid_action" }, { status: 400 });
   }
 
-  await supabase.from("quiz_sessions").update(updates).eq("id", sessionId);
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  const { error: updateError } = await admin
+    .from("quiz_sessions")
+    .update(updates)
+    .eq("id", sessionId);
+
+  if (updateError) {
+    console.error("[quiz PATCH] update failed:", updateError);
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
   return NextResponse.json({ success: true });
 }

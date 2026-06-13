@@ -385,6 +385,7 @@
     "missed": "فاتك !",
     "totalScore": "مجموع النقاط: {score} نقطة",
     "waitingLeaderboard": "في انتظار الترتيب...",
+    "waitingReveal": "في انتظار الكشف...",
     "rankFirst": "الأول",
     "rankNth": "{rank}",
     "you": "(أنت)",
@@ -392,7 +393,8 @@
     "lastSoon": "السؤال الأخير — النهاية قريباً...",
     "quizFinished": "انتهى الاختبار !",
     "youRankScore": "ترتيبك {rank} — {score} نقطة",
-    "answerSaved": "تم تسجيل إجابتك — في انتظار النتيجة..."
+    "answerSaved": "تم تسجيل إجابتك — في انتظار النتيجة...",
+    "timeUp": "انتهى الوقت — في انتظار الكشف..."
   },
   "settings": {
     "logout": "تسجيل الخروج",

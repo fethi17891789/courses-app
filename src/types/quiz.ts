@@ -45,6 +45,7 @@ export type QuizSession = {
   status: SessionStatus;
   current_question_index: number;
   question_started_at: string | null;
+  countdown_started_at: string | null;
   created_at: string;
   quiz?: Quiz;
 };

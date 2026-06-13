@@ -71,12 +71,16 @@ function ConfettiCanvas() {
 }
 
 // ── Timer bar ────────────────────────────────────────────────────────────────
-function TimerBar({ timeLimit, startedAt }: { timeLimit: number; startedAt: string }) {
+function TimerBar({ timeLimit, startedAt, onExpire }: { timeLimit: number; startedAt: string; onExpire?: () => void }) {
   const [pct, setPct] = useState(100);
   const [secsLeft, setSecsLeft] = useState(timeLimit);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
+  const expiredRef = useRef(false);
 
   useEffect(() => {
+    expiredRef.current = false;
     const start = new Date(startedAt).getTime();
     function tick() {
       const elapsed = (Date.now() - start) / 1000;
@@ -85,6 +89,10 @@ function TimerBar({ timeLimit, startedAt }: { timeLimit: number; startedAt: stri
       setSecsLeft(Math.ceil(remaining));
       if (remaining <= 5 && remaining > 0) playUrgentTick();
       else if (remaining > 0) playTick();
+      if (remaining <= 0 && !expiredRef.current) {
+        expiredRef.current = true;
+        onExpireRef.current?.();
+      }
     }
     intervalRef.current = setInterval(tick, 1000);
     tick();
@@ -132,19 +140,33 @@ function Avatar({ player, rank }: { player: SessionPlayer; rank?: number }) {
 }
 
 // ── Big countdown number ──────────────────────────────────────────────────────
-function CountdownDisplay({ onDone }: { onDone: () => void }) {
-  const [num, setNum] = useState(3);
-  const [showGo, setShowGo] = useState(false);
+function CountdownDisplay({ startedAt, onDone }: { startedAt: string; onDone: () => void }) {
+  const [num, setNum] = useState(() => {
+    const e = Date.now() - new Date(startedAt).getTime();
+    return e < 1000 ? 3 : e < 2000 ? 2 : 1;
+  });
+  const [showGo, setShowGo] = useState(() => Date.now() - new Date(startedAt).getTime() >= 3000);
 
   useEffect(() => {
-    playCountdownBeep(false);
-    const t1 = setTimeout(() => { setNum(2); playCountdownBeep(false); }, 1000);
-    const t2 = setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000);
-    const t3 = setTimeout(() => { setShowGo(true); playGo(); }, 3000);
-    const t4 = setTimeout(() => { onDone(); }, 3800);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+    const elapsed = Date.now() - new Date(startedAt).getTime();
+    if (elapsed >= 3800) { onDone(); return; }
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    if (elapsed < 1000) {
+      playCountdownBeep(false);
+      timers.push(setTimeout(() => { setNum(2); playCountdownBeep(false); }, 1000 - elapsed));
+      timers.push(setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000 - elapsed));
+      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
+    } else if (elapsed < 2000) {
+      timers.push(setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000 - elapsed));
+      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
+    } else if (elapsed < 3000) {
+      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
+    }
+    timers.push(setTimeout(() => onDone(), 3800 - elapsed));
+    return () => timers.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [startedAt]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen" style={{ background: "#1e1b4b" }}>
@@ -177,6 +199,33 @@ function CountdownDisplay({ onDone }: { onDone: () => void }) {
   );
 }
 
+// ── Push button (must be outside QuizHost — inner components remount on every
+//    render because their function reference changes, swallowing click events) ──
+function PushBtn({
+  onClick, bg, shadow, textColor = "white", children, fullWidth = false,
+}: {
+  onClick: () => void; bg: string; shadow: string;
+  textColor?: string; children: React.ReactNode; fullWidth?: boolean;
+}) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <button
+      onPointerDown={() => { setPressed(true); resumeAudio(); }}
+      onPointerUp={() => setPressed(false)}
+      onPointerLeave={() => setPressed(false)}
+      onClick={onClick}
+      className={`rounded-2xl px-6 py-4 text-[15px] font-extrabold transition-[transform,box-shadow] duration-[80ms] ${fullWidth ? "w-full" : ""}`}
+      style={{
+        background: bg,
+        color: textColor,
+        transform: `translateY(${pressed ? 4 : 0}px)`,
+        boxShadow: pressed ? `0 0px 0 ${shadow}` : `0 4px 0 ${shadow}, 0 8px 24px -6px ${shadow}88`,
+      }}>
+      {children}
+    </button>
+  );
+}
+
 // ── Main host component ───────────────────────────────────────────────────────
 export function QuizHost({ sessionId }: { sessionId: string }) {
   const t = useTranslations("quiz");
@@ -191,9 +240,9 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
   const [data, setData] = useState<GameData | null>(null);
   const [loading, setLoading] = useState(true);
   const [answerCount, setAnswerCount] = useState(0);
-  const [pressedBtn, setPressedBtn] = useState<string | null>(null);
   const [countdownDone, setCountdownDone] = useState(false);
   const [showQuit, setShowQuit] = useState(false);
+  const [advanceError, setAdvanceError] = useState("");
   const supabase = createClient();
   const playerCountRef = useRef(0);
 
@@ -220,9 +269,14 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
         table: "session_players",
         filter: `session_id=eq.${sessionId}`,
       }, (payload) => {
-        playPlayerJoin();
-        setData((prev) => prev ? { ...prev, players: [...prev.players, payload.new as SessionPlayer] } : prev);
-        playerCountRef.current += 1;
+        const incoming = payload.new as SessionPlayer;
+        setData((prev) => {
+          if (!prev) return prev;
+          if (prev.players.some((p) => p.id === incoming.id)) return prev;
+          playPlayerJoin();
+          playerCountRef.current += 1;
+          return { ...prev, players: [...prev.players, incoming] };
+        });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -282,12 +336,19 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
     prevStatusRef.current = data?.session?.status ?? null;
   }, [data?.session?.status]);
 
+
   async function advance(action: string) {
-    await fetch(`/api/quiz/sessions/${sessionId}`, {
+    setAdvanceError("");
+    const res = await fetch(`/api/quiz/sessions/${sessionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      console.error("[advance] PATCH failed:", res.status, d);
+      setAdvanceError(`Erreur ${res.status}: ${d.error ?? "?"}`);
+    }
     await fetchData();
   }
 
@@ -314,6 +375,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
   const questions = session.quizzes?.quiz_questions ?? [];
   const currentQuestion = questions[session.current_question_index];
   const isLastQuestion = session.current_question_index >= questions.length - 1;
+
 
   const quitUI = (
     <>
@@ -370,35 +432,14 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
     </>
   );
 
-  function PushBtn({
-    id, onClick, bg, shadow, textColor = "white", children, fullWidth = false,
-  }: {
-    id: string; onClick: () => void; bg: string; shadow: string;
-    textColor?: string; children: React.ReactNode; fullWidth?: boolean;
-  }) {
-    const p = pressedBtn === id;
-    return (
-      <button
-        onPointerDown={() => { setPressedBtn(id); resumeAudio(); }}
-        onPointerUp={() => setPressedBtn(null)}
-        onPointerLeave={() => setPressedBtn(null)}
-        onClick={onClick}
-        className={`rounded-2xl px-6 py-4 text-[15px] font-extrabold transition-[transform,box-shadow] duration-[80ms] ${fullWidth ? "w-full" : ""}`}
-        style={{
-          background: bg,
-          color: textColor,
-          transform: `translateY(${p ? 4 : 0}px)`,
-          boxShadow: p ? `0 0px 0 ${shadow}` : `0 4px 0 ${shadow}, 0 8px 24px -6px ${shadow}88`,
-        }}>
-        {children}
-      </button>
-    );
-  }
 
   // ── COUNTDOWN ────────────────────────────────────────────────────────────────
   if (session.status === "countdown") {
     return (
-      <CountdownDisplay onDone={() => setCountdownDone(true)} />
+      <CountdownDisplay
+        startedAt={session.countdown_started_at ?? new Date().toISOString()}
+        onDone={() => setCountdownDone(true)}
+      />
     );
   }
 
@@ -458,13 +499,18 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
         </div>
 
         <div className="fixed inset-x-0 bottom-0 z-40 px-4 py-4" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
-          <div className="mx-auto max-w-md">
+          <div className="mx-auto max-w-md flex flex-col gap-2">
+            {advanceError && (
+              <div className="rounded-xl bg-red-500/20 px-3 py-2 text-center text-[12px] font-bold text-red-300">
+                {advanceError}
+              </div>
+            )}
             {players.length === 0 ? (
               <div className="rounded-2xl bg-white/10 py-4 text-center text-[14px] font-bold text-white/50">
                 {t("waitingPlayers")}
               </div>
             ) : (
-              <PushBtn id="start" fullWidth onClick={() => advance("start_countdown")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
+              <PushBtn fullWidth onClick={() => advance("start_countdown")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
                 {t("startWith", { count: players.length })}
               </PushBtn>
             )}
@@ -493,6 +539,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
             <TimerBar
               timeLimit={currentQuestion.time_limit}
               startedAt={session.question_started_at}
+              onExpire={() => advance("reveal")}
             />
           )}
         </div>
@@ -523,7 +570,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
         </div>
 
         <div className="px-4 py-4" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
-          <PushBtn id="reveal" fullWidth onClick={() => { playRevealDrum(); advance("reveal"); }} bg="linear-gradient(135deg, #f97316, #ea580c)" shadow="#c2410c">
+          <PushBtn fullWidth onClick={() => { playRevealDrum(); advance("reveal"); }} bg="linear-gradient(135deg, #f97316, #ea580c)" shadow="#c2410c">
             {t("reveal")}
           </PushBtn>
         </div>
@@ -576,7 +623,7 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
         </div>
 
         <div className="px-4 py-4" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
-          <PushBtn id="leaderboard" fullWidth onClick={() => advance("leaderboard")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
+          <PushBtn fullWidth onClick={() => advance("leaderboard")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
             {t("viewLeaderboard")}
           </PushBtn>
         </div>
@@ -640,11 +687,11 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
         <div className="fixed inset-x-0 bottom-0 z-40 px-4 py-4" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
           <div className="mx-auto flex max-w-md gap-3">
             {isLastQuestion ? (
-              <PushBtn id="finish" fullWidth onClick={() => { playFanfare(); advance("finish"); }} bg="linear-gradient(135deg, #4ade80, #22c55e)" shadow="#15803d">
+              <PushBtn fullWidth onClick={() => { playFanfare(); advance("finish"); }} bg="linear-gradient(135deg, #4ade80, #22c55e)" shadow="#15803d">
                 {t("finishQuiz")}
               </PushBtn>
             ) : (
-              <PushBtn id="next" fullWidth onClick={() => advance("next_question")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
+              <PushBtn fullWidth onClick={() => advance("next_question")} bg="linear-gradient(135deg, #a78bfa, #7c3aed)" shadow="#5b21b6">
                 {t("nextQuestion")}
               </PushBtn>
             )}

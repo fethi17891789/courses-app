@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ sessionId: string }> };
@@ -87,13 +88,17 @@ export async function POST(request: Request, { params }: Params) {
     points_earned: pointsEarned,
   });
 
+  const adminSupabase = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
   if (isCorrect) {
-    await supabase
+    await adminSupabase
       .from("session_players")
       .update({ score: player.score + pointsEarned, streak: player.streak + 1 })
       .eq("id", player.id);
   } else {
-    await supabase
+    await adminSupabase
       .from("session_players")
       .update({ streak: 0 })
       .eq("id", player.id);
