@@ -41,6 +41,9 @@ export async function POST(request: Request, { params }: Params) {
     .select("id, player_name, avatar_color, score")
     .single();
 
-  if (error || !player) return NextResponse.json({ error: "generic" }, { status: 500 });
+  if (error || !player) {
+    console.error("[quiz join insert]", error);
+    return NextResponse.json({ error: error?.message ?? "generic", code: error?.code ?? null }, { status: 500 });
+  }
   return NextResponse.json({ player });
 }
