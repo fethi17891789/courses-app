@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: Params) {
       quizzes(
         title,
         quiz_questions(
-          id, question_text, time_limit, points, order_index,
+          id, question_text, time_limit, points, order_index, question_type,
           quiz_choices(id, text, is_correct, color, order_index)
         )
       )
@@ -49,7 +49,39 @@ export async function GET(_req: Request, { params }: Params) {
     .eq("session_id", sessionId)
     .order("score", { ascending: false });
 
-  return NextResponse.json({ session, players: players ?? [] });
+  // Answer distribution for the current question (host bar chart on reveal).
+  const answerDistribution: Record<string, number> = {};
+  let answerTotal = 0;
+  if (session.status === "reveal" || session.status === "leaderboard") {
+    const currentQuestionId =
+      session.quizzes?.quiz_questions?.[session.current_question_index]?.id;
+    if (currentQuestionId) {
+      const { data: answers } = await admin
+        .from("player_answers")
+        .select("choice_id, choice_ids")
+        .eq("session_id", sessionId)
+        .eq("question_id", currentQuestionId);
+      for (const a of answers ?? []) {
+        answerTotal++;
+        const ids: string[] =
+          a.choice_ids && a.choice_ids.length
+            ? a.choice_ids
+            : a.choice_id
+              ? [a.choice_id]
+              : [];
+        for (const id of ids) {
+          answerDistribution[id] = (answerDistribution[id] ?? 0) + 1;
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({
+    session,
+    players: players ?? [],
+    answer_distribution: answerDistribution,
+    answer_total: answerTotal,
+  });
 }
 
 // Prof advances game state
@@ -89,6 +121,7 @@ export async function PATCH(request: Request, { params }: Params) {
   } else if (action === "next_question") {
     updates.status = "countdown";
     updates.current_question_index = session.current_question_index + 1;
+    updates.countdown_started_at = new Date().toISOString();
   } else if (action === "finish") {
     updates.status = "finished";
   } else {

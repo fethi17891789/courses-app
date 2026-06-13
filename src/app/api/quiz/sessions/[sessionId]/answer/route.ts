@@ -13,8 +13,15 @@ export async function POST(request: Request, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { question_id, choice_id } = await request.json();
+  const { question_id, choice_id, choice_ids } = await request.json();
   if (!question_id) return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+
+  // Normalise the selection: single/true_false send choice_id, multiple sends choice_ids.
+  const selected: string[] = Array.isArray(choice_ids) && choice_ids.length
+    ? choice_ids.filter((id: unknown): id is string => typeof id === "string")
+    : choice_id
+      ? [choice_id]
+      : [];
 
   const { data: session } = await supabase
     .from("quiz_sessions")
@@ -54,22 +61,34 @@ export async function POST(request: Request, { params }: Params) {
   let pointsEarned = 0;
   let isCorrect = false;
 
-  if (choice_id) {
-    const { data: choice } = await supabase
-      .from("quiz_choices")
-      .select("is_correct")
-      .eq("id", choice_id)
+  if (selected.length > 0) {
+    const { data: question } = await supabase
+      .from("quiz_questions")
+      .select("time_limit, points, question_type")
+      .eq("id", question_id)
       .single();
 
-    if (choice?.is_correct) {
-      isCorrect = true;
-      // Points: scale based on speed (faster = more points), within 0..time_limit*1000
-      const { data: question } = await supabase
-        .from("quiz_questions")
-        .select("time_limit, points")
-        .eq("id", question_id)
-        .single();
+    const { data: correctChoices } = await supabase
+      .from("quiz_choices")
+      .select("id")
+      .eq("question_id", question_id)
+      .eq("is_correct", true);
 
+    const correctSet = new Set((correctChoices ?? []).map((c) => c.id));
+
+    if (question?.question_type === "multiple") {
+      // All-or-nothing: every correct choice selected, no incorrect one.
+      isCorrect =
+        correctSet.size > 0 &&
+        selected.length === correctSet.size &&
+        selected.every((id) => correctSet.has(id));
+    } else {
+      // single / true_false: exactly one choice, and it must be correct.
+      isCorrect = selected.length === 1 && correctSet.has(selected[0]);
+    }
+
+    if (isCorrect) {
+      // Points: scale based on speed (faster = more points), within 0..time_limit*1000
       const timeLimit = (question?.time_limit ?? 20) * 1000;
       const ratio = responseMs ? Math.max(0, 1 - responseMs / timeLimit) : 1;
       const base = question?.points ?? MAX_POINTS;
@@ -83,7 +102,8 @@ export async function POST(request: Request, { params }: Params) {
     session_id: sessionId,
     question_id,
     player_id: player.id,
-    choice_id: choice_id || null,
+    choice_id: selected[0] || null,
+    choice_ids: selected.length ? selected : null,
     response_ms: responseMs,
     points_earned: pointsEarned,
   });
@@ -105,5 +125,11 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const totalScore = isCorrect ? player.score + pointsEarned : player.score;
-  return NextResponse.json({ correct: isCorrect, points_earned: pointsEarned, total_score: totalScore });
+  const newStreak = isCorrect ? player.streak + 1 : 0;
+  return NextResponse.json({
+    correct: isCorrect,
+    points_earned: pointsEarned,
+    total_score: totalScore,
+    streak: newStreak,
+  });
 }

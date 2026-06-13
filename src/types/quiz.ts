@@ -7,6 +7,8 @@ export type QuizChoice = {
   order_index: number;
 };
 
+export type QuestionType = "single" | "multiple" | "true_false";
+
 export type QuizQuestion = {
   id: string;
   quiz_id: string;
@@ -14,6 +16,7 @@ export type QuizQuestion = {
   time_limit: number;
   points: number;
   order_index: number;
+  question_type: QuestionType;
   choices?: QuizChoice[];
   quiz_choices?: QuizChoice[];
 };
@@ -67,6 +70,7 @@ export type PlayerAnswer = {
   question_id: string;
   player_id: string;
   choice_id: string | null;
+  choice_ids: string[] | null;
   answered_at: string;
   response_ms: number | null;
   points_earned: number;

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { validateString, firstError } from "@/lib/validate";
+import { normalizeType, buildChoices } from "@/lib/quiz-save";
 
 export async function GET() {
   const supabase = await createClient();
@@ -49,22 +50,14 @@ export async function POST(request: Request) {
           question_text: q.question_text,
           time_limit: q.time_limit ?? 20,
           points: q.points ?? 1000,
+          question_type: normalizeType(q.question_type),
           order_index: qi,
         })
         .select("id")
         .single();
       if (!qq) continue;
-      const colors = ["red", "blue", "yellow", "green"] as const;
       if (Array.isArray(q.choices)) {
-        await supabase.from("quiz_choices").insert(
-          q.choices.slice(0, 4).map((c: { text: string; is_correct: boolean }, ci: number) => ({
-            question_id: qq.id,
-            text: c.text,
-            is_correct: !!c.is_correct,
-            color: colors[ci] ?? "red",
-            order_index: ci,
-          }))
-        );
+        await supabase.from("quiz_choices").insert(buildChoices(q.choices, qq.id));
       }
     }
   }

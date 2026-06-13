@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import type { Quiz, QuizQuestion, QuizChoice } from "@/types/quiz";
+import type { Quiz, QuizQuestion, QuizChoice, QuestionType } from "@/types/quiz";
 import { CHOICE_COLORS } from "@/types/quiz";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -15,16 +15,25 @@ const fadeUp = {
 
 const COLORS: Array<QuizChoice["color"]> = ["red", "blue", "yellow", "green"];
 const TIME_OPTIONS = [10, 15, 20, 30, 45, 60];
+const QUESTION_TYPES: QuestionType[] = ["single", "multiple", "true_false"];
 
 type DraftChoice = { text: string; is_correct: boolean; color: QuizChoice["color"] };
-type DraftQuestion = { id?: string; question_text: string; time_limit: number; choices: DraftChoice[] };
+type DraftQuestion = { id?: string; question_text: string; time_limit: number; question_type: QuestionType; choices: DraftChoice[] };
 
 function emptyQuestion(): DraftQuestion {
   return {
     question_text: "",
     time_limit: 20,
+    question_type: "single",
     choices: COLORS.map((color) => ({ text: "", is_correct: false, color })),
   };
+}
+
+// Pad/trim a choice list back to the 4 colored slots (used when leaving Vrai/Faux).
+function ensureFour(choices: DraftChoice[]): DraftChoice[] {
+  return COLORS.map((color, i) =>
+    choices[i] ? { ...choices[i], color } : { text: "", is_correct: false, color }
+  );
 }
 
 function ArrowLeft() {
@@ -80,14 +89,40 @@ function QuestionCard({
     const choices = q.choices.map((c, ci) =>
       ci === i
         ? { ...c, [field]: value }
-        : field === "is_correct" && value === true
+        : // single / true_false: only one correct answer allowed
+          field === "is_correct" && value === true && q.question_type !== "multiple"
           ? { ...c, is_correct: false }
           : c
     );
     onUpdate({ ...q, choices });
   }
 
-  const correctIdx = q.choices.findIndex((c) => c.is_correct);
+  function setType(newType: QuestionType) {
+    if (newType === q.question_type) return;
+    if (newType === "true_false") {
+      onUpdate({
+        ...q,
+        question_type: newType,
+        choices: [
+          { text: t("answerTrue"), is_correct: false, color: "green" },
+          { text: t("answerFalse"), is_correct: false, color: "red" },
+        ],
+      });
+    } else if (newType === "single") {
+      // keep only the first correct answer
+      let seen = false;
+      const choices = ensureFour(q.choices).map((c) => {
+        if (c.is_correct && !seen) { seen = true; return c; }
+        return { ...c, is_correct: false };
+      });
+      onUpdate({ ...q, question_type: newType, choices });
+    } else {
+      onUpdate({ ...q, question_type: newType, choices: ensureFour(q.choices) });
+    }
+  }
+
+  const hasCorrect = q.choices.some((c) => c.is_correct);
+  const isTrueFalse = q.question_type === "true_false";
 
   return (
     <motion.div
@@ -107,7 +142,7 @@ function QuestionCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {correctIdx >= 0 && (
+          {hasCorrect && (
             <div className="flex h-6 w-6 items-center justify-center rounded-full"
               style={{ background: "#22c55e", color: "white" }}>
               <CheckIcon />
@@ -136,6 +171,24 @@ function QuestionCard({
                 rows={2}
                 className="w-full resize-none rounded-xl border-2 border-[#ede9fe] bg-[#f5f3ff] px-3 py-2.5 text-[14px] font-medium text-[#1e1b4b] placeholder:text-[#1e1b4b]/30 focus:border-[#a78bfa] focus:outline-none"
               />
+
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-[12px] font-bold text-[#1e1b4b]/50">{t("questionType")}</span>
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+                  {QUESTION_TYPES.map((tp) => (
+                    <button
+                      key={tp}
+                      onClick={() => setType(tp)}
+                      className="shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-bold transition-all"
+                      style={{
+                        background: q.question_type === tp ? "#7c3aed" : "#ede9fe",
+                        color: q.question_type === tp ? "white" : "#7c3aed",
+                      }}>
+                      {tp === "single" ? t("typeSingle") : tp === "multiple" ? t("typeMultiple") : t("typeTrueFalse")}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div className="mt-3 flex items-center gap-2">
                 <span className="text-[12px] font-bold text-[#1e1b4b]/50">{t("time")}</span>
@@ -170,9 +223,11 @@ function QuestionCard({
                             {col.icon}
                           </span>
                           <button
-                            onClick={() => updateChoice(ci, "is_correct", true)}
-                            className="ml-auto flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all"
+                            onClick={() => updateChoice(ci, "is_correct", q.question_type === "multiple" ? !choice.is_correct : true)}
+                            className="ml-auto flex h-5 w-5 items-center justify-center border-2 transition-all"
                             style={{
+                              // square check = multi-select, round = single answer
+                              borderRadius: q.question_type === "multiple" ? "6px" : "9999px",
                               borderColor: choice.is_correct ? "#22c55e" : "#e5e7eb",
                               background: choice.is_correct ? "#22c55e" : "transparent",
                               color: choice.is_correct ? "white" : "transparent",
@@ -180,17 +235,25 @@ function QuestionCard({
                             <CheckIcon />
                           </button>
                         </div>
-                        <input
-                          value={choice.text}
-                          onChange={(e) => updateChoice(ci, "text", e.target.value)}
-                          placeholder={t("answerPlaceholder", { n: ci + 1 })}
-                          className="w-full bg-transparent text-[13px] font-medium text-[#1e1b4b] placeholder:text-[#1e1b4b]/30 focus:outline-none"
-                        />
+                        {isTrueFalse ? (
+                          <div className="text-[13px] font-bold text-[#1e1b4b]">{choice.text}</div>
+                        ) : (
+                          <input
+                            value={choice.text}
+                            onChange={(e) => updateChoice(ci, "text", e.target.value)}
+                            placeholder={t("answerPlaceholder", { n: ci + 1 })}
+                            className="w-full bg-transparent text-[13px] font-medium text-[#1e1b4b] placeholder:text-[#1e1b4b]/30 focus:outline-none"
+                          />
+                        )}
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {q.question_type === "multiple" && (
+                <div className="mt-2 text-[11px] font-semibold text-[#7c3aed]/70">{t("multipleHint")}</div>
+              )}
 
               {canDelete && (
                 <button
@@ -213,6 +276,7 @@ function draftFromQuiz(quiz: Quiz): { title: string; description: string; questi
     id: q.id,
     question_text: q.question_text,
     time_limit: q.time_limit,
+    question_type: q.question_type ?? "single",
     choices: (q.quiz_choices ?? q.choices ?? []).map((c: QuizChoice) => ({
       text: c.text,
       is_correct: c.is_correct,
@@ -269,6 +333,7 @@ export function QuizEditor({ initialQuiz }: { initialQuiz?: Quiz }) {
         ...(q.id ? { id: q.id } : {}),
         question_text: q.question_text,
         time_limit: q.time_limit,
+        question_type: q.question_type,
         order_index: qi,
         choices: q.choices
           .filter((c) => c.text.trim())

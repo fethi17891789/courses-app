@@ -15,6 +15,15 @@ type StoredSession = { sessionId: string; playerId: string; playerName: string; 
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+};
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.38, ease } },
+};
+
 // ── Confetti (reused here too) ────────────────────────────────────────────────
 const CONFETTI_COLORS = ["#7c3aed", "#ef4444", "#f97316", "#22c55e", "#3b82f6", "#fbbf24", "#ec4899"];
 
@@ -93,8 +102,8 @@ type GamePhase =
   | { kind: "join" }
   | { kind: "waiting"; sessionId: string; playerId: string; playerName: string; avatarColor: string; players: SessionPlayer[] }
   | { kind: "countdown"; sessionId: string; playerId: string; playerName: string; startedAt: string }
-  | { kind: "question"; sessionId: string; playerId: string; question: QuizQuestion & { quiz_choices: QuizChoice[] }; qIndex: number; qTotal: number; startedAt: string; answered: boolean; selectedChoiceId?: string; pendingResult?: { correct: boolean; points: number; totalScore?: number } }
-  | { kind: "result"; correct: boolean; points: number; totalScore?: number; correctChoiceId: string; selectedChoiceId?: string; choices: QuizChoice[]; question: string }
+  | { kind: "question"; sessionId: string; playerId: string; question: QuizQuestion & { quiz_choices: QuizChoice[] }; qIndex: number; qTotal: number; startedAt: string; answered: boolean; selectedChoiceIds: string[]; pendingResult?: { correct: boolean; points: number; totalScore?: number; streak?: number } }
+  | { kind: "result"; correct: boolean; points: number; totalScore?: number; streak?: number; correctChoiceIds: string[]; selectedChoiceIds: string[]; choices: QuizChoice[]; question: string }
   | { kind: "leaderboard"; players: SessionPlayer[]; playerId: string; sessionId: string; qIndex: number; qTotal: number; isLast: boolean }
   | { kind: "finished"; players: SessionPlayer[]; playerId: string };
 
@@ -112,6 +121,7 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
   const [code, setCode] = useState(prefillCode);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [joinPressed, setJoinPressed] = useState(false);
   const supabase = createClient();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const ctxRef = useRef<PlayerCtx | null>(null);
@@ -149,19 +159,21 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
         qTotal: questions.length,
         startedAt: s.question_started_at ?? new Date().toISOString(),
         answered: false,
+        selectedChoiceIds: [],
       });
     } else if (s.status === "reveal") {
       setPhase((prev) => {
         if (prev.kind !== "question") return prev;
-        const correctChoice = prev.question.quiz_choices.find((c) => c.is_correct);
+        const correctChoiceIds = prev.question.quiz_choices.filter((c) => c.is_correct).map((c) => c.id);
         const pending = prev.pendingResult;
         return {
           kind: "result",
           correct: pending?.correct ?? false,
           points: pending?.points ?? 0,
           totalScore: pending?.totalScore,
-          correctChoiceId: correctChoice?.id ?? "",
-          selectedChoiceId: prev.selectedChoiceId,
+          streak: pending?.streak,
+          correctChoiceIds,
+          selectedChoiceIds: prev.selectedChoiceIds,
           choices: prev.question.quiz_choices,
           question: prev.question.question_text,
         };
@@ -286,16 +298,16 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
           kind: "question", sessionId, playerId, question: q,
           qIndex: session.current_question_index, qTotal: questions.length,
           startedAt: session.question_started_at ?? new Date().toISOString(),
-          answered: false,
+          answered: false, selectedChoiceIds: [],
         });
       } else if (session.status === "reveal") {
         const q = questions[session.current_question_index];
-        const correctChoice = q?.quiz_choices?.find((c) => c.is_correct);
+        const correctChoiceIds = (q?.quiz_choices ?? []).filter((c) => c.is_correct).map((c) => c.id);
         appliedRef.current = `reveal:${session.current_question_index}`;
         setPhase({
           kind: "result", correct: false, points: 0,
-          correctChoiceId: correctChoice?.id ?? "",
-          selectedChoiceId: undefined,
+          correctChoiceIds,
+          selectedChoiceIds: [],
           choices: q?.quiz_choices ?? [],
           question: q?.question_text ?? "",
         });
@@ -366,27 +378,40 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
   }
 
   // ── Answer submission ─────────────────────────────────────────────────────────
-  async function handleAnswer(choiceId: string) {
-    if (phase.kind !== "question" || phase.answered) return;
-    setPhase((prev) => prev.kind === "question" ? { ...prev, answered: true, selectedChoiceId: choiceId } : prev);
+  // Toggle a choice for multiple-answer questions (no submit until "Valider").
+  function toggleChoice(id: string) {
+    setPhase((prev) => {
+      if (prev.kind !== "question" || prev.answered) return prev;
+      const has = prev.selectedChoiceIds.includes(id);
+      return {
+        ...prev,
+        selectedChoiceIds: has ? prev.selectedChoiceIds.filter((x) => x !== id) : [...prev.selectedChoiceIds, id],
+      };
+    });
+  }
+
+  async function submitAnswer(ids: string[]) {
+    if (phase.kind !== "question" || phase.answered || ids.length === 0) return;
+    setPhase((prev) => prev.kind === "question" ? { ...prev, answered: true, selectedChoiceIds: ids } : prev);
     const res = await fetch(`/api/quiz/sessions/${phase.sessionId}/answer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         player_id: phase.playerId,
         question_id: phase.question.id,
-        choice_id: choiceId,
+        choice_id: ids.length === 1 ? ids[0] : undefined,
+        choice_ids: ids,
       }),
     });
     if (!res.ok) return;
-    const { correct, points_earned: pointsEarned, total_score: totalScore } = await res.json();
+    const { correct, points_earned: pointsEarned, total_score: totalScore, streak } = await res.json();
     if (correct) { playCorrect(); } else { playWrong(); }
     if (pointsEarned > 0) setTimeout(playPoints, 500);
 
     // Stay on question screen — store result and wait for "reveal" status.
     setPhase((prev) =>
       prev.kind === "question"
-        ? { ...prev, pendingResult: { correct, points: pointsEarned, totalScore } }
+        ? { ...prev, pendingResult: { correct, points: pointsEarned, totalScore, streak } }
         : prev
     );
   }
@@ -398,8 +423,8 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
 
   // ── Result (answered — waiting for reveal, or reveal done) ──────────────────
   if (phase.kind === "result") {
-    const { correct, points, totalScore, correctChoiceId, selectedChoiceId, choices, question } = phase;
-    const revealed = correctChoiceId !== "";
+    const { correct, points, totalScore, streak, correctChoiceIds, selectedChoiceIds, choices, question } = phase;
+    const revealed = correctChoiceIds.length > 0;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "#1e1b4b" }}>
         <div className="mb-4 text-[14px] font-bold text-white/50 text-center">{question}</div>
@@ -408,11 +433,17 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
           title={correct ? t("pointsEarned", { points }) : t("missed")}
           subtitle={correct ? t("correct") : t("wrong")}
         />
+        {correct && typeof streak === "number" && streak >= 2 && (
+          <div className="mt-4 rounded-full px-4 py-1.5 text-[13px] font-extrabold text-white"
+            style={{ background: "linear-gradient(135deg, #fb923c, #f97316)", boxShadow: "0 3px 0 #c2410c" }}>
+            {t("streak", { count: streak })}
+          </div>
+        )}
         <div className="mt-8 w-full max-w-sm grid grid-cols-2 gap-2">
           {choices.map((c) => {
             const col = CHOICE_COLORS[c.color];
-            const isSelected = c.id === selectedChoiceId;
-            const isCorrect = revealed && c.id === correctChoiceId;
+            const isSelected = selectedChoiceIds.includes(c.id);
+            const isCorrect = revealed && correctChoiceIds.includes(c.id);
             return (
               <div key={c.id}
                 className="flex items-center gap-2 rounded-2xl p-3"
@@ -567,37 +598,102 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
   if (phase.kind === "waiting") {
     const { players } = phase;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "#1e1b4b" }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
-          <div className="mb-2 text-[22px] font-extrabold text-white">{t("waitingRoom")}</div>
-          <div className="mb-6 text-[14px] font-medium text-white/50">
-            {t("waitingProfStart")}
-          </div>
-          <div className="mb-6 overflow-hidden rounded-[22px] bg-white/10 p-5"
-            style={{ border: "2px solid rgba(255,255,255,0.12)" }}>
-            <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-full text-[18px] font-extrabold text-white mb-2"
-              style={{ background: phase.avatarColor }}>
-              {phase.playerName.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="text-[16px] font-bold text-white">{phase.playerName}</div>
-            <div className="mt-1 text-[12px] text-white/40">{t("playersInRoom", { count: players.length })}</div>
+      <div className="relative flex min-h-[100dvh] flex-col overflow-y-auto scrollbar-hide px-5 pb-10 pt-12" style={{ background: "#f0fdf4" }}>
+
+        {/* Blobs décoratifs verts */}
+        <motion.div
+          animate={{ y: [0, -14, 0], rotate: [0, 10, 0] }}
+          transition={{ repeat: Infinity, duration: 5.5, ease: "easeInOut" }}
+          className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full"
+          style={{ background: "radial-gradient(circle, #bbf7d0 40%, #bbf7d000)" }}
+        />
+        <motion.div
+          animate={{ y: [0, 12, 0], x: [0, 8, 0] }}
+          transition={{ repeat: Infinity, duration: 7, ease: "easeInOut", delay: 1.5 }}
+          className="pointer-events-none absolute -left-12 bottom-20 h-36 w-36 rounded-full"
+          style={{ background: "radial-gradient(circle, #a7f3d0 40%, #a7f3d000)" }}
+        />
+        <motion.div
+          animate={{ y: [0, -8, 0] }}
+          transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut", delay: 0.8 }}
+          className="pointer-events-none absolute right-6 bottom-40 h-20 w-20 rounded-full"
+          style={{ background: "radial-gradient(circle, #6ee7b7 40%, #6ee7b700)" }}
+        />
+
+        {/* Contenu — animation directe, pas de stagger pour éviter le blank */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease }}
+          className="relative z-10 mx-auto w-full max-w-sm"
+        >
+
+          {/* Titre */}
+          <div className="mb-5 text-center">
+            <div className="text-[24px] font-extrabold text-[#1e1b4b]">{t("waitingRoom")}</div>
+            <div className="mt-1 text-[14px] font-medium text-[#1e1b4b]/50">{t("waitingProfStart")}</div>
           </div>
 
-          <div className="flex flex-wrap gap-2 justify-center">
-            <AnimatePresence>
-              {players.map((p) => (
-                <motion.div key={p.id}
-                  initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                  className="flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-1.5">
-                  <div className="h-5 w-5 rounded-full text-[9px] font-extrabold text-white flex items-center justify-center"
-                    style={{ background: p.avatar_color }}>
-                    {p.player_name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <span className="text-[12px] font-bold text-white">{p.player_name}</span>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+          {/* Carte profil joueur */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease, delay: 0.08 }}
+            className="mb-5 rounded-[24px] bg-white p-5 text-center"
+            style={{ boxShadow: "0 4px 0 #bbf7d0, 0 10px 28px -6px rgba(34,197,94,0.14)" }}>
+            <motion.div
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+              className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full text-[20px] font-extrabold text-white"
+              style={{ background: phase.avatarColor, boxShadow: `0 4px 0 ${phase.avatarColor}88` }}>
+              {phase.playerName.slice(0, 2).toUpperCase()}
+            </motion.div>
+            <div className="text-[17px] font-extrabold text-[#1e1b4b]">{phase.playerName}</div>
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <motion.div
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+                className="h-2 w-2 rounded-full bg-[#22c55e]"
+              />
+              <span className="text-[12px] font-semibold text-[#1e1b4b]/50">
+                {t("playersInRoom", { count: players.length })}
+              </span>
+            </div>
+          </motion.div>
+
+          {/* Liste des joueurs */}
+          {players.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease, delay: 0.16 }}
+            >
+              <div className="mb-3 text-[12px] font-bold uppercase tracking-wider text-[#15803d]/60">
+                {t("players", { count: players.length })}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <AnimatePresence>
+                  {players.map((p) => (
+                    <motion.div
+                      key={p.id}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                      className="flex items-center gap-1.5 rounded-2xl bg-white px-3 py-2"
+                      style={{ boxShadow: "0 2px 0 #bbf7d0, 0 4px 12px -2px rgba(34,197,94,0.08)" }}>
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-extrabold text-white"
+                        style={{ background: p.avatar_color }}>
+                        {p.player_name.slice(0, 1).toUpperCase()}
+                      </div>
+                      <span className="text-[12px] font-bold text-[#1e1b4b]">{p.player_name}</span>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+
         </motion.div>
       </div>
     );
@@ -605,7 +701,8 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
 
   // ── Question screen ───────────────────────────────────────────────────────────
   if (phase.kind === "question") {
-    const { question, answered, selectedChoiceId, qIndex, qTotal, startedAt } = phase;
+    const { question, answered, selectedChoiceIds, qIndex, qTotal, startedAt } = phase;
+    const isMultiple = question.question_type === "multiple";
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#1e1b4b" }}>
         <div className="flex items-center justify-between px-4 pt-6 pb-2">
@@ -616,95 +713,209 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
           <PlayerTimerBar
             timeLimit={question.time_limit}
             startedAt={startedAt}
-            onExpire={() => setPhase((prev) =>
-              prev.kind === "question" && !prev.answered
-                ? { ...prev, answered: true }
-                : prev
-            )}
+            onExpire={() => {
+              if (phase.kind !== "question" || phase.answered) return;
+              if (isMultiple && phase.selectedChoiceIds.length > 0) {
+                submitAnswer(phase.selectedChoiceIds);
+              } else {
+                setPhase((prev) => prev.kind === "question" && !prev.answered ? { ...prev, answered: true } : prev);
+              }
+            }}
           />
         </div>
 
         <div className="mx-4 mb-4 overflow-hidden rounded-[22px] bg-white/10 p-5 text-center"
           style={{ border: "2px solid rgba(255,255,255,0.1)" }}>
           <div className="text-[18px] font-extrabold text-white leading-snug">{question.question_text}</div>
+          {isMultiple && (
+            <div className="mt-1.5 text-[12px] font-semibold text-white/50">{t("multipleHint")}</div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3 px-4 flex-1 content-start">
           {question.quiz_choices.map((choice) => {
             const col = CHOICE_COLORS[choice.color];
-            const isSelected = selectedChoiceId === choice.id;
+            const isSelected = selectedChoiceIds.includes(choice.id);
             return (
-              <motion.button
+              <button
                 key={choice.id}
-                whileTap={!answered ? { scale: 0.94 } : {}}
-                onClick={() => handleAnswer(choice.id)}
+                onPointerDown={() => { if (!answered) resumeAudio(); }}
+                onClick={() => isMultiple ? toggleChoice(choice.id) : submitAnswer([choice.id])}
                 disabled={answered}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl p-5 min-h-[100px] transition-opacity duration-300"
+                className="relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl p-5 min-h-[100px] transition-all duration-[80ms] ease-out"
                 style={{
                   background: col.bg,
                   boxShadow: isSelected
-                    ? `0 0px 0 ${col.shadow}, 0 0 20px ${col.glow}`
-                    : `0 4px 0 ${col.shadow}`,
+                    ? `0 0px 0 ${col.shadow}, 0 2px 4px -2px ${col.glow}`
+                    : `0 5px 0 ${col.shadow}`,
                   opacity: answered && !isSelected ? 0.5 : 1,
-                  transform: isSelected ? "translateY(4px)" : "none",
+                  transform: isSelected ? "translateY(5px)" : "none",
+                  outline: isMultiple && isSelected ? "3px solid white" : "none",
+                  outlineOffset: isMultiple && isSelected ? "-3px" : "0",
                 }}>
                 <span className="text-[28px]">{col.icon}</span>
                 <span className="text-[14px] font-bold text-white text-center leading-tight">{choice.text}</span>
-              </motion.button>
+              </button>
             );
           })}
         </div>
 
+        {/* Validate button for multiple-answer questions */}
+        {isMultiple && !answered && (
+          <div className="px-4 py-4" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
+            <button
+              onClick={() => submitAnswer(selectedChoiceIds)}
+              disabled={selectedChoiceIds.length === 0}
+              className="w-full rounded-xl py-4 text-[15px] font-extrabold text-white transition-all duration-[80ms] disabled:opacity-40"
+              style={{
+                background: "linear-gradient(135deg, #4ade80, #16a34a)",
+                boxShadow: "0 5px 0 #15803d, 0 10px 24px -6px rgba(34,197,94,0.5)",
+              }}>
+              {t("validateSelection")}
+            </button>
+          </div>
+        )}
+
         {answered && (
           <div className="py-4 text-center text-[13px] font-bold text-white/40">
-            {selectedChoiceId ? t("answerSaved") : t("timeUp")}
+            {selectedChoiceIds.length > 0 ? t("answerSaved") : t("timeUp")}
           </div>
         )}
       </div>
     );
   }
 
-  // ── Join code screen ──────────────────────────────────────────────────────────
+  // ── Join code screen — thème vert rôle élève ─────────────────────────────────
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "#1e1b4b" }}>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
-        <div className="mb-2 text-center text-[28px] font-extrabold text-white">{t("joinTitle")}</div>
-        <div className="mb-8 text-center text-[14px] font-medium text-white/50">
-          {t("joinSubtitle")}
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-5 py-10" style={{ background: "#f0fdf4" }}>
+
+      {/* Blobs verts flottants */}
+      <motion.div
+        animate={{ y: [0, -14, 0], rotate: [0, 10, 0] }}
+        transition={{ repeat: Infinity, duration: 5.5, ease: "easeInOut" }}
+        className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full"
+        style={{ background: "radial-gradient(circle, #bbf7d0 40%, #bbf7d000)" }}
+      />
+      <motion.div
+        animate={{ y: [0, 12, 0], x: [0, 6, 0] }}
+        transition={{ repeat: Infinity, duration: 7, ease: "easeInOut", delay: 1.2 }}
+        className="pointer-events-none absolute -left-12 bottom-28 h-36 w-36 rounded-full"
+        style={{ background: "radial-gradient(circle, #a7f3d0 40%, #a7f3d000)" }}
+      />
+      <motion.div
+        animate={{ y: [0, -10, 0], x: [0, -8, 0] }}
+        transition={{ repeat: Infinity, duration: 6.5, ease: "easeInOut", delay: 2.5 }}
+        className="pointer-events-none absolute left-4 top-24 h-24 w-24 rounded-full"
+        style={{ background: "radial-gradient(circle, #6ee7b7 40%, #6ee7b700)" }}
+      />
+      <motion.div
+        animate={{ y: [0, 8, 0] }}
+        transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut", delay: 0.8 }}
+        className="pointer-events-none absolute -right-4 bottom-40 h-16 w-16 rounded-full"
+        style={{ background: "radial-gradient(circle, #34d399 40%, #34d39900)" }}
+      />
+
+      {/* Contenu — animation directe (fiable, pas de stagger) */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease }}
+        className="relative z-10 w-full max-w-sm"
+      >
+
+        {/* Logo pill */}
+        <div className="mb-6 flex justify-center">
+          <div className="flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5"
+            style={{ boxShadow: "0 3px 0 #bbf7d0, 0 6px 16px -4px rgba(34,197,94,0.10)" }}>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl text-[15px] font-black text-white"
+              style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)", boxShadow: "0 2px 0 #5b21b6" }}>
+              C
+            </div>
+            <span className="text-[15px] font-extrabold text-[#1e1b4b]">Courses</span>
+          </div>
         </div>
 
-        <div className="mb-4 overflow-hidden rounded-[22px] bg-white/10 p-5"
-          style={{ border: "2px solid rgba(255,255,255,0.12)" }}>
+        {/* Titre */}
+        <div className="mb-6 text-center">
+          <div className="text-[28px] font-extrabold leading-tight text-[#1e1b4b]">{t("joinTitle")}</div>
+          <div className="mt-1.5 text-[14px] font-medium text-[#1e1b4b]/50">{t("joinSubtitle")}</div>
+        </div>
+
+        {/* Carte saisie code */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.38, ease, delay: 0.08 }}
+          className="mb-4 rounded-[24px] bg-white p-5"
+          style={{ boxShadow: "0 4px 0 #bbf7d0, 0 10px 28px -6px rgba(34,197,94,0.12)" }}>
+          <div className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-[#15803d]/70">
+            {t("codePlaceholder")}
+          </div>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === "Enter" && handleCodeSubmit()}
-            placeholder={t("codePlaceholder")}
             maxLength={8}
             autoFocus
-            className="w-full bg-transparent text-center text-[36px] font-extrabold text-white tracking-[0.2em] placeholder:text-white/20 focus:outline-none"
+            className="w-full bg-transparent text-center text-[42px] font-extrabold text-[#1e1b4b] placeholder:text-[#1e1b4b]/15 focus:outline-none"
+            style={{ letterSpacing: "0.2em" }}
+            placeholder="------"
           />
-        </div>
+          {/* Underline vert animé */}
+          <motion.div
+            animate={{ scaleX: code.trim() ? 1 : 0.3, opacity: code.trim() ? 1 : 0.3 }}
+            transition={{ duration: 0.25 }}
+            className="mx-auto mt-3 h-[3px] w-full origin-center rounded-full"
+            style={{ background: "linear-gradient(90deg, #4ade80, #16a34a)" }}
+          />
+        </motion.div>
 
-        <div className="mb-4 text-center text-[12px] font-semibold text-white/40">
-          {t("joinAs", { name: displayName })}
-        </div>
+        {/* Badge nom */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.16 }}
+          className="mb-4 flex items-center justify-center gap-2"
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
+            style={{ background: avatarColor, boxShadow: `0 2px 0 ${avatarColor}88` }}>
+            {displayName.slice(0, 2).toUpperCase()}
+          </div>
+          <span className="text-[13px] font-semibold text-[#1e1b4b]/55">{t("joinAs", { name: displayName })}</span>
+        </motion.div>
 
-        {error && (
-          <div className="mb-3 rounded-2xl bg-red-500/20 px-4 py-3 text-[13px] font-bold text-red-300">{error}</div>
-        )}
+        {/* Erreur */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              className="mb-3 rounded-2xl px-4 py-3 text-[13px] font-bold text-[#ef4444]"
+              style={{ background: "#fff1f2", border: "2px solid #fca5a5" }}>
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
+        {/* Bouton 3D vert */}
         <button
+          onPointerDown={() => { if (!loading && code.trim()) setJoinPressed(true); resumeAudio(); }}
+          onPointerUp={() => setJoinPressed(false)}
+          onPointerLeave={() => setJoinPressed(false)}
           onClick={handleCodeSubmit}
           disabled={loading || !code.trim()}
-          className="w-full rounded-2xl py-4 text-[16px] font-extrabold text-white transition-opacity"
+          className="relative w-full overflow-hidden rounded-xl py-4 text-[16px] font-extrabold text-white transition-all duration-[80ms] ease-out disabled:opacity-55"
           style={{
-            background: "linear-gradient(135deg, #a78bfa, #7c3aed)",
-            boxShadow: "0 4px 0 #5b21b6, 0 8px 24px -6px rgba(124,58,237,0.5)",
-            opacity: loading || !code.trim() ? 0.6 : 1,
+            background: "linear-gradient(135deg, #4ade80, #16a34a)",
+            transform: `translateY(${joinPressed ? 5 : 0}px)`,
+            boxShadow: joinPressed
+              ? "0 0px 0 #15803d, 0 2px 4px -2px rgba(34,197,94,0.4)"
+              : "0 5px 0 #15803d, 0 10px 24px -6px rgba(34,197,94,0.5)",
           }}>
           {loading ? t("searching") : t("joinCta")}
         </button>
+
       </motion.div>
     </div>
   );

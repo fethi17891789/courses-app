@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { normalizeType, buildChoices } from "@/lib/quiz-save";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -54,7 +55,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     // Delete existing questions (cascades to choices)
     await supabase.from("quiz_questions").delete().eq("quiz_id", id);
 
-    const colors = ["red", "blue", "yellow", "green"] as const;
     for (let qi = 0; qi < questions.length; qi++) {
       const q = questions[qi];
       const { data: qq } = await supabase
@@ -64,21 +64,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           question_text: q.question_text,
           time_limit: q.time_limit ?? 20,
           points: q.points ?? 1000,
+          question_type: normalizeType(q.question_type),
           order_index: qi,
         })
         .select("id")
         .single();
       if (!qq) continue;
       if (Array.isArray(q.choices)) {
-        await supabase.from("quiz_choices").insert(
-          q.choices.slice(0, 4).map((c: { text: string; is_correct: boolean }, ci: number) => ({
-            question_id: qq.id,
-            text: c.text,
-            is_correct: !!c.is_correct,
-            color: colors[ci] ?? "red",
-            order_index: ci,
-          }))
-        );
+        await supabase.from("quiz_choices").insert(buildChoices(q.choices, qq.id));
       }
     }
   }

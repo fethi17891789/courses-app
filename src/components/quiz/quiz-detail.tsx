@@ -167,13 +167,13 @@ export function QuizDetail({ quiz }: { quiz: Quiz }) {
             onPointerLeave={() => setPressedLaunch(false)}
             onClick={handleLaunch}
             disabled={launching}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[15px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms] disabled:opacity-70"
+            className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-4 text-[15px] font-extrabold text-white transition-all duration-[80ms] ease-out disabled:opacity-70"
             style={{
               background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-              transform: `translateY(${pressedLaunch ? 4 : 0}px)`,
+              transform: `translateY(${pressedLaunch ? 5 : 0}px)`,
               boxShadow: pressedLaunch
-                ? "0 0px 0 #5b21b6"
-                : "0 4px 0 #5b21b6, 0 8px 24px -6px rgba(124,58,237,0.5)",
+                ? "0 0px 0 #5b21b6, 0 2px 4px -2px rgba(124,58,237,0.4)"
+                : "0 5px 0 #5b21b6, 0 10px 24px -6px rgba(124,58,237,0.5)",
             }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">

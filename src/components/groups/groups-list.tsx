@@ -174,6 +174,7 @@ function GroupCard({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
+      onClick={(e) => { if (didLongPress.current) { e.stopPropagation(); didLongPress.current = false; } }}
       className="w-full cursor-pointer rounded-xl bg-white p-4 text-left transition-[transform,box-shadow] duration-[80ms] select-none"
       style={{
         transform: `translateY(${pressed ? 3 : 0}px)`,
