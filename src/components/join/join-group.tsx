@@ -248,22 +248,18 @@ export function JoinGroup({
       return;
     }
 
-    // If the permission was previously denied, the browser will NOT re-prompt.
-    // Detect that up front so we can tell the user to reset it in settings,
-    // instead of failing silently.
+    // Read the permission state for diagnostics only. We do NOT bail out on
+    // "denied" here: the Permissions API can return a stale/false "denied" on
+    // some Android Chrome builds while getUserMedia still works. getUserMedia
+    // is the source of truth, so we always attempt it below.
+    let permState = "";
     try {
       const status = await navigator.permissions?.query({
         name: "camera" as PermissionName,
       });
-      if (status?.state === "denied") {
-        setScanning(false);
-        setScanError("camera_denied");
-        setScanErrorDetail("permission_state: denied");
-        return;
-      }
+      permState = status?.state ?? "";
     } catch {
-      // Permissions API or "camera" descriptor unsupported (e.g. Firefox) —
-      // fall through and let getUserMedia trigger the prompt directly.
+      // Permissions API or "camera" descriptor unsupported (e.g. Firefox).
     }
 
     const onScan = (decodedText: string) => {
@@ -299,7 +295,8 @@ export function JoinGroup({
         const e = (err2 ?? err) as { name?: string; message?: string };
         const name = e?.name || "";
         const msg = (e?.message || String(err2 ?? err)).toLowerCase();
-        setScanErrorDetail(name || msg.slice(0, 60));
+        const detail = name || msg.slice(0, 60);
+        setScanErrorDetail(permState ? `${detail} (perm: ${permState})` : detail);
 
         if (
           name === "NotAllowedError" ||
