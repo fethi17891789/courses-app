@@ -1,7 +1,17 @@
 import { createClient } from "@/lib/supabase-server";
+import { createClient as createAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { rateLimitByIp } from "@/lib/rate-limit";
 
+// Service-role client: the join-by-code flow must not depend on group/join_request
+// RLS policies (which have historically vanished from the live DB). Authorization is
+// enforced in code below (auth check, own-group guard, capacity, existing request).
+function getSupabaseAdmin() {
+  return createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export async function GET(
   _request: Request,
@@ -22,7 +32,9 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { data: group } = await supabase
+  const admin = getSupabaseAdmin();
+
+  const { data: group } = await admin
     .from("groups")
     .select("id, name, level, section, capacity, price, payment_mode, schedules, group_members(count)")
     .eq("join_code", code.toUpperCase())
@@ -34,7 +46,7 @@ export async function GET(
 
   const memberCount = group.group_members?.[0]?.count ?? 0;
 
-  const { data: existingRequest } = await supabase
+  const { data: existingRequest } = await admin
     .from("join_requests")
     .select("id, status")
     .eq("group_id", group.id)
@@ -76,7 +88,9 @@ export async function POST(
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
 
-  const { data: group } = await supabase
+  const admin = getSupabaseAdmin();
+
+  const { data: group } = await admin
     .from("groups")
     .select("id, capacity, teacher_id")
     .eq("join_code", code.toUpperCase())
@@ -90,9 +104,7 @@ export async function POST(
     return NextResponse.json({ error: "own_group" }, { status: 400 });
   }
 
-
-
-  const { count } = await supabase
+  const { count } = await admin
     .from("group_members")
     .select("*", { count: "exact", head: true })
     .eq("group_id", group.id);
@@ -101,7 +113,7 @@ export async function POST(
     return NextResponse.json({ error: "group_full" }, { status: 400 });
   }
 
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("join_requests")
     .select("id, status")
     .eq("group_id", group.id)
@@ -115,7 +127,7 @@ export async function POST(
     if (existing.status === "accepted") {
       return NextResponse.json({ error: "already_requested", status: "accepted" }, { status: 409 });
     }
-    const { error } = await supabase
+    const { error } = await admin
       .from("join_requests")
       .update({
         status: "pending",
@@ -139,7 +151,7 @@ export async function POST(
 
   const requestId = crypto.randomUUID();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("join_requests")
     .insert({
       id: requestId,

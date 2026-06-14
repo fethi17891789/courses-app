@@ -1,5 +1,17 @@
 import { createClient } from "@/lib/supabase-server";
+import { createClient as createAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
+// Service-role client: reading the student's own groups/absences/payments must not
+// depend on student-facing RLS policies (which have historically vanished from the
+// live DB). All queries below are scoped to the authenticated user's own records
+// (auth_user_id = user.id, or their own student ids), so there is no data leak.
+function getSupabaseAdmin() {
+  return createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export async function GET() {
   const supabase = await createClient();
@@ -11,8 +23,10 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const admin = getSupabaseAdmin();
+
   // Find student records linked to this auth user
-  const { data: students } = await supabase
+  const { data: students } = await admin
     .from("students")
     .select("id, full_name, teacher_id, group_members(group_id, enrolled_sessions, groups:groups(id, name, level, section, schedules, price, payment_mode, teacher_id))")
     .eq("auth_user_id", user.id);
@@ -43,7 +57,7 @@ export async function GET() {
   }
 
   // Get absences
-  const { data: absences } = await supabase
+  const { data: absences } = await admin
     .from("attendance")
     .select("id, group_id, session_day, session_date, status, groups:group_id(name)")
     .in("student_id", studentIds)
@@ -52,7 +66,7 @@ export async function GET() {
     .limit(50);
 
   // Get payments
-  const { data: payments } = await supabase
+  const { data: payments } = await admin
     .from("payments")
     .select("id, group_id, amount, session_date, groups:group_id(name)")
     .in("student_id", studentIds)

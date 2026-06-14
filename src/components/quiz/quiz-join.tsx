@@ -131,6 +131,11 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
   const supabase = createClient();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const ctxRef = useRef<PlayerCtx | null>(null);
+  const prevLeaderboardRanksRef = useRef<Map<string, number>>(new Map());
+  const displayOldRanksRef = useRef<Map<string, number>>(new Map());
+  const leaderboardRankChangesRef = useRef<Map<string, number>>(new Map());
+  const lbAnimQuestionRef = useRef(-1);
+  const [lbPhase, setLbPhase] = useState<"old" | "new">("new");
   // Last status:index already applied, so realtime + polling never double-apply
   // (which would reset the timer or wipe an already-submitted answer).
   const appliedRef = useRef<string>("");
@@ -331,6 +336,28 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [supabase]);
+
+  // Leaderboard rank animation: show old order for 1.2 s then animate cards to new positions
+  useEffect(() => {
+    if (phase.kind !== "leaderboard") return;
+    const qIdx = phase.qIndex;
+    if (lbAnimQuestionRef.current === qIdx) return;
+    lbAnimQuestionRef.current = qIdx;
+    const sortedPlayers = [...phase.players].sort((a, b) => b.score - a.score);
+    const changes = new Map<string, number>();
+    sortedPlayers.forEach((p, i) => {
+      const prev = prevLeaderboardRanksRef.current.get(p.id);
+      if (prev !== undefined) changes.set(p.id, prev - i);
+    });
+    leaderboardRankChangesRef.current = changes;
+    displayOldRanksRef.current = new Map(prevLeaderboardRanksRef.current);
+    prevLeaderboardRanksRef.current = new Map(sortedPlayers.map((p, i) => [p.id, i]));
+    if (displayOldRanksRef.current.size === 0) { setLbPhase("new"); return; }
+    setLbPhase("old");
+    const t = setTimeout(() => setLbPhase("new"), 1200);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.kind === "leaderboard" ? phase.qIndex : -1, phase.kind]);
 
   // On mount: restore active session from localStorage (survives page refresh)
   useEffect(() => {
@@ -553,9 +580,19 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
   // ── Leaderboard ───────────────────────────────────────────────────────────────
   if (phase.kind === "leaderboard") {
     const { players, playerId } = phase;
-    const sorted = [...players].sort((a, b) => b.score - a.score).slice(0, 8);
-    const myRank = sorted.findIndex((p) => p.id === playerId);
-    const maxScore = sorted[0]?.score || 1;
+    const newSorted = [...players].sort((a, b) => b.score - a.score).slice(0, 8);
+    const maxScore = newSorted[0]?.score || 1;
+    const rankChanges = leaderboardRankChangesRef.current;
+
+    // "old" phase → old order so cards physically travel to their new positions
+    const sorted = lbPhase === "old" && displayOldRanksRef.current.size > 0
+      ? [...players]
+          .sort((a, b) => (displayOldRanksRef.current.get(a.id) ?? 99) - (displayOldRanksRef.current.get(b.id) ?? 99))
+          .slice(0, 8)
+      : newSorted;
+
+    const myRank = newSorted.findIndex((p) => p.id === playerId);
+
     return (
       <div className="flex min-h-screen flex-col overflow-y-auto scrollbar-hide pb-10" style={{ background: "#1e1b4b" }}>
         <div className="mx-auto w-full max-w-md px-4 pt-10">
@@ -563,55 +600,80 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
             <div className="text-[13px] font-bold text-white/50 uppercase tracking-wider">
               {t("leaderboard")} — Q{phase.qIndex + 1}/{phase.qTotal}
             </div>
-            {myRank >= 0 && (
-              <div className="mt-1 text-[28px] font-extrabold"
+            {myRank >= 0 && lbPhase === "new" && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                className="mt-1 text-[28px] font-extrabold"
                 style={{ color: myRank === 0 ? "#f59e0b" : "#a78bfa" }}>
                 {myRank === 0 ? t("rankFirst") : t("rankNth", { rank: myRank + 1 })}
-              </div>
+              </motion.div>
             )}
           </div>
 
           <div className="flex flex-col gap-2">
-            {sorted.map((p, i) => (
-              <motion.div
-                key={p.id}
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.07, duration: 0.4, ease }}
-                className="overflow-hidden rounded-2xl"
-                style={{
-                  background: p.id === playerId ? "rgba(167,139,250,0.2)" : "rgba(255,255,255,0.08)",
-                  border: p.id === playerId ? "2px solid #a78bfa" : i === 0 ? "2px solid #f59e0b" : "1px solid rgba(255,255,255,0.1)",
-                }}>
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-7 text-center text-[16px] font-extrabold"
-                    style={{ color: i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#b45309" : "rgba(255,255,255,0.4)" }}>
-                    {i + 1}
-                  </div>
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold text-white"
-                    style={{ background: p.avatar_color }}>
-                    {p.player_name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-bold text-white truncate">
-                      {p.player_name} {p.id === playerId && <span className="text-[11px] text-white/50">{t("you")}</span>}
+            {sorted.map((p, i) => {
+              const delta = rankChanges.get(p.id);
+              const hasDelta = lbPhase === "new" && delta !== undefined && delta !== 0;
+              return (
+                <motion.div
+                  key={p.id}
+                  layout
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    layout: { type: "spring", stiffness: 260, damping: 28 },
+                    opacity: { duration: 0.3, delay: i * 0.06 },
+                    y: { duration: 0.3, delay: i * 0.06 },
+                  }}
+                  className="overflow-hidden rounded-2xl"
+                  style={{
+                    background: p.id === playerId ? "rgba(167,139,250,0.2)" : "rgba(255,255,255,0.08)",
+                    border: p.id === playerId ? "2px solid #a78bfa" : i === 0 ? "2px solid #f59e0b" : "1px solid rgba(255,255,255,0.1)",
+                  }}>
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="flex w-7 flex-col items-center">
+                      <div className="text-[16px] font-extrabold"
+                        style={{ color: i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#b45309" : "rgba(255,255,255,0.4)" }}>
+                        {i + 1}
+                      </div>
+                      {hasDelta && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.1 }}
+                          className="text-[9px] font-extrabold leading-none"
+                          style={{ color: delta! > 0 ? "#4ade80" : "#f87171" }}>
+                          {delta! > 0 ? `▲${delta}` : `▼${Math.abs(delta!)}`}
+                        </motion.div>
+                      )}
                     </div>
-                    <div className="mt-1 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(p.score / maxScore) * 100}%` }}
-                        transition={{ delay: i * 0.07 + 0.2, duration: 0.6, ease }}
-                        className="h-full rounded-full"
-                        style={{ background: p.id === playerId ? "#a78bfa" : i === 0 ? "#f59e0b" : "#6366f1" }}
-                      />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold text-white"
+                      style={{ background: p.avatar_color }}>
+                      {p.player_name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-bold text-white truncate">
+                        {p.player_name} {p.id === playerId && <span className="text-[11px] text-white/50">{t("you")}</span>}
+                      </div>
+                      <div className="mt-1 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(p.score / maxScore) * 100}%` }}
+                          transition={{ delay: i * 0.06 + 0.2, duration: 0.6, ease }}
+                          className="h-full rounded-full"
+                          style={{ background: p.id === playerId ? "#a78bfa" : i === 0 ? "#f59e0b" : "#6366f1" }}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-[14px] font-extrabold" style={{ color: "#a78bfa" }}>
+                      {p.score}
                     </div>
                   </div>
-                  <div className="text-[14px] font-extrabold" style={{ color: "#a78bfa" }}>
-                    {p.score}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
 
           <div className="mt-6 text-center text-[12px] font-medium text-white/30">

@@ -45,6 +45,15 @@ type GroupInfo = {
   existing_request: { id: string; status: string } | null;
 };
 
+type MyGroup = {
+  group_id: string;
+  group_name: string;
+  level: string;
+  section: string | null;
+  schedules: ScheduleSlot[];
+  enrolled_sessions: number[] | null;
+};
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <span className="mb-1.5 block text-[12px] font-bold text-[#1e1b4b]/50">
@@ -180,6 +189,7 @@ export function JoinGroup({
   const locale = pathname.split("/")[1];
 
   const [code, setCode] = useState(initialCode || "");
+  const [myGroups, setMyGroups] = useState<MyGroup[]>([]);
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -244,6 +254,14 @@ export function JoinGroup({
         scannerRef.current.stop().catch(() => {});
       }
     };
+  }, []);
+
+  // Groups the student has already joined (shown at the bottom).
+  useEffect(() => {
+    fetch("/api/student/me")
+      .then((r) => r.json())
+      .then((data) => setMyGroups(data.groups || []))
+      .catch(() => {});
   }, []);
 
   const requestIdRef = useRef<string | null>(null);
@@ -754,6 +772,66 @@ export function JoinGroup({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Groups already joined */}
+        {myGroups.length > 0 && (
+          <motion.div variants={fadeUp} className="mt-7">
+            <p className="mb-2.5 text-[11px] font-bold uppercase text-[#1e1b4b]/30">
+              {t("myGroups")}
+            </p>
+            <div className="flex flex-col gap-3">
+              {myGroups.map((g) => {
+                const def = getLevelDef(g.level);
+                const enrolled = g.enrolled_sessions || [];
+                const slots = (g.schedules || []).filter(
+                  (s) => enrolled.length === 0 || enrolled.includes(s.day),
+                );
+                return (
+                  <div
+                    key={g.group_id}
+                    className="rounded-xl bg-white p-4"
+                    style={{ boxShadow: "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)" }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px] font-extrabold text-[#1e1b4b]">
+                          {g.group_name}
+                        </p>
+                        <p className="mt-0.5 text-[12px] font-semibold text-[#1e1b4b]/40">
+                          {def?.label || g.level}
+                          {g.section ? ` - ${g.section}` : ""}
+                        </p>
+                      </div>
+                      <div
+                        className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1"
+                        style={{ background: "linear-gradient(135deg, #f0fdf4, #dcfce7)" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                        <span className="text-[11px] font-bold text-[#22c55e]">
+                          {t("joined")}
+                        </span>
+                      </div>
+                    </div>
+                    {slots.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {slots.map((s, i) => (
+                          <span
+                            key={i}
+                            className="rounded-md bg-[#faf5ff] px-1.5 py-0.5 text-[9px] font-bold text-[#7c3aed]/70"
+                          >
+                            {tGroups(`day${s.day}Short`)} {s.start_time}-{s.end_time}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
       </div>
       <div className="h-24 shrink-0" />
       <BottomNav active="join" role="eleve" />

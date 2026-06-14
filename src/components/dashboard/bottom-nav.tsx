@@ -91,6 +91,16 @@ const studentItems: NavItem[] = [
     ),
   },
   {
+    id: "announcements",
+    route: "/announcements",
+    icon: () => (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 11l18-5v12L3 14v-3z" />
+        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+      </svg>
+    ),
+  },
+  {
     id: "settings",
     route: "/settings",
     icon: () => (
@@ -110,6 +120,7 @@ export function BottomNav({
   role?: string;
 }) {
   const [pressedId, setPressedId] = useState<string | null>(null);
+  const [unread, setUnread] = useState(0);
   const router = useRouter();
   const locale = useLocale();
 
@@ -120,6 +131,15 @@ export function BottomNav({
       router.prefetch(`/${locale}${item.route}`);
     }
   }, [locale, router, items]);
+
+  // Unread announcements badge (students only).
+  useEffect(() => {
+    if (role !== "eleve") return;
+    fetch("/api/student/announcements")
+      .then((r) => r.json())
+      .then((data) => setUnread(data.unread || 0))
+      .catch(() => {});
+  }, [role, active]);
 
   function handleNavigate(item: NavItem) {
     if (item.id === active) return;
@@ -142,9 +162,22 @@ export function BottomNav({
           const isActive = active === item.id;
           const isPressed = pressedId === item.id;
 
+          const badge = item.id === "announcements" && unread > 0;
+
           return (
+            <div key={item.id} className="relative">
+              {badge && (
+                <span
+                  className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-black text-white"
+                  style={{
+                    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                    boxShadow: "0 2px 0 #b91c1c",
+                  }}
+                >
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
             <button
-              key={item.id}
               onPointerDown={() => {
                 setPressedId(item.id);
                 handleNavigate(item);
@@ -180,6 +213,7 @@ export function BottomNav({
             >
               {item.icon()}
             </button>
+            </div>
           );
         })}
       </div>
