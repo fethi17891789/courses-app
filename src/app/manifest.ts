@@ -5,11 +5,14 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Courses — Gestion de cours de soutien",
     short_name: "Courses",
     description: "Application de gestion de cours de soutien en Algerie",
+    id: "/",
     start_url: "/",
     display: "standalone",
     background_color: "#f0ecff",
     theme_color: "#7c3aed",
     orientation: "portrait",
+    lang: "fr",
+    categories: ["education", "productivity"],
     shortcuts: [
       {
         name: "Tableau de bord",

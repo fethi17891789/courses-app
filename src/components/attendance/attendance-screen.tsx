@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { SwipeCard } from "@/components/attendance/swipe-card";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import type { TodaySession } from "@/types/attendance";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -160,8 +161,8 @@ export function AttendanceScreen() {
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-6 scrollbar-hide">
         {/* Loading */}
         {loading && (
-          <motion.div variants={fadeUp} className="flex items-center justify-center py-20">
-            <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#7c3aed] border-t-transparent" />
+          <motion.div variants={fadeUp}>
+            <ListSkeleton count={3} />
           </motion.div>
         )}
 

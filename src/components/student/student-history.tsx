@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { ListSkeleton } from "@/components/ui/skeleton";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -124,8 +125,8 @@ export function StudentHistoryScreen() {
         </motion.div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#22c55e] border-t-transparent" />
+          <div className="mt-4">
+            <ListSkeleton count={3} accent="#bbf7d0" />
           </div>
         ) : tab === "absences" ? (
           <motion.div variants={fadeUp} className="mt-4">

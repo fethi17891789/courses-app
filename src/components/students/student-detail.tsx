@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -89,8 +90,19 @@ export function StudentDetail({ studentId }: { studentId: string }) {
 
   if (loading) {
     return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-[#f0ecff]">
-        <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#7c3aed] border-t-transparent" />
+      <main className="flex min-h-[100dvh] flex-col bg-[#f0ecff] px-5 pt-12">
+        <div className="flex items-center gap-4 mb-8">
+          <Skeleton className="h-16 w-16 rounded-2xl flex-shrink-0" />
+          <div className="flex flex-1 flex-col gap-2.5">
+            <Skeleton className="h-4 w-2/3 rounded-full" />
+            <Skeleton className="h-3 w-1/2 rounded-full" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <Skeleton className="h-16 w-full rounded-2xl" />
+        </div>
       </main>
     );
   }

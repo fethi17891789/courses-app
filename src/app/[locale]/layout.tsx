@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { PremiumGuard } from "@/components/auth/premium-guard";
 import { ThemeColorUpdater } from "@/components/pwa/theme-color-updater";
+import { OfflineBanner } from "@/components/pwa/offline-banner";
 
 export default async function LocaleLayout({
   children,
@@ -23,6 +24,7 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <ThemeColorUpdater />
+      <OfflineBanner />
       <PremiumGuard />
       <div dir={dir} className={`min-h-dvh flex flex-col ${locale === "ar" ? "font-[family-name:var(--font-arabic)]" : "font-[family-name:var(--font-sans)]"}`}>
         {children}

@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
 import { getHoliday } from "@/lib/holidays";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { ListSkeleton } from "@/components/ui/skeleton";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -257,9 +258,7 @@ export function ScheduleScreen() {
         {/* Sessions list */}
         <motion.div variants={fadeUp} className="mt-4">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#7c3aed] border-t-transparent" />
-            </div>
+            <ListSkeleton count={3} />
           ) : sessions.length === 0 ? (
             <div className="rounded-xl bg-white p-6 text-center" style={{ boxShadow: "0 2px 0 #e9e5f5" }}>
               <p className="text-[12px] font-semibold text-[#1e1b4b]/40">{t("noSessions")}</p>

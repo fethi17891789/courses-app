@@ -1,9 +1,20 @@
-const CACHE_NAME = "courses-v3";
+const CACHE_NAME = "courses-v4";
 const OFFLINE_URL = "/offline.html";
+const SHELL_URLS = [
+  OFFLINE_URL,
+  "/",
+  "/fr/dashboard",
+  "/fr/attendance",
+  "/fr/payments",
+  "/fr/students",
+  "/fr/groups",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.add(OFFLINE_URL))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(SHELL_URLS.map((url) => cache.add(url)))
+    )
   );
   self.skipWaiting();
 });

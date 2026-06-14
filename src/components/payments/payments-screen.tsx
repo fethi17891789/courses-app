@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { getLevelDef } from "@/lib/levels";
+import { ListSkeleton } from "@/components/ui/skeleton";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -214,9 +215,7 @@ export function PaymentsScreen() {
 
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-6 scrollbar-hide">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#7c3aed] border-t-transparent" />
-          </div>
+          <ListSkeleton count={4} />
         ) : data ? (
           <>
             {/* Unpaid count */}
