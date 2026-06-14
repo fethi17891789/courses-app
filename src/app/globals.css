@@ -125,9 +125,14 @@
   body {
     @apply bg-[#f0ecff] text-foreground;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    overscroll-behavior: none;
   }
   html {
     @apply font-sans bg-[#f0ecff];
+    overscroll-behavior: none;
+  }
+  input, textarea, select {
+    font-size: max(16px, 1em);
   }
   button, a, [role="button"], [role="tab"], [role="menuitem"] {
     -webkit-touch-callout: none;
