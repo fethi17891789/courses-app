@@ -248,6 +248,24 @@ export function JoinGroup({
       return;
     }
 
+    // If the permission was previously denied, the browser will NOT re-prompt.
+    // Detect that up front so we can tell the user to reset it in settings,
+    // instead of failing silently.
+    try {
+      const status = await navigator.permissions?.query({
+        name: "camera" as PermissionName,
+      });
+      if (status?.state === "denied") {
+        setScanning(false);
+        setScanError("camera_denied");
+        setScanErrorDetail("permission_state: denied");
+        return;
+      }
+    } catch {
+      // Permissions API or "camera" descriptor unsupported (e.g. Firefox) —
+      // fall through and let getUserMedia trigger the prompt directly.
+    }
+
     const onScan = (decodedText: string) => {
       let extracted = decodedText.trim().toUpperCase();
       try {
