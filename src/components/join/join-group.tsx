@@ -210,6 +210,7 @@ export function JoinGroup({
   const [formError, setFormError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanErrorDetail, setScanErrorDetail] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scanContainerRef = useRef<string>("qr-reader-" + Math.random().toString(36).slice(2, 8));
 
@@ -225,6 +226,7 @@ export function JoinGroup({
 
   const startScanner = useCallback(async () => {
     setScanError(null);
+    setScanErrorDetail(null);
     setScanning(true);
     await new Promise((r) => setTimeout(r, 200));
 
@@ -232,36 +234,73 @@ export function JoinGroup({
     if (!el) {
       setScanning(false);
       setScanError("camera_unavailable");
+      setScanErrorDetail("container_missing");
       return;
     }
 
+    // Secure-context check: getUserMedia is unavailable on http (except localhost)
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setScanning(false);
+      setScanError("camera_unavailable");
+      setScanErrorDetail(
+        window.isSecureContext ? "no_getusermedia" : "insecure_context",
+      );
+      return;
+    }
+
+    const onScan = (decodedText: string) => {
+      let extracted = decodedText.trim().toUpperCase();
+      try {
+        const url = new URL(decodedText);
+        const codeParam = url.searchParams.get("code");
+        if (codeParam) extracted = codeParam.toUpperCase();
+      } catch {}
+      setCode(extracted);
+      stopScanner();
+    };
+
+    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
     const scanner = new Html5Qrcode(scanContainerRef.current);
     scannerRef.current = scanner;
+
     try {
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 220, height: 220 } },
-        (decodedText) => {
-          let extracted = decodedText.trim().toUpperCase();
-          try {
-            const url = new URL(decodedText);
-            const codeParam = url.searchParams.get("code");
-            if (codeParam) extracted = codeParam.toUpperCase();
-          } catch {}
-          setCode(extracted);
-          stopScanner();
-        },
-        () => {},
-      );
+      await scanner.start({ facingMode: "environment" }, config, onScan, () => {});
     } catch (err: unknown) {
-      await stopScanner();
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.toLowerCase().includes("permission") || msg.toLowerCase().includes("denied") || msg.toLowerCase().includes("notallowed")) {
-        setScanError("camera_denied");
-      } else if (msg.toLowerCase().includes("notfound") || msg.toLowerCase().includes("no camera")) {
-        setScanError("camera_unavailable");
-      } else {
-        setScanError("camera_unavailable");
+      // Fallback: some devices reject the facingMode constraint. Enumerate
+      // cameras and try the last one (usually the rear camera).
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length > 0) {
+          const cam = cameras[cameras.length - 1];
+          await scanner.start(cam.id, config, onScan, () => {});
+          return;
+        }
+        throw err;
+      } catch (err2: unknown) {
+        await stopScanner();
+        const e = (err2 ?? err) as { name?: string; message?: string };
+        const name = e?.name || "";
+        const msg = (e?.message || String(err2 ?? err)).toLowerCase();
+        setScanErrorDetail(name || msg.slice(0, 60));
+
+        if (
+          name === "NotAllowedError" ||
+          name === "SecurityError" ||
+          msg.includes("permission") ||
+          msg.includes("denied") ||
+          msg.includes("notallowed")
+        ) {
+          setScanError("camera_denied");
+        } else if (
+          name === "NotReadableError" ||
+          name === "TrackStartError" ||
+          msg.includes("in use") ||
+          msg.includes("could not start")
+        ) {
+          setScanError("camera_busy");
+        } else {
+          setScanError("camera_unavailable");
+        }
       }
     }
   }, [stopScanner]);
@@ -487,15 +526,24 @@ export function JoinGroup({
             </AnimatePresence>
 
             {scanError && (
-              <motion.p
+              <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl bg-red-50 px-3 py-2.5 text-[12px] font-semibold text-red-600"
+                className="rounded-xl bg-red-50 px-3 py-2.5"
               >
-                {scanError === "camera_denied"
-                  ? t("cameraDenied")
-                  : t("cameraUnavailable")}
-              </motion.p>
+                <p className="text-[12px] font-semibold text-red-600">
+                  {scanError === "camera_denied"
+                    ? t("cameraDenied")
+                    : scanError === "camera_busy"
+                    ? t("cameraBusy")
+                    : t("cameraUnavailable")}
+                </p>
+                {scanErrorDetail && (
+                  <p className="mt-1 font-mono text-[10px] text-red-400">
+                    {scanErrorDetail}
+                  </p>
+                )}
+              </motion.div>
             )}
 
             <button
