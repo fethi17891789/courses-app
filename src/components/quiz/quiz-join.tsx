@@ -9,9 +9,15 @@ import { CHOICE_COLORS, AVATAR_COLORS } from "@/types/quiz";
 import {
   resumeAudio, playCountdownBeep, playGo, playCorrect, playWrong, playPoints, playFanfare,
 } from "@/lib/quiz-sounds";
+import { syncedNow, setServerNow, COUNTDOWN_MS } from "@/lib/quiz-time";
 
 const STORAGE_KEY = "quiz_active_session";
 type StoredSession = { sessionId: string; playerId: string; playerName: string; avatarColor: string };
+
+// Forward order of phases within one question index — used to ignore late/stale
+// updates that would move a player backwards (e.g. a "countdown" poll arriving
+// after the time-based transition already advanced them to "question").
+const STATUS_RANK: Record<string, number> = { countdown: 0, question: 1, reveal: 2, leaderboard: 3 };
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -134,19 +140,30 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
   const applySessionState = useCallback(async (s: SessionRow, ctx: PlayerCtx) => {
     const key = `${s.status}:${s.current_question_index}`;
     if (appliedRef.current === key) return;
+    // Ignore stale backward transitions for the same question index.
+    const [prevStatus, prevIdxStr] = appliedRef.current.split(":");
+    if (
+      Number(prevIdxStr) === s.current_question_index &&
+      s.status in STATUS_RANK &&
+      prevStatus in STATUS_RANK &&
+      STATUS_RANK[s.status] < STATUS_RANK[prevStatus]
+    ) {
+      return;
+    }
     appliedRef.current = key;
     const { sessionId, playerId, playerName } = ctx;
 
     if (s.status === "countdown") {
       setPhase({ kind: "countdown", sessionId, playerId, playerName, startedAt: s.countdown_started_at ?? new Date().toISOString() });
     } else if (s.status === "question") {
+      const t1 = Date.now();
       const res = await fetch(`/api/quiz/sessions/${sessionId}`);
       if (!res.ok) return;
       const data = await res.json();
+      setServerNow(data.server_now, Date.now() - t1);
       const questions = data.session?.quizzes?.quiz_questions ?? [];
       const q = questions[s.current_question_index];
       if (!q) {
-        // No question at this index (e.g. empty quiz) — treat as finished
         setPhase({ kind: "finished", players: data.players ?? [], playerId });
         return;
       }
@@ -179,9 +196,11 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
         };
       });
     } else if (s.status === "leaderboard") {
+      const t1 = Date.now();
       const res = await fetch(`/api/quiz/sessions/${sessionId}`);
       if (!res.ok) return;
       const data = await res.json();
+      setServerNow(data.server_now, Date.now() - t1);
       const questions = data.session?.quizzes?.quiz_questions ?? [];
       setPhase({
         kind: "leaderboard",
@@ -195,17 +214,26 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
     } else if (s.status === "finished") {
       localStorage.removeItem(STORAGE_KEY);
       playFanfare();
+      const t1 = Date.now();
       const res = await fetch(`/api/quiz/sessions/${sessionId}`);
       if (!res.ok) return;
       const data = await res.json();
+      setServerNow(data.server_now, Date.now() - t1);
       setPhase({ kind: "finished", players: data.players ?? [], playerId });
     }
   }, []);
 
-  // Subscribe to session changes for player (realtime)
+  // Subscribe to session changes for player.
+  // Primary: Supabase Broadcast (host sends directly via WebSocket, ~50ms).
+  // Fallback: postgres_changes (requires migration 019, ~200-500ms).
+  // Safety net: polling every 1500ms (always works).
   const subscribeToSession = useCallback((sessionId: string, playerId: string, playerName: string) => {
     if (channelRef.current) supabase.removeChannel(channelRef.current);
-    const ch = supabase.channel(`player-session-${sessionId}`)
+    const ch = supabase.channel(`game-${sessionId}`)
+      .on("broadcast", { event: "game_state" }, ({ payload }) => {
+        if (payload.server_now) setServerNow(payload.server_now); // calibrate clock immediately on receipt
+        applySessionState(payload as SessionRow, { sessionId, playerId, playerName });
+      })
       .on("postgres_changes", {
         event: "UPDATE",
         schema: "public",
@@ -224,17 +252,56 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
     if (!livePhases.includes(phase.kind) || !ctxRef.current) return;
     const ctx = ctxRef.current;
     const iv = setInterval(async () => {
+      const t1 = Date.now();
       const res = await fetch(`/api/quiz/sessions/${ctx.sessionId}`);
       if (!res.ok) return;
       const data = await res.json();
+      setServerNow(data.server_now, Date.now() - t1);
       if (!data.session) return;
       setPhase((prev) =>
         prev.kind === "waiting" ? { ...prev, players: data.players ?? prev.players } : prev
       );
       applySessionState(data.session as SessionRow, ctx);
-    }, 2500);
+    }, 1500);
     return () => clearInterval(iv);
   }, [phase.kind, applySessionState]);
+
+  // Time-based countdown -> question transition. Both host and players flip at
+  // the exact same absolute moment (countdown start + COUNTDOWN_MS), so the
+  // question appears in sync for everyone — independent of network/realtime lag.
+  useEffect(() => {
+    if (phase.kind !== "countdown") return;
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const fireAt = new Date(phase.startedAt).getTime() + COUNTDOWN_MS;
+    const delay = Math.max(0, fireAt - syncedNow());
+    const id = setTimeout(async () => {
+      const t1 = Date.now();
+      const res = await fetch(`/api/quiz/sessions/${ctx.sessionId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setServerNow(data.server_now, Date.now() - t1);
+      const s = data.session;
+      if (!s) return;
+      const questions = s.quizzes?.quiz_questions ?? [];
+      const q = questions[s.current_question_index];
+      if (!q) return;
+      appliedRef.current = `question:${s.current_question_index}`;
+      setPhase({
+        kind: "question",
+        sessionId: ctx.sessionId,
+        playerId: ctx.playerId,
+        question: q,
+        qIndex: s.current_question_index,
+        qTotal: questions.length,
+        startedAt: s.question_started_at ?? new Date(fireAt).toISOString(),
+        answered: false,
+        selectedChoiceIds: [],
+      });
+    }, delay);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.kind, phase.kind === "countdown" ? phase.startedAt : null]);
 
   // Subscribe to new players joining (waiting phase)
   useEffect(() => {
@@ -274,9 +341,11 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
     const { sessionId, playerId, playerName, avatarColor: storedColor } = stored;
 
     (async () => {
+      const t1 = Date.now();
       const res = await fetch(`/api/quiz/sessions/${sessionId}`);
       if (!res.ok) { localStorage.removeItem(STORAGE_KEY); return; }
       const data = await res.json();
+      setServerNow(data.server_now, Date.now() - t1);
       const session = data.session as (SessionRow & { quizzes?: { quiz_questions?: Array<QuizQuestion & { quiz_choices: QuizChoice[] }> } }) | null;
       if (!session || session.status === "finished") { localStorage.removeItem(STORAGE_KEY); return; }
 
@@ -354,8 +423,10 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
       return;
     }
     const { player } = await joinRes.json();
+    const t1 = Date.now();
     const sessRes = await fetch(`/api/quiz/sessions/${session.id}`);
     const sessData = sessRes.ok ? await sessRes.json() : { players: [] };
+    setServerNow(sessData.server_now, Date.now() - t1);
 
     ctxRef.current = { sessionId: session.id, playerId: player.id, playerName: displayName };
     appliedRef.current = "waiting:0";
@@ -403,7 +474,15 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
         choice_ids: ids,
       }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      // If the server hasn't opened answers yet (status not "question"), let the
+      // player retry instead of getting stuck on a locked screen.
+      if (d.error !== "already_answered") {
+        setPhase((prev) => prev.kind === "question" ? { ...prev, answered: false } : prev);
+      }
+      return;
+    }
     const { correct, points_earned: pointsEarned, total_score: totalScore, streak } = await res.json();
     if (correct) { playCorrect(); } else { playWrong(); }
     if (pointsEarned > 0) setTimeout(playPoints, 500);
@@ -922,46 +1001,56 @@ export function QuizJoin({ prefillCode, displayName }: { prefillCode: string; di
 }
 
 // ── Player countdown (student-side) ───────────────────────────────────────────
+// Tick-based: same logic as host CountdownDisplay. Late arrivals jump directly
+// to the correct beat instead of replaying from "3".
 function PlayerCountdown({ startedAt }: { startedAt: string }) {
-  const [num, setNum] = useState(() => {
-    const e = Date.now() - new Date(startedAt).getTime();
-    return e < 1000 ? 3 : e < 2000 ? 2 : 1;
+  const startMs = useRef(new Date(startedAt).getTime());
+  startMs.current = new Date(startedAt).getTime(); // stays in sync if prop changes
+  const lastBeat = useRef(-1);
+
+  const [beat, setBeat] = useState<"3" | "2" | "1" | "go">(() => {
+    const e = syncedNow() - startMs.current;
+    if (e < 1000) return "3";
+    if (e < 2000) return "2";
+    if (e < 3000) return "1";
+    return "go";
   });
-  const [showGo, setShowGo] = useState(() => Date.now() - new Date(startedAt).getTime() >= 3000);
 
   useEffect(() => {
-    const elapsed = Date.now() - new Date(startedAt).getTime();
-    // Already past countdown — polling will pick up "question" status shortly
-    if (elapsed >= 3800) return;
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    if (elapsed < 1000) {
-      playCountdownBeep(false);
-      timers.push(setTimeout(() => { setNum(2); playCountdownBeep(false); }, 1000 - elapsed));
-      timers.push(setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000 - elapsed));
-      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
-    } else if (elapsed < 2000) {
-      timers.push(setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000 - elapsed));
-      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
-    } else if (elapsed < 3000) {
-      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
-    }
-    return () => timers.forEach(clearTimeout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt]);
+    let id: ReturnType<typeof setInterval>;
+    const tick = () => {
+      const elapsed = syncedNow() - startMs.current;
+      if (elapsed < 0) {
+        // Lead time: countdown not started yet — show "3" silently
+      } else if (elapsed < 1000) {
+        if (lastBeat.current < 0) { lastBeat.current = 0; setBeat("3"); playCountdownBeep(false); }
+      } else if (elapsed < 2000) {
+        if (lastBeat.current < 1) { lastBeat.current = 1; setBeat("2"); playCountdownBeep(false); }
+      } else if (elapsed < 3000) {
+        if (lastBeat.current < 2) { lastBeat.current = 2; setBeat("1"); playCountdownBeep(true); }
+      } else if (elapsed < COUNTDOWN_MS) {
+        if (lastBeat.current < 3) { lastBeat.current = 3; setBeat("go"); playGo(); }
+      } else {
+        clearInterval(id);
+      }
+    };
+    tick();
+    id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen" style={{ background: "#1e1b4b" }}>
       <AnimatePresence mode="popLayout">
-        {!showGo ? (
-          <motion.div key={num}
+        {beat !== "go" ? (
+          <motion.div key={beat}
             initial={{ scale: 0.2, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 2.5, opacity: 0 }}
             transition={{ duration: 0.35, ease }}
             className="text-[140px] font-extrabold leading-none"
             style={{ color: "#a78bfa", textShadow: "0 8px 0 #5b21b6" }}>
-            {num}
+            {beat}
           </motion.div>
         ) : (
           <motion.div key="go"
@@ -991,7 +1080,7 @@ function PlayerTimerBar({ timeLimit, startedAt, onExpire }: { timeLimit: number;
     expiredRef.current = false;
     const start = new Date(startedAt).getTime();
     function tick() {
-      const elapsed = (Date.now() - start) / 1000;
+      const elapsed = (syncedNow() - start) / 1000;
       const remaining = Math.max(0, timeLimit - elapsed);
       setPct((remaining / timeLimit) * 100);
       setSecsLeft(Math.ceil(remaining));

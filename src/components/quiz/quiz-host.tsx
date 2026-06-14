@@ -11,6 +11,7 @@ import {
   resumeAudio, playCountdownBeep, playGo, playTick, playUrgentTick,
   playCorrect, playFanfare, playPlayerJoin, playRevealDrum,
 } from "@/lib/quiz-sounds";
+import { syncedNow, setServerNow, COUNTDOWN_MS, START_LEAD_MS } from "@/lib/quiz-time";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -92,7 +93,7 @@ function TimerBar({ timeLimit, startedAt, onExpire }: { timeLimit: number; start
     expiredRef.current = false;
     const start = new Date(startedAt).getTime();
     function tick() {
-      const elapsed = (Date.now() - start) / 1000;
+      const elapsed = (syncedNow() - start) / 1000;
       const remaining = Math.max(0, timeLimit - elapsed);
       setPct((remaining / timeLimit) * 100);
       setSecsLeft(Math.ceil(remaining));
@@ -149,47 +150,60 @@ function Avatar({ player, rank }: { player: SessionPlayer; rank?: number }) {
 }
 
 // ── Big countdown number ──────────────────────────────────────────────────────
+// Tick-based: every 100 ms we read syncedNow() and derive the current beat from
+// elapsed server time. A late-arriving update will jump straight to the correct
+// beat instead of restarting from "3", keeping all clients visually in sync.
 function CountdownDisplay({ startedAt, onDone }: { startedAt: string; onDone: () => void }) {
-  const [num, setNum] = useState(() => {
-    const e = Date.now() - new Date(startedAt).getTime();
-    return e < 1000 ? 3 : e < 2000 ? 2 : 1;
+  const startMs = useRef(new Date(startedAt).getTime());
+  startMs.current = new Date(startedAt).getTime(); // stays in sync when authoritative timestamp arrives
+  const lastBeat = useRef(-1);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  const [beat, setBeat] = useState<"3" | "2" | "1" | "go">(() => {
+    const e = syncedNow() - startMs.current;
+    if (e < 1000) return "3";
+    if (e < 2000) return "2";
+    if (e < 3000) return "1";
+    return "go";
   });
-  const [showGo, setShowGo] = useState(() => Date.now() - new Date(startedAt).getTime() >= 3000);
 
   useEffect(() => {
-    const elapsed = Date.now() - new Date(startedAt).getTime();
-    if (elapsed >= 3800) { onDone(); return; }
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    if (elapsed < 1000) {
-      playCountdownBeep(false);
-      timers.push(setTimeout(() => { setNum(2); playCountdownBeep(false); }, 1000 - elapsed));
-      timers.push(setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000 - elapsed));
-      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
-    } else if (elapsed < 2000) {
-      timers.push(setTimeout(() => { setNum(1); playCountdownBeep(true); }, 2000 - elapsed));
-      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
-    } else if (elapsed < 3000) {
-      timers.push(setTimeout(() => { setShowGo(true); playGo(); }, 3000 - elapsed));
-    }
-    timers.push(setTimeout(() => onDone(), 3800 - elapsed));
-    return () => timers.forEach(clearTimeout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt]);
+    let id: ReturnType<typeof setInterval>;
+    const tick = () => {
+      const elapsed = syncedNow() - startMs.current;
+      if (elapsed < 0) {
+        // Lead time: countdown not started yet — show "3" silently
+      } else if (elapsed < 1000) {
+        if (lastBeat.current < 0) { lastBeat.current = 0; setBeat("3"); playCountdownBeep(false); }
+      } else if (elapsed < 2000) {
+        if (lastBeat.current < 1) { lastBeat.current = 1; setBeat("2"); playCountdownBeep(false); }
+      } else if (elapsed < 3000) {
+        if (lastBeat.current < 2) { lastBeat.current = 2; setBeat("1"); playCountdownBeep(true); }
+      } else if (elapsed < COUNTDOWN_MS) {
+        if (lastBeat.current < 3) { lastBeat.current = 3; setBeat("go"); playGo(); }
+      } else {
+        if (lastBeat.current < 4) { lastBeat.current = 4; clearInterval(id); onDoneRef.current(); }
+      }
+    };
+    tick();
+    id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, []); // startMs + lastBeat are refs — stable, no deps needed
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen" style={{ background: "#1e1b4b" }}>
       <AnimatePresence mode="popLayout">
-        {!showGo ? (
+        {beat !== "go" ? (
           <motion.div
-            key={num}
+            key={beat}
             initial={{ scale: 0.2, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 2.5, opacity: 0 }}
             transition={{ duration: 0.35, ease }}
             className="text-[140px] font-extrabold leading-none"
             style={{ color: "#a78bfa", textShadow: "0 8px 0 #5b21b6" }}>
-            {num}
+            {beat}
           </motion.div>
         ) : (
           <motion.div
@@ -262,9 +276,11 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
   const playerCountRef = useRef(0);
 
   const fetchData = useCallback(async () => {
+    const t1 = Date.now();
     const res = await fetch(`/api/quiz/sessions/${sessionId}`);
     if (!res.ok) return;
     const json = await res.json();
+    setServerNow(json.server_now, Date.now() - t1);
     setData({
       session: json.session,
       players: json.players ?? [],
@@ -309,6 +325,18 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
     const iv = setInterval(fetchData, 3000);
     return () => clearInterval(iv);
   }, [data?.session?.status, fetchData]);
+
+  // Broadcast channel: host sends game-state events directly to all players
+  // via WebSocket (~50ms), bypassing DB-change latency or polling delays.
+  const broadcastRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  useEffect(() => {
+    const ch = supabase.channel(`game-${sessionId}`, {
+      config: { broadcast: { self: false } },
+    });
+    ch.subscribe();
+    broadcastRef.current = ch;
+    return () => { supabase.removeChannel(ch); };
+  }, [sessionId, supabase]);
 
   // Realtime: player answers count
   useEffect(() => {
@@ -359,17 +387,72 @@ export function QuizHost({ sessionId }: { sessionId: string }) {
 
   async function advance(action: string) {
     setAdvanceError("");
+    // Optimistic local transition so the host UI responds instantly; the
+    // network call (and a background refresh) reconcile authoritative data.
+    setData((prev) => {
+      if (!prev) return prev;
+      const s = { ...prev.session };
+      const countdownAt = syncedNow() + START_LEAD_MS;
+      let dist = prev.answerDistribution;
+      let total = prev.answerTotal;
+      if (action === "start_countdown") {
+        s.status = "countdown";
+        s.countdown_started_at = new Date(countdownAt).toISOString();
+        s.question_started_at = new Date(countdownAt + COUNTDOWN_MS).toISOString();
+      } else if (action === "start_question") {
+        s.status = "question";
+        dist = {}; total = 0;
+      } else if (action === "reveal") {
+        s.status = "reveal";
+      } else if (action === "leaderboard") {
+        s.status = "leaderboard";
+      } else if (action === "next_question") {
+        s.status = "countdown";
+        s.current_question_index = prev.session.current_question_index + 1;
+        s.countdown_started_at = new Date(countdownAt).toISOString();
+        s.question_started_at = new Date(countdownAt + COUNTDOWN_MS).toISOString();
+        dist = {}; total = 0;
+      } else if (action === "finish") {
+        s.status = "finished";
+      }
+      return { ...prev, session: s, answerDistribution: dist, answerTotal: total };
+    });
+
+    const t1 = Date.now();
     const res = await fetch(`/api/quiz/sessions/${sessionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+    const rtt = Date.now() - t1;
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
       console.error("[advance] PATCH failed:", res.status, d);
       setAdvanceError(`Erreur ${res.status}: ${d.error ?? "?"}`);
+      await fetchData();
+      return;
     }
-    await fetchData();
+    const json = await res.json().catch(() => ({}));
+    setServerNow(json.server_now, rtt);
+    // Overwrite optimistic timestamps with authoritative server values.
+    if (json.session) {
+      setData((prev) => prev ? { ...prev, session: { ...prev.session, ...json.session } } : prev);
+      // Broadcast the authoritative state to all players via WebSocket (~50ms).
+      // This is the primary sync mechanism — faster than postgres_changes or polling.
+      broadcastRef.current?.send({
+        type: "broadcast",
+        event: "game_state",
+        payload: {
+          status: json.session.status,
+          countdown_started_at: json.session.countdown_started_at ?? null,
+          question_started_at: json.session.question_started_at ?? null,
+          current_question_index: json.session.current_question_index,
+          server_now: json.server_now, // lets players calibrate their clock immediately on receipt
+        },
+      });
+    }
+    // Refresh for scores and answer distribution (not awaited — already optimistic).
+    fetchData();
   }
 
   function handleQuit() {

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { SessionStatus } from "@/types/quiz";
+import { COUNTDOWN_MS, START_LEAD_MS } from "@/lib/quiz-time";
 
 type Params = { params: Promise<{ sessionId: string }> };
 
@@ -81,6 +82,7 @@ export async function GET(_req: Request, { params }: Params) {
     players: players ?? [],
     answer_distribution: answerDistribution,
     answer_total: answerTotal,
+    server_now: Date.now(),
   });
 }
 
@@ -108,12 +110,18 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const updates: Partial<{ status: SessionStatus; current_question_index: number; question_started_at: string; countdown_started_at: string }> = {};
 
+  const now = Date.now();
+  // Schedule the countdown START_LEAD_MS in the future so every client
+  // (broadcast ~50ms, postgres_changes ~300ms, polling up to 1500ms) receives
+  // the signal before the animation begins — all screens show "3" together.
+  const countdownAt = now + START_LEAD_MS;
+
   if (action === "start_countdown") {
     updates.status = "countdown";
-    updates.countdown_started_at = new Date().toISOString();
+    updates.countdown_started_at = new Date(countdownAt).toISOString();
+    updates.question_started_at = new Date(countdownAt + COUNTDOWN_MS).toISOString();
   } else if (action === "start_question") {
     updates.status = "question";
-    updates.question_started_at = new Date().toISOString();
   } else if (action === "reveal") {
     updates.status = "reveal";
   } else if (action === "leaderboard") {
@@ -121,7 +129,8 @@ export async function PATCH(request: Request, { params }: Params) {
   } else if (action === "next_question") {
     updates.status = "countdown";
     updates.current_question_index = session.current_question_index + 1;
-    updates.countdown_started_at = new Date().toISOString();
+    updates.countdown_started_at = new Date(countdownAt).toISOString();
+    updates.question_started_at = new Date(countdownAt + COUNTDOWN_MS).toISOString();
   } else if (action === "finish") {
     updates.status = "finished";
   } else {
@@ -132,15 +141,17 @@ export async function PATCH(request: Request, { params }: Params) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-  const { error: updateError } = await admin
+  const { data: updated, error: updateError } = await admin
     .from("quiz_sessions")
     .update(updates)
-    .eq("id", sessionId);
+    .eq("id", sessionId)
+    .select("*")
+    .single();
 
   if (updateError) {
     console.error("[quiz PATCH] update failed:", updateError);
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, session: updated, server_now: Date.now() });
 }
