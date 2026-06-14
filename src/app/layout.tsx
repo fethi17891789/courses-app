@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   description: "Application de gestion de cours de soutien en Algerie",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Courses",
   },
   other: {
