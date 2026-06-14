@@ -303,7 +303,9 @@
     "copy": "نسخ",
     "copied": "تم النسخ !",
     "shareLink": "مشاركة الرابط",
-    "shareMessage": "انضم لفوجي {name} بالرمز {code} :"
+    "shareMessage": "انضم لفوجي {name} بالرمز {code} :",
+    "cameraDenied": "تم رفض الوصول إلى الكاميرا. يرجى السماح في إعدادات المتصفح.",
+    "cameraUnavailable": "الكاميرا غير متاحة. تأكد من وجود كاميرا وأن الموقع يعمل عبر HTTPS."
   },
   "studentDashboard": {
     "subtitle": "فضاء التلميذ",

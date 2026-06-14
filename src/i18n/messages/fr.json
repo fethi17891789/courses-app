@@ -303,7 +303,9 @@
     "copy": "Copier",
     "copied": "Copie !",
     "shareLink": "Partager le lien",
-    "shareMessage": "Rejoins mon groupe {name} avec le code {code} :"
+    "shareMessage": "Rejoins mon groupe {name} avec le code {code} :",
+    "cameraDenied": "Acces a la camera refuse. Autorisez la camera dans les parametres de votre navigateur.",
+    "cameraUnavailable": "Camera non disponible. Verifiez que votre appareil a une camera et que le site est en HTTPS."
   },
   "studentDashboard": {
     "subtitle": "Espace eleve",

@@ -209,6 +209,7 @@ export function JoinGroup({
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scanContainerRef = useRef<string>("qr-reader-" + Math.random().toString(36).slice(2, 8));
 
@@ -223,8 +224,17 @@ export function JoinGroup({
   }, []);
 
   const startScanner = useCallback(async () => {
+    setScanError(null);
     setScanning(true);
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 200));
+
+    const el = document.getElementById(scanContainerRef.current);
+    if (!el) {
+      setScanning(false);
+      setScanError("camera_unavailable");
+      return;
+    }
+
     const scanner = new Html5Qrcode(scanContainerRef.current);
     scannerRef.current = scanner;
     try {
@@ -243,8 +253,16 @@ export function JoinGroup({
         },
         () => {},
       );
-    } catch {
-      stopScanner();
+    } catch (err: unknown) {
+      await stopScanner();
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes("permission") || msg.toLowerCase().includes("denied") || msg.toLowerCase().includes("notallowed")) {
+        setScanError("camera_denied");
+      } else if (msg.toLowerCase().includes("notfound") || msg.toLowerCase().includes("no camera")) {
+        setScanError("camera_unavailable");
+      } else {
+        setScanError("camera_unavailable");
+      }
     }
   }, [stopScanner]);
 
@@ -467,6 +485,18 @@ export function JoinGroup({
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {scanError && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl bg-red-50 px-3 py-2.5 text-[12px] font-semibold text-red-600"
+              >
+                {scanError === "camera_denied"
+                  ? t("cameraDenied")
+                  : t("cameraUnavailable")}
+              </motion.p>
+            )}
 
             <button
               onPointerDown={() => setLookupPressed(true)}
