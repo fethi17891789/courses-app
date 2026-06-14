@@ -120,6 +120,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-[#f0ecff] text-foreground;
@@ -127,6 +128,10 @@
   }
   html {
     @apply font-sans bg-[#f0ecff];
+  }
+  button, a, [role="button"], [role="tab"], [role="menuitem"] {
+    -webkit-touch-callout: none;
+    user-select: none;
   }
 }
 
