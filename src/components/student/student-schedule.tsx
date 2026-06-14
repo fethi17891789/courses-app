@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
+import { getHoliday } from "@/lib/holidays";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -45,6 +46,7 @@ function getDaysOfWeek(baseDate: Date) {
 export function StudentScheduleScreen() {
   const t = useTranslations("studentDashboard");
   const tGroups = useTranslations("groups");
+  const tHolidays = useTranslations("holidays");
   const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split("/")[1];
@@ -72,6 +74,8 @@ export function StudentScheduleScreen() {
   }, []);
 
   const sessions = schedule ? schedule[selectedDay] || [] : [];
+  const selectedDate = weekDays.find((w) => w.day === selectedDay)?.date || today;
+  const selectedHoliday = getHoliday(selectedDate);
 
   return (
     <motion.main
@@ -153,6 +157,7 @@ export function StudentScheduleScreen() {
               const isToday = isSameDay(wd.date, today);
               const isSelected = selectedDay === wd.day;
               const hasSess = schedule ? (schedule[wd.day] || []).length > 0 : false;
+              const dayHoliday = getHoliday(wd.date);
 
               return (
                 <button
@@ -175,14 +180,45 @@ export function StudentScheduleScreen() {
                   <span className={`text-[14px] font-extrabold ${isSelected ? "text-white" : isToday ? "text-[#22c55e]" : "text-[#1e1b4b]"}`}>
                     {wd.date.getDate()}
                   </span>
-                  {hasSess && !isSelected && (
+                  {!isSelected && (dayHoliday ? (
+                    <div className="h-1 w-1 rounded-full bg-[#f59e0b]" />
+                  ) : hasSess ? (
                     <div className="h-1 w-1 rounded-full bg-[#22c55e]" />
-                  )}
+                  ) : null)}
                 </button>
               );
             })}
           </div>
         </motion.div>
+
+        {/* Holiday banner for the selected day */}
+        {selectedHoliday && (
+          <motion.div
+            variants={fadeUp}
+            className="mt-4 rounded-2xl p-4"
+            style={{
+              background: "linear-gradient(135deg, #fef3c7, #fde68a)",
+              boxShadow: "0 3px 0 #fbbf24, 0 6px 16px -4px rgba(251,191,36,0.3)",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/50">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase text-[#b45309]/70">
+                  {tHolidays("holiday")}
+                </p>
+                <p className="text-[14px] font-extrabold text-[#92400e]">
+                  {tHolidays(selectedHoliday.key)}
+                  {selectedHoliday.lunar ? ` (${tHolidays("approx")})` : ""}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         <motion.div variants={fadeUp} className="mt-4">
           {loading ? (

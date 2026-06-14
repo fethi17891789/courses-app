@@ -126,6 +126,20 @@
     "today": "Aujourd'hui",
     "paymentSession": "Seance de paiement"
   },
+  "holidays": {
+    "holiday": "Jour ferie",
+    "approx": "approximatif",
+    "newYear": "Jour de l'An",
+    "yennayer": "Yennayer",
+    "labourDay": "Fete du Travail",
+    "independenceDay": "Fete de l'Independance",
+    "revolutionDay": "Fete de la Revolution",
+    "hijriNewYear": "Nouvel An hegirien",
+    "ashura": "Achoura",
+    "mawlid": "Mawlid",
+    "eidFitr": "Aid el-Fitr",
+    "eidAdha": "Aid el-Adha"
+  },
   "payments": {
     "title": "Paiements",
     "unpaidStudents": "Eleves avec paiement en retard",

@@ -126,6 +126,20 @@
     "today": "اليوم",
     "paymentSession": "حصة دفع"
   },
+  "holidays": {
+    "holiday": "عطلة",
+    "approx": "تقريبي",
+    "newYear": "رأس السنة الميلادية",
+    "yennayer": "يناير",
+    "labourDay": "عيد العمال",
+    "independenceDay": "عيد الاستقلال",
+    "revolutionDay": "عيد الثورة",
+    "hijriNewYear": "رأس السنة الهجرية",
+    "ashura": "عاشوراء",
+    "mawlid": "المولد النبوي",
+    "eidFitr": "عيد الفطر",
+    "eidAdha": "عيد الأضحى"
+  },
   "payments": {
     "title": "المدفوعات",
     "unpaidStudents": "تلاميذ لم يدفعوا",
