@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { getCache, setCache } from "@/lib/page-cache";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -128,19 +129,23 @@ export function PaymentsScreen() {
   const pathname = usePathname();
   const locale = pathname.split("/")[1];
 
-  const [data, setData] = useState<PaymentsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<PaymentsData | null>(() => getCache<PaymentsData>("payments:all"));
+  const [loading, setLoading] = useState(() => getCache<PaymentsData>("payments:all") === null);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [activeDebt, setActiveDebt] = useState<DebtEntry | null>(null);
   const [wiggleId, setWiggleId] = useState<string | null>(null);
   const [paying, setPaying] = useState<string | null>(null);
 
   function fetchData() {
-    setLoading(true);
+    const key = `payments:${selectedGroup || "all"}`;
+    const cached = getCache<PaymentsData>(key);
+    if (cached) { setData(cached); setLoading(false); }
+    else setLoading(true);
     const params = selectedGroup ? `?group=${selectedGroup}` : "";
     fetch(`/api/payments/overview${params}`)
       .then((res) => res.json())
       .then((d) => {
+        setCache(key, d);
         setData(d);
         setLoading(false);
       })

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getCache, setCache } from "@/lib/page-cache";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -43,8 +44,8 @@ export function AttendanceScreen() {
   const pathname = usePathname();
   const locale = pathname.split("/")[1];
 
-  const [sessions, setSessions] = useState<TodaySession[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [sessions, setSessions] = useState<TodaySession[]>(() => getCache<TodaySession[]>("attendance:today") ?? []);
+  const [loading, setLoading] = useState(() => getCache<TodaySession[]>("attendance:today") === null);
   const [activeSession, setActiveSession] = useState<TodaySession | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [results, setResults] = useState<SwipeResult[]>([]);
@@ -55,6 +56,7 @@ export function AttendanceScreen() {
     fetch("/api/attendance/today")
       .then((res) => res.json())
       .then((data) => {
+        setCache("attendance:today", data);
         setSessions(data);
         setLoading(false);
       })

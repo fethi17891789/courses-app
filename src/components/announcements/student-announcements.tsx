@@ -114,7 +114,7 @@ export function StudentAnnouncements() {
               return (
                 <button
                   key={a.id}
-                  onClick={() => handleOpen(a)}
+                  onPointerUp={() => handleOpen(a)}
                   className="w-full rounded-xl bg-white p-4 text-left transition-[box-shadow] duration-200"
                   style={{
                     boxShadow: unread

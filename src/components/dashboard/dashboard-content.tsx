@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { getCache, setCache } from "@/lib/page-cache";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -241,7 +242,7 @@ export function DashboardContent({ user }: { user: User }) {
     .toUpperCase()
     .slice(0, 2);
   const [pressed, setPressed] = useState<string | null>(null);
-  const [stats, setStats] = useState({ students: 0, groups: 0, sessionsToday: 0, unpaid: 0 });
+  const [stats, setStats] = useState(() => getCache<{ students: number; groups: number; sessionsToday: number; unpaid: number }>("dashboard") ?? { students: 0, groups: 0, sessionsToday: 0, unpaid: 0 });
 
   const greetingKey = useMemo(() => getGreetingKey(), []);
 
@@ -253,12 +254,14 @@ export function DashboardContent({ user }: { user: User }) {
       fetch("/api/payments/overview").then((r) => r.json()),
     ])
       .then(([groups, students, sessions, payments]) => {
-        setStats({
+        const next = {
           groups: Array.isArray(groups) ? groups.length : 0,
           students: Array.isArray(students) ? students.length : 0,
           sessionsToday: Array.isArray(sessions) ? sessions.filter((s: any) => s.students.length > 0).length : 0,
           unpaid: payments?.unpaid_count || 0,
-        });
+        };
+        setCache("dashboard", next);
+        setStats(next);
       })
       .catch(() => {});
   }, []);

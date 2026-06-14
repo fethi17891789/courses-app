@@ -201,6 +201,8 @@ export function AnnouncementsList({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const sheetJustOpened = useRef(false);
+
   // Form sheet (create when editId is null, edit otherwise).
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -210,13 +212,19 @@ export function AnnouncementsList({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function openSheet() {
+    sheetJustOpened.current = true;
+    setTimeout(() => { sheetJustOpened.current = false; }, 400);
+    setSheetOpen(true);
+  }
+
   function openCreate() {
     setEditId(null);
     setTitle("");
     setBody("");
     setSelectedGroups([]);
     setError(null);
-    setSheetOpen(true);
+    openSheet();
   }
 
   function openEdit(a: Announcement) {
@@ -226,7 +234,7 @@ export function AnnouncementsList({
     setSelectedGroups(a.group_ids);
     setError(null);
     setWiggleId(null);
-    setSheetOpen(true);
+    openSheet();
   }
 
   function toggleGroup(id: string) {
@@ -577,7 +585,7 @@ export function AnnouncementsList({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[60] flex items-end justify-center bg-black/30"
-            onClick={() => setSheetOpen(false)}
+            onClick={() => { if (!sheetJustOpened.current) setSheetOpen(false); }}
           >
             <motion.div
               initial={{ y: "100%" }}

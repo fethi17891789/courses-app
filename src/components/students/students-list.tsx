@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { getCache, setCache } from "@/lib/page-cache";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -78,8 +79,8 @@ export function StudentsList() {
   const pathname = usePathname();
   const locale = pathname.split("/")[1];
 
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState<Student[]>(() => getCache<Student[]>("students") ?? []);
+  const [loading, setLoading] = useState(() => getCache<Student[]>("students") === null);
   const [search, setSearch] = useState("");
   const [addPressed, setAddPressed] = useState(false);
   const [createPressed, setCreatePressed] = useState(false);
@@ -89,7 +90,9 @@ export function StudentsList() {
     if (search.trim()) params.set("search", search.trim());
     const res = await fetch(`/api/students?${params}`);
     if (res.ok) {
-      setStudents(await res.json());
+      const data = await res.json();
+      if (!search.trim()) setCache("students", data);
+      setStudents(data);
     }
     setLoading(false);
   }, [search]);

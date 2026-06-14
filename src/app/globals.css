@@ -138,6 +138,7 @@
   button, a, [role="button"], [role="tab"], [role="menuitem"] {
     -webkit-touch-callout: none;
     user-select: none;
+    touch-action: manipulation;
   }
 }
 
