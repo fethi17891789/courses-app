@@ -158,12 +158,12 @@ function ToggleGroup({
       ))}
       {activeIndex >= 0 && (
         <div
-          className="absolute z-0 overflow-hidden rounded-lg transition-[top,left,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
+          className="absolute z-0 overflow-hidden rounded-lg transition-[top,inset-inline-start,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
           style={{
             width: `calc(${100 / cols}% - 0.25rem)`,
             height: `calc(${100 / Math.ceil(options.length / cols)}% - 0.25rem)`,
             top: `calc(${(activeRow * 100) / Math.ceil(options.length / cols)}% + 0.125rem)`,
-            left: `calc(${(activeCol * 100) / cols}% + 0.125rem)`,
+            insetInlineStart: `calc(${(activeCol * 100) / cols}% + 0.125rem)`,
             background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})`,
             boxShadow: `0 3px 0 ${shadow}, 0 6px 12px -2px ${glow}`,
           }}

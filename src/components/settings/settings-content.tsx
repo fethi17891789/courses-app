@@ -256,9 +256,9 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
               </button>
             ))}
             <div
-              className="absolute inset-y-1 w-[calc(50%-0.25rem)] z-0 overflow-hidden rounded-lg transition-[inset-inline-start,left,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
+              className="absolute inset-y-1 w-[calc(50%-0.25rem)] z-0 overflow-hidden rounded-lg transition-[inset-inline-start,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
               style={{
-                left: locale === "fr" ? "0.25rem" : "calc(50%)",
+                insetInlineStart: locale === "fr" ? "0.25rem" : "calc(50%)",
                 background: isStudent
                   ? "linear-gradient(135deg, #4ade80, #16a34a)"
                   : "linear-gradient(135deg, #8b5cf6, #6d28d9)",

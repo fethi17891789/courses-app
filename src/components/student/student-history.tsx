@@ -110,9 +110,9 @@ export function StudentHistoryScreen() {
               </button>
             ))}
             <div
-              className="absolute inset-y-1 w-[calc(50%-0.25rem)] z-0 overflow-hidden rounded-lg transition-[left,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
+              className="absolute inset-y-1 w-[calc(50%-0.25rem)] z-0 overflow-hidden rounded-lg transition-[inset-inline-start,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
               style={{
-                left: tab === "absences" ? "0.25rem" : "calc(50%)",
+                insetInlineStart: tab === "absences" ? "0.25rem" : "calc(50%)",
                 background: tab === "absences"
                   ? "linear-gradient(135deg, #ef4444, #dc2626)"
                   : "linear-gradient(135deg, #22c55e, #16a34a)",
