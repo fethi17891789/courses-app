@@ -172,7 +172,7 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
           if (g) {
             setGroupAssignments([{
               group_id: g.id,
-              enrolled_sessions: g.schedules?.map((s) => s.day) || [],
+              enrolled_sessions: g.schedules?.map((_, i) => i) || [],
               locked: true,
             }]);
           }
@@ -187,7 +187,7 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
     if (!available) return;
     setGroupAssignments([...groupAssignments, {
       group_id: available.id,
-      enrolled_sessions: available.schedules?.map((s) => s.day) || [],
+      enrolled_sessions: available.schedules?.map((_, i) => i) || [],
       locked: false,
     }]);
   }
@@ -200,20 +200,20 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
     const g = groups.find((gr) => gr.id === newGroupId);
     setGroupAssignments(groupAssignments.map((ga, i) =>
       i === index
-        ? { ...ga, group_id: newGroupId, enrolled_sessions: g?.schedules?.map((s) => s.day) || [] }
+        ? { ...ga, group_id: newGroupId, enrolled_sessions: g?.schedules?.map((_, idx) => idx) || [] }
         : ga
     ));
   }
 
-  function toggleSession(index: number, day: number) {
+  function toggleSession(index: number, sessionIdx: number) {
     setGroupAssignments(groupAssignments.map((ga, i) => {
       if (i !== index) return ga;
-      const has = ga.enrolled_sessions.includes(day);
+      const has = ga.enrolled_sessions.includes(sessionIdx);
       return {
         ...ga,
         enrolled_sessions: has
-          ? ga.enrolled_sessions.filter((d) => d !== day)
-          : [...ga.enrolled_sessions, day],
+          ? ga.enrolled_sessions.filter((d) => d !== sessionIdx)
+          : [...ga.enrolled_sessions, sessionIdx],
       };
     }));
   }
@@ -239,8 +239,8 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
     try {
       const groupsPayload = groupAssignments.map((ga) => {
         const g = groups.find((gr) => gr.id === ga.group_id);
-        const allDays = g?.schedules?.map((s) => s.day) || [];
-        const isAll = allDays.length > 0 && allDays.every((d) => ga.enrolled_sessions.includes(d)) && ga.enrolled_sessions.length === allDays.length;
+        const allIdx = g?.schedules?.map((_, i) => i) || [];
+        const isAll = allIdx.length > 0 && allIdx.every((i) => ga.enrolled_sessions.includes(i)) && ga.enrolled_sessions.length === allIdx.length;
         return {
           group_id: ga.group_id,
           enrolled_sessions: isAll ? null : ga.enrolled_sessions,
@@ -444,13 +444,13 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
                     </div>
                     {schedules.length > 1 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {schedules.map((s) => {
-                          const selected = ga.enrolled_sessions.includes(s.day);
+                        {schedules.map((s, sIdx) => {
+                          const selected = ga.enrolled_sessions.includes(sIdx);
                           return (
                             <button
-                              key={s.day}
+                              key={sIdx}
                               type="button"
-                              onClick={() => toggleSession(index, s.day)}
+                              onClick={() => toggleSession(index, sIdx)}
                               className="rounded-lg px-2.5 py-1.5 text-[10px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"
                               style={{
                                 background: selected

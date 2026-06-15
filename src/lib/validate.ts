@@ -54,9 +54,11 @@ export function validateSchedules(value: unknown): string | null {
 
 export function validateEnrolledSessions(value: unknown): string | null {
   if (!Array.isArray(value)) return null;
+  // Values are session indices (position in the group's schedules array),
+  // not day numbers, so a group may have more than 7 sessions.
   for (const s of value) {
-    if (typeof s !== "number" || s < 0 || s > 6) {
-      return "enrolled_sessions: jour invalide (0-6)";
+    if (typeof s !== "number" || !Number.isInteger(s) || s < 0 || s > 100) {
+      return "enrolled_sessions: index de seance invalide";
     }
   }
   return null;

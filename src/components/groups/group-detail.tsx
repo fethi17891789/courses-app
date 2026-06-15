@@ -83,7 +83,8 @@ export function GroupDetail({
   const [editSessionsDays, setEditSessionsDays] = useState<number[]>([]);
 
   const schedules = group.schedules || [];
-  const allDays = schedules.map((s) => s.day);
+  // Sessions are identified by their index in the schedules array.
+  const allSessionIdx = schedules.map((_, i) => i);
 
   const levelDef = getLevelDef(group.level);
 
@@ -175,12 +176,12 @@ export function GroupDetail({
 
   function openEditSessions(member: GroupMember) {
     setEditSessionsMemberId(member.id);
-    setEditSessionsDays(member.enrolled_sessions || [...allDays]);
+    setEditSessionsDays(member.enrolled_sessions || [...allSessionIdx]);
   }
 
   async function saveEditSessions() {
     if (!editSessionsMemberId) return;
-    const isAll = allDays.length > 0 && allDays.every((d) => editSessionsDays.includes(d)) && editSessionsDays.length === allDays.length;
+    const isAll = allSessionIdx.length > 0 && allSessionIdx.every((i) => editSessionsDays.includes(i)) && editSessionsDays.length === allSessionIdx.length;
     const res = await fetch(`/api/groups/${group.id}/members`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -266,6 +267,32 @@ export function GroupDetail({
             {members.length} {t("capacity", { max: group.capacity })}
           </span>
         </motion.div>
+
+        {/* Sessions */}
+        {schedules.length > 0 && (
+          <motion.div variants={fadeUp} className="mt-5">
+            <SectionTitle>{t("schedules")}</SectionTitle>
+            <div className="flex flex-col gap-2">
+              {schedules.map((s, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-xl bg-white px-4 py-3"
+                  style={{ boxShadow: "0 2px 0 #e9e5f5" }}
+                >
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
+                    style={{ background: "linear-gradient(135deg, #fbbf24, #f59e0b)" }}
+                  >
+                    {t(`day${s.day}Short`)}
+                  </div>
+                  <p className="text-[13px] font-bold text-[#1e1b4b]">
+                    {s.start_time} - {s.end_time}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Join code + QR */}
         <motion.div variants={fadeUp} className="mt-4">
@@ -382,15 +409,19 @@ export function GroupDetail({
                         className="mt-2 flex flex-wrap gap-1"
                       >
                         {isPartial ? (
-                          m.enrolled_sessions!.map((day) => (
-                            <span
-                              key={day}
-                              className="rounded-md px-1.5 py-0.5 text-[9px] font-bold text-[#f97316]"
-                              style={{ background: "linear-gradient(135deg, #fff7ed, #ffedd5)" }}
-                            >
-                              {t(`day${day}Short`)}
-                            </span>
-                          ))
+                          m.enrolled_sessions!.map((idx) => {
+                            const s = schedules[idx];
+                            if (!s) return null;
+                            return (
+                              <span
+                                key={idx}
+                                className="rounded-md px-1.5 py-0.5 text-[9px] font-bold text-[#f97316]"
+                                style={{ background: "linear-gradient(135deg, #fff7ed, #ffedd5)" }}
+                              >
+                                {t(`day${s.day}Short`)} {s.start_time}
+                              </span>
+                            );
+                          })
                         ) : null}
                       </button>
                     )}
@@ -449,15 +480,19 @@ export function GroupDetail({
                     </p>
                     {r.selected_schedules && r.selected_schedules.length > 0 && r.selected_schedules.length < schedules.length && (
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {r.selected_schedules.map((day) => (
-                          <span
-                            key={day}
-                            className="rounded-md px-1.5 py-0.5 text-[9px] font-bold text-[#f97316]"
-                            style={{ background: "linear-gradient(135deg, #fff7ed, #ffedd5)" }}
-                          >
-                            {t(`day${day}Short`)}
-                          </span>
-                        ))}
+                        {r.selected_schedules.map((idx) => {
+                          const s = schedules[idx];
+                          if (!s) return null;
+                          return (
+                            <span
+                              key={idx}
+                              className="rounded-md px-1.5 py-0.5 text-[9px] font-bold text-[#f97316]"
+                              style={{ background: "linear-gradient(135deg, #fff7ed, #ffedd5)" }}
+                            >
+                              {t(`day${s.day}Short`)} {s.start_time}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -614,15 +649,15 @@ export function GroupDetail({
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {schedules.map((s, i) => {
-                  const selected = editSessionsDays.includes(s.day);
+                  const selected = editSessionsDays.includes(i);
                   return (
                     <button
                       key={i}
                       onClick={() => {
                         setEditSessionsDays(
                           selected
-                            ? editSessionsDays.filter((d) => d !== s.day)
-                            : [...editSessionsDays, s.day]
+                            ? editSessionsDays.filter((d) => d !== i)
+                            : [...editSessionsDays, i]
                         );
                       }}
                       className="rounded-xl px-3 py-2 text-[11px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"

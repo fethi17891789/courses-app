@@ -223,18 +223,6 @@ export async function DELETE(
         .eq("student_id", student.auth_user_id)
         .eq("status", "accepted");
     }
-
-    const { count } = await supabase
-      .from("group_members")
-      .select("*", { count: "exact", head: true })
-      .eq("student_id", studentId);
-
-    if (count === 0) {
-      await supabase
-        .from("students")
-        .delete()
-        .eq("id", studentId);
-    }
   }
 
   return NextResponse.json({ success: true });

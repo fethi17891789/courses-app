@@ -157,18 +157,21 @@ export async function GET() {
 
   for (const group of groups || []) {
     const schedules = group.schedules || [];
-    for (const schedule of schedules) {
+    for (let scheduleIdx = 0; scheduleIdx < schedules.length; scheduleIdx++) {
+      const schedule = schedules[scheduleIdx];
       if (schedule.day !== dayOfWeek) continue;
 
       const isLastSession = isLastSessionOfPeriod(schedules, group.payment_mode);
       const isFirstSession = isFirstSessionOfPeriod(schedules, group.payment_mode);
       const totalSessions = totalSessionsInPeriod(schedules, group.payment_mode);
 
+      // enrolled_sessions holds session indices (positions in schedules).
+      // null/empty means enrolled in every session.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const students = (group.group_members || [])
         .filter((m: any) => {
           if (!m.enrolled_sessions || m.enrolled_sessions.length === 0) return true;
-          return m.enrolled_sessions.includes(schedule.day);
+          return m.enrolled_sessions.includes(scheduleIdx);
         })
         .map((m: any) => {
           const s = m.student;

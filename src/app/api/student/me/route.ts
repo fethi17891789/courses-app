@@ -88,8 +88,10 @@ export async function GET() {
     const scheduleDays = g.schedules.map((s: any) => s.day);
     const refund = g.refund_absences || false;
 
-    for (const s of g.schedules) {
-      if (enrolled.length > 0 && !enrolled.includes(s.day)) continue;
+    for (let sIdx = 0; sIdx < g.schedules.length; sIdx++) {
+      const s = g.schedules[sIdx];
+      // enrolled holds session indices (positions in schedules); empty means all.
+      if (enrolled.length > 0 && !enrolled.includes(sIdx)) continue;
 
       let isPaymentSession = false;
       if (g.payment_mode === "per_session") {

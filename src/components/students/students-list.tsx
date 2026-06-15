@@ -361,36 +361,37 @@ export function StudentsList() {
     setAssignMemberships(memberships);
 
     // Hide groups where the student already occupies every session.
+    // Sessions are identified by their index in the group's schedules array.
     const available = allGroups.filter((g) => {
       const m = memberships[g.id];
       if (!m) return true;
-      const uniqueDays = [...new Set((g.schedules || []).map((s) => s.day))];
-      if (uniqueDays.length === 0) return false; // no sessions + already member -> nothing to add
+      const allIdx = (g.schedules || []).map((_, i) => i);
+      if (allIdx.length === 0) return false; // no sessions + already member -> nothing to add
       if (m.enrolled === null) return false; // enrolled in all -> hide
-      return !uniqueDays.every((d) => m.enrolled!.includes(d)); // hide only if covers all
+      return !allIdx.every((i) => m.enrolled!.includes(i)); // hide only if covers all
     });
     setAssignGroups(available);
   }
 
   function selectAssignGroup(g: Group) {
     setAssignGroupId(g.id);
-    const uniqueDays = [...new Set((g.schedules || []).map((s) => s.day))];
+    const allIdx = (g.schedules || []).map((_, i) => i);
     const m = assignMemberships[g.id];
-    // Pre-select current enrollment for a partial member, else all days.
-    setAssignSessions(m && m.enrolled ? m.enrolled : uniqueDays);
+    // Pre-select current enrollment for a partial member, else all sessions.
+    setAssignSessions(m && m.enrolled ? m.enrolled : allIdx);
     setAssignError(null);
   }
 
   async function confirmAssign() {
     if (!assignStudent || !assignGroupId) return;
     const g = assignGroups.find((gr) => gr.id === assignGroupId);
-    const uniqueDays = [...new Set((g?.schedules || []).map((s) => s.day))];
-    if (uniqueDays.length > 0 && assignSessions.length === 0) {
+    const allIdx = (g?.schedules || []).map((_, i) => i);
+    if (allIdx.length > 0 && assignSessions.length === 0) {
       setAssignError("noSchedule");
       return;
     }
     const isAll =
-      uniqueDays.length > 0 && uniqueDays.every((d) => assignSessions.includes(d)) && assignSessions.length === uniqueDays.length;
+      allIdx.length > 0 && allIdx.every((i) => assignSessions.includes(i)) && assignSessions.length === allIdx.length;
     setAssigning(true);
     setAssignError(null);
 
@@ -848,38 +849,32 @@ export function StudentsList() {
                           <>
                             <p className="mb-2 text-[12px] font-bold text-[#1e1b4b]/50">{t("enrolledSessions")}</p>
                             <div className="flex flex-wrap gap-2">
-                              {[...new Map(schedules.map((s) => [s.day, s])).keys()]
-                                .sort((a, b) => a - b)
-                                .map((day) => {
-                                  const on = assignSessions.includes(day);
-                                  const times = schedules
-                                    .filter((s) => s.day === day)
-                                    .map((s) => `${s.start_time}-${s.end_time}`)
-                                    .join(", ");
-                                  return (
-                                    <button
-                                      key={day}
-                                      onClick={() =>
-                                        setAssignSessions(
-                                          on ? assignSessions.filter((d) => d !== day) : [...assignSessions, day],
-                                        )
-                                      }
-                                      className="rounded-xl px-3 py-2 text-[11px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"
-                                      style={{
-                                        background: on
-                                          ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
-                                          : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-                                        color: on ? "#fff" : "#7c3aed",
-                                        transform: `translateY(${on ? 3 : 0}px)`,
-                                        boxShadow: on
-                                          ? "0 0px 0 #5b21b6, 0 1px 3px -1px rgba(124,58,237,0.5)"
-                                          : "0 3px 0 #ddd6fe, 0 6px 12px -4px rgba(124,58,237,0.15)",
-                                      }}
-                                    >
-                                      {tGroups(`day${day}Short`)} {times}
-                                    </button>
-                                  );
-                                })}
+                              {schedules.map((s, sIdx) => {
+                                const on = assignSessions.includes(sIdx);
+                                return (
+                                  <button
+                                    key={sIdx}
+                                    onClick={() =>
+                                      setAssignSessions(
+                                        on ? assignSessions.filter((i) => i !== sIdx) : [...assignSessions, sIdx],
+                                      )
+                                    }
+                                    className="rounded-xl px-3 py-2 text-[11px] font-extrabold transition-[transform,box-shadow] duration-[80ms]"
+                                    style={{
+                                      background: on
+                                        ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                                        : "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+                                      color: on ? "#fff" : "#7c3aed",
+                                      transform: `translateY(${on ? 3 : 0}px)`,
+                                      boxShadow: on
+                                        ? "0 0px 0 #5b21b6, 0 1px 3px -1px rgba(124,58,237,0.5)"
+                                        : "0 3px 0 #ddd6fe, 0 6px 12px -4px rgba(124,58,237,0.15)",
+                                    }}
+                                  >
+                                    {tGroups(`day${s.day}Short`)} {s.start_time}-{s.end_time}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </>
                         ) : (

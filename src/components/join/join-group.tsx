@@ -431,7 +431,7 @@ export function JoinGroup({
           section: showSections ? selectedSection || null : null,
           notes: notes.trim() || null,
           selected_schedules: groupInfo.schedules?.length > 0 && selectedSchedules.length < groupInfo.schedules.length
-            ? selectedSchedules.map((i) => groupInfo.schedules[i].day)
+            ? selectedSchedules
             : null,
         }),
       });
@@ -877,7 +877,7 @@ export function JoinGroup({
                 const def = getLevelDef(g.level);
                 const enrolled = g.enrolled_sessions || [];
                 const slots = (g.schedules || []).filter(
-                  (s) => enrolled.length === 0 || enrolled.includes(s.day),
+                  (_, i) => enrolled.length === 0 || enrolled.includes(i),
                 );
                 return (
                   <div
