@@ -127,13 +127,19 @@
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     overscroll-behavior: none;
+    /* Native app feel: no text selection by default (re-enabled on inputs below) */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
   html {
     @apply font-sans bg-[#f0ecff];
     overscroll-behavior: none;
   }
-  input, textarea, select {
+  input, textarea, select, [contenteditable="true"] {
     font-size: max(16px, 1em);
+    -webkit-user-select: text;
+    user-select: text;
   }
   button, a, [role="button"], [role="tab"], [role="menuitem"] {
     -webkit-touch-callout: none;
