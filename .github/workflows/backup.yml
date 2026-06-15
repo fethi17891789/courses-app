@@ -1,0 +1,39 @@
+name: Backup base Supabase
+
+# Sauvegarde quotidienne de la base de donnees.
+# Le dump est stocke comme artifact GitHub (hors Supabase, ne consomme aucun espace de la base).
+
+on:
+  schedule:
+    # Tous les jours a 02h00 UTC (03h00 heure d'Algerie)
+    - cron: "0 2 * * *"
+  # Permet aussi de lancer un backup manuellement depuis l'onglet Actions
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Installer pg_dump (PostgreSQL 16)
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Creer le dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          STAMP=$(date -u +"%Y-%m-%d_%H%M")
+          /usr/lib/postgresql/16/bin/pg_dump "$SUPABASE_DB_URL" \
+            --no-owner --no-privileges --clean --if-exists \
+            | gzip > "backup_${STAMP}.sql.gz"
+          ls -lh backup_*.sql.gz
+
+      - name: Stocker le backup (conserve 14 jours)
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup
+          path: backup_*.sql.gz
+          retention-days: 14
