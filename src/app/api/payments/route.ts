@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { computeDebt } from "@/lib/debt";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -21,13 +22,35 @@ export async function POST(request: Request) {
   // Verify group belongs to teacher
   const { data: group } = await supabase
     .from("groups")
-    .select("id")
+    .select("id, price, payment_mode, refund_absences, schedules")
     .eq("id", group_id)
     .eq("teacher_id", user.id)
     .single();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  // A manual payment only makes sense to clear an existing debt. Block it when
+  // the student owes nothing for this group.
+  const [{ data: att }, { data: pays }] = await Promise.all([
+    supabase
+      .from("attendance")
+      .select("status, session_date")
+      .eq("teacher_id", user.id)
+      .eq("group_id", group_id)
+      .eq("student_id", student_id),
+    supabase
+      .from("payments")
+      .select("session_date")
+      .eq("teacher_id", user.id)
+      .eq("group_id", group_id)
+      .eq("student_id", student_id),
+  ]);
+
+  const debt = computeDebt(group, att || [], pays || []);
+  if (debt <= 0) {
+    return NextResponse.json({ error: "no_debt" }, { status: 400 });
   }
 
   const today = new Date().toISOString().split("T")[0];

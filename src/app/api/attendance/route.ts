@@ -13,6 +13,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { group_id, student_id, session_day, status, paid, amount } = body;
+  const session_time = typeof body.session_time === "string" ? body.session_time : "";
 
   if (!group_id || !student_id || session_day === undefined || !status) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
     .eq("student_id", student_id)
     .eq("session_date", today)
     .eq("session_day", session_day)
+    .eq("session_time", session_time)
     .maybeSingle();
 
   if (existing) {
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
         student_id,
         teacher_id: user.id,
         session_day,
+        session_time,
         session_date: today,
         status,
       });
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
       .eq("student_id", student_id)
       .eq("session_date", today)
       .eq("session_day", session_day)
+      .eq("session_time", session_time)
       .maybeSingle();
 
     if (!existingPayment) {
@@ -73,6 +77,7 @@ export async function POST(request: Request) {
         amount,
         session_date: today,
         session_day,
+        session_time,
       });
     }
   }

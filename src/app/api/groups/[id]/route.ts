@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { hasInternalConflict, findCrossGroupConflict } from "@/lib/schedule-conflict";
 
 
 export async function GET(
@@ -74,6 +75,24 @@ export async function PATCH(
   if (body.payment_mode !== undefined) updates.payment_mode = body.payment_mode;
   if (body.refund_absences !== undefined) updates.refund_absences = body.refund_absences;
   if (body.schedules !== undefined) updates.schedules = body.schedules;
+
+  if (Array.isArray(body.schedules) && body.schedules.length > 0) {
+    if (hasInternalConflict(body.schedules)) {
+      return NextResponse.json({ error: "schedule_conflict" }, { status: 400 });
+    }
+    const { data: others } = await supabase
+      .from("groups")
+      .select("name, schedules")
+      .eq("teacher_id", user.id)
+      .neq("id", id);
+    const conflictWith = findCrossGroupConflict(body.schedules, others || []);
+    if (conflictWith) {
+      return NextResponse.json(
+        { error: "schedule_conflict", group: conflictWith },
+        { status: 400 },
+      );
+    }
+  }
 
   const { data, error } = await supabase
     .from("groups")

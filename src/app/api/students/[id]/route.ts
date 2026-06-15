@@ -18,7 +18,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("students")
-    .select("*, group_members(group_id, enrolled_sessions, groups(name, level, schedules, price, payment_mode))")
+    .select("*, group_members(id, group_id, enrolled_sessions, groups(name, level, schedules, price, payment_mode))")
     .eq("id", id)
     .eq("teacher_id", user.id)
     .single();

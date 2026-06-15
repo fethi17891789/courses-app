@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -77,6 +77,22 @@ export function StudentDetail({ studentId }: { studentId: string }) {
   const [payAmount, setPayAmount] = useState("");
   const [paying, setPaying] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
+  // Map groupId -> outstanding debt for this student. A group absent from the
+  // map (or 0) means nothing is owed, so recording a payment is blocked.
+  const [debtByGroup, setDebtByGroup] = useState<Record<string, number>>({});
+
+  const fetchDebts = useCallback(() => {
+    fetch("/api/payments/overview")
+      .then((res) => res.json())
+      .then((data) => {
+        const map: Record<string, number> = {};
+        for (const d of data.debts || []) {
+          if (d.student_id === studentId) map[d.group_id] = d.debt;
+        }
+        setDebtByGroup(map);
+      })
+      .catch(() => {});
+  }, [studentId]);
 
   useEffect(() => {
     fetch(`/api/students/${studentId}`)
@@ -86,7 +102,8 @@ export function StudentDetail({ studentId }: { studentId: string }) {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [studentId]);
+    fetchDebts();
+  }, [studentId, fetchDebts]);
 
   if (loading) {
     return (
@@ -118,6 +135,7 @@ export function StudentDetail({ studentId }: { studentId: string }) {
     .slice(0, 2);
 
   const totalPaid = student.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const selectedDebt = debtByGroup[payGroupId] ?? 0;
 
   return (
     <motion.main
@@ -295,8 +313,9 @@ export function StudentDetail({ studentId }: { studentId: string }) {
           <motion.div variants={fadeUp} className="mt-4">
             <button
               onClick={() => {
-                setPayGroupId(student.group_members[0].group_id);
-                setPayAmount(String(student.group_members[0].groups?.price || ""));
+                const firstGroupId = student.group_members[0].group_id;
+                setPayGroupId(firstGroupId);
+                setPayAmount(String(debtByGroup[firstGroupId] ?? ""));
                 setShowPayment(true);
                 setPaySuccess(false);
               }}
@@ -325,7 +344,7 @@ export function StudentDetail({ studentId }: { studentId: string }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/30"
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-black/30"
             onClick={() => setShowPayment(false)}
           >
             <motion.div
@@ -373,8 +392,7 @@ export function StudentDetail({ studentId }: { studentId: string }) {
                         value={payGroupId}
                         onChange={(e) => {
                           setPayGroupId(e.target.value);
-                          const gm = student.group_members.find((m) => m.group_id === e.target.value);
-                          setPayAmount(String(gm?.groups?.price || ""));
+                          setPayAmount(String(debtByGroup[e.target.value] ?? ""));
                         }}
                         className="w-full rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-3 py-2.5 text-[12px] font-extrabold text-[#1e1b4b] outline-none focus:border-[#7c3aed]"
                       >
@@ -395,10 +413,20 @@ export function StudentDetail({ studentId }: { studentId: string }) {
                         type="number"
                         value={payAmount}
                         onChange={(e) => setPayAmount(e.target.value)}
-                        className="h-12 flex-1 rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-4 text-[18px] font-extrabold text-[#22c55e] outline-none focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)]"
+                        disabled={selectedDebt <= 0}
+                        className="h-12 flex-1 rounded-xl border-2 border-[#ddd6fe] bg-[#f9f7ff] px-4 text-[18px] font-extrabold text-[#22c55e] outline-none focus:border-[#7c3aed] focus:shadow-[0_0_0_4px_rgba(124,58,237,0.12)] disabled:opacity-50"
                       />
                       <span className="text-[14px] font-extrabold text-[#1e1b4b]/40">DA</span>
                     </div>
+                    {selectedDebt <= 0 ? (
+                      <p className="mt-2 rounded-xl bg-[#f0fdf4] px-3 py-2 text-[11px] font-semibold text-[#16a34a]">
+                        {t("noDebt")}
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 text-[11px] font-semibold text-[#1e1b4b]/40">
+                        {t("debtAmount", { amount: selectedDebt })}
+                      </p>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -412,7 +440,7 @@ export function StudentDetail({ studentId }: { studentId: string }) {
                     </button>
                     <button
                       onClick={async () => {
-                        if (!payAmount || Number(payAmount) <= 0) return;
+                        if (!payAmount || Number(payAmount) <= 0 || selectedDebt <= 0) return;
                         setPaying(true);
                         const res = await fetch("/api/payments", {
                           method: "POST",
@@ -431,10 +459,15 @@ export function StudentDetail({ studentId }: { studentId: string }) {
                             payments: [{ ...newPayment, groups: gm?.groups ? { name: gm.groups.name } : null }, ...student.payments],
                           });
                           setPaySuccess(true);
+                          fetchDebts();
+                        } else {
+                          // Server rejected (e.g. no_debt): resync the debt so the
+                          // UI blocks further attempts.
+                          fetchDebts();
                         }
                         setPaying(false);
                       }}
-                      disabled={paying || !payAmount || Number(payAmount) <= 0}
+                      disabled={paying || !payAmount || Number(payAmount) <= 0 || selectedDebt <= 0}
                       className="btn-push rounded-xl py-3 text-[13px] font-extrabold text-white disabled:opacity-60"
                       style={{
                         background: "linear-gradient(135deg, #22c55e, #16a34a)",

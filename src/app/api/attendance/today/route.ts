@@ -29,14 +29,15 @@ export async function GET() {
 
   const { data: attendanceToday } = await supabase
     .from("attendance")
-    .select("group_id, session_day, student_id")
+    .select("group_id, session_day, session_time, student_id")
     .eq("teacher_id", user.id)
     .eq("session_date", today);
 
-  // Map: "groupId-day" -> Set of student_ids already called
+  // Map: "groupId-day-time" -> Set of student_ids already called.
+  // session_time distinguishes multiple sessions on the same day.
   const calledMap = new Map<string, Set<string>>();
   for (const a of attendanceToday || []) {
-    const key = `${a.group_id}-${a.session_day}`;
+    const key = `${a.group_id}-${a.session_day}-${a.session_time ?? ""}`;
     if (!calledMap.has(key)) calledMap.set(key, new Set());
     calledMap.get(key)!.add(a.student_id);
   }
@@ -212,7 +213,7 @@ export async function GET() {
         })
         .filter(Boolean);
 
-      const sessionKey = `${group.id}-${schedule.day}`;
+      const sessionKey = `${group.id}-${schedule.day}-${schedule.start_time ?? ""}`;
       const calledIds = calledMap.get(sessionKey) || new Set();
       const completed = students.length > 0 && students.every((s: any) => calledIds.has(s.id));
       const calledStudentIds = Array.from(calledIds);

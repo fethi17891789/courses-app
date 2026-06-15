@@ -169,7 +169,8 @@ export function CreateGroup() {
       });
 
       if (!res.ok) {
-        setError("generic");
+        const data = await res.json().catch(() => ({}));
+        setError(data.error === "schedule_conflict" ? "schedule_conflict" : "generic");
         return;
       }
 
@@ -462,6 +463,8 @@ export function CreateGroup() {
           >
             {error === "missing_fields"
               ? "Veuillez remplir le nom et le niveau."
+              : error === "schedule_conflict"
+              ? t("scheduleConflict")
               : "Une erreur est survenue."}
           </motion.p>
         )}

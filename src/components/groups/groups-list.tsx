@@ -263,6 +263,7 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
   const [editRefundAbsences, setEditRefundAbsences] = useState(false);
   const [editSchedules, setEditSchedules] = useState<Schedule[]>([]);
   const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const categories: LevelCategory[] = ["primaire", "moyen", "lycee"];
 
@@ -276,12 +277,14 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
     setEditPaymentMode(group.payment_mode);
     setEditRefundAbsences(group.refund_absences || false);
     setEditSchedules(group.schedules || []);
+    setEditError(null);
     setWiggleId(null);
   }
 
   async function handleSaveEdit() {
     if (!editGroup || !editName.trim() || !editLevel) return;
     setSaving(true);
+    setEditError(null);
     try {
       const showSections = hasSections(editLevel);
       const res = await fetch(`/api/groups/${editGroup.id}`, {
@@ -302,6 +305,9 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
         const updated = await res.json();
         setGroups(groups.map((g) => (g.id === updated.id ? { ...g, ...updated } : g)));
         setEditGroup(null);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setEditError(data.error === "schedule_conflict" ? "schedule_conflict" : "generic");
       }
     } finally {
       setSaving(false);
@@ -768,6 +774,12 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
                   {t("addSession")}
                 </button>
               </div>
+
+              {editError && (
+                <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600">
+                  {editError === "schedule_conflict" ? t("scheduleConflict") : t("editError")}
+                </p>
+              )}
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <button

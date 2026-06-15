@@ -95,6 +95,7 @@ export function AttendanceScreen() {
         group_id: activeSession.group_id,
         student_id: student.id,
         session_day: activeSession.day,
+        session_time: activeSession.start_time,
         status,
         paid,
         amount: paid ? (student.payment_amount || activeSession.price) : 0,
