@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Cairo } from "next/font/google";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
 
@@ -54,6 +55,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh flex flex-col">
         {children}
+        <Analytics />
         <PWAInstallPrompt />
         <Script id="sw-register" strategy="afterInteractive">
           {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`}
