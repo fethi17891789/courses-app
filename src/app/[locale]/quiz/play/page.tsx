@@ -15,6 +15,10 @@ export default async function QuizPlayPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/${locale}/login`);
 
+  if (user.user_metadata?.role !== "eleve") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   const displayName =
     user.user_metadata?.full_name?.trim() ||
     user.email?.split("@")[0] ||

@@ -20,6 +20,10 @@ export default async function JoinPage({
     redirect(`/${locale}/login`);
   }
 
+  if (user.user_metadata?.role !== "eleve") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   return (
     <JoinGroup
       initialCode={code}

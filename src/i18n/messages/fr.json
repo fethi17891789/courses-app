@@ -99,7 +99,9 @@
     "schedule": "Emploi du temps",
     "scheduleDesc": "Consultez votre agenda",
     "announcements": "Annonces",
-    "announcementsDesc": "Communiquez avec vos groupes"
+    "announcementsDesc": "Communiquez avec vos groupes",
+    "subjects": "Sujets",
+    "subjectsDesc": "Partagez vos PDF avec vos groupes"
   },
   "attendance": {
     "title": "Faire l'appel",
@@ -344,7 +346,15 @@
     "quizDesc": "Rejoignez un quiz de votre professeur",
     "quizCta": "Rejoindre",
     "announcements": "Annonces",
-    "announcementsDesc": "Les annonces de vos professeurs"
+    "announcementsDesc": "Les annonces de vos professeurs",
+    "subjects": "Sujets",
+    "subjectsDesc": "Les PDF de vos professeurs"
+  },
+  "parentDashboard": {
+    "subtitle": "Espace parent",
+    "comingTitle": "Espace parent en cours de developpement",
+    "comingDesc": "Le suivi de presence, des paiements et les notifications de votre enfant arriveront dans une prochaine mise a jour.",
+    "comingBadge": "Bientot disponible"
   },
   "announcements": {
     "title": "Annonces",
@@ -379,6 +389,44 @@
     "studentEmptyDesc": "Vous verrez ici les annonces de vos professeurs",
     "readMore": "Lire plus",
     "readLess": "Reduire"
+  },
+  "subjects": {
+    "title": "Sujets",
+    "empty": "Aucun sujet",
+    "emptyDesc": "Ajoutez votre premier PDF pour vos groupes",
+    "createCta": "Ajouter un sujet",
+    "noGroups": "Aucun groupe",
+    "noGroupsDesc": "Creez d'abord un groupe pour partager un sujet",
+    "newTitle": "Nouveau sujet",
+    "editTitle": "Modifier le sujet",
+    "titleLabel": "Titre",
+    "titlePlaceholder": "Ex: Sujet de revision - Chapitre 3",
+    "fileLabel": "Fichier PDF",
+    "filePick": "Choisir un fichier PDF",
+    "fileHint": "PDF, 5 Mo maximum",
+    "targetGroups": "Groupes concernes",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "deleteTitle": "Supprimer le sujet",
+    "deleteConfirm": "Cette action est irreversible. Le fichier sera supprime.",
+    "cancel": "Annuler",
+    "confirm": "Supprimer",
+    "publish": "Publier",
+    "uploading": "Envoi...",
+    "save": "Enregistrer",
+    "close": "Fermer",
+    "errorMissing": "Veuillez saisir un titre.",
+    "errorNoGroups": "Selectionnez au moins un groupe.",
+    "errorNoFile": "Veuillez choisir un fichier PDF.",
+    "errorBadType": "Seuls les fichiers PDF sont acceptes.",
+    "errorTooLarge": "Fichier trop volumineux (5 Mo maximum).",
+    "errorGeneric": "Une erreur est survenue.",
+    "studentSubtitle": "Les sujets de vos professeurs",
+    "studentEmpty": "Aucun sujet",
+    "studentEmptyDesc": "Vous verrez ici les PDF de vos professeurs",
+    "viewerLoading": "Chargement du document...",
+    "viewerError": "Impossible d'afficher le document",
+    "viewerErrorDesc": "Verifiez votre connexion et reessayez"
   },
   "quiz": {
     "title": "Mes quiz",

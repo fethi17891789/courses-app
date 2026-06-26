@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
 import { StudentDashboard } from "@/components/dashboard/student-dashboard";
+import { ParentDashboard } from "@/components/dashboard/parent-dashboard";
 
 export default async function DashboardPage({
   params,
@@ -22,6 +23,10 @@ export default async function DashboardPage({
 
   if (role === "eleve") {
     return <StudentDashboard user={user} />;
+  }
+
+  if (role === "parent") {
+    return <ParentDashboard user={user} />;
   }
 
   return <DashboardContent user={user} />;

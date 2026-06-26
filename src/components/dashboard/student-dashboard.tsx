@@ -280,6 +280,38 @@ export function StudentDashboard({ user }: { user: User }) {
           />
         </motion.div>
 
+        {/* Subjects (PDF) full width (red) */}
+        <motion.div variants={fadeUp} className="mt-3">
+          <ActionCard
+            gradient="linear-gradient(150deg, #fca5a5 0%, #ef4444 60%, #dc2626 100%)"
+            shadow3d="#b91c1c"
+            shadowGlow="rgba(239,68,68,0.4)"
+            icon={
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <motion.g
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 16, delay: 0.35 }}
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M6 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V9l-7-7H6zm7 1.5V8a1 1 0 0 0 1 1h4.5L13 3.5zM8 13a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H9a1 1 0 0 1-1-1zm1 3a1 1 0 1 0 0 2h4a1 1 0 1 0 0-2H9z"
+                    fill="white"
+                  />
+                </motion.g>
+              </svg>
+            }
+            label={t("subjects")}
+            description={t("subjectsDesc")}
+            pressed={pressed === "subjects"}
+            onPress={() => setPressed("subjects")}
+            onRelease={() => setPressed(null)}
+            onClick={() => router.push(`/${locale}/subjects`)}
+            className="w-full"
+          />
+        </motion.div>
+
         {/* Schedule full width (orange) */}
         <motion.div variants={fadeUp} className="mt-3">
           <ActionCard

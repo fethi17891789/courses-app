@@ -32,7 +32,40 @@ const fadeUp = {
 };
 
 export function SettingsContent({ user, role = "prof" }: { user: User; role?: string }) {
-  const isStudent = role === "eleve";
+  const isProf = role === "prof";
+  const theme =
+    role === "eleve"
+      ? {
+          bg: "#f0fdf4",
+          cardShadow: "0 3px 0 #bbf7d0, 0 6px 16px -4px rgba(34,197,94,0.08)",
+          avatarBg: "linear-gradient(135deg, #4ade80, #16a34a)",
+          avatarShadow: "0 3px 0 #15803d",
+          langBg: "rgba(34,197,94,0.07)",
+          langText: "#22c55e",
+          sliderBg: "linear-gradient(135deg, #4ade80, #16a34a)",
+          sliderShadow: "0 3px 0 #15803d, 0 6px 12px -2px rgba(34,197,94,0.5)",
+        }
+      : role === "parent"
+        ? {
+            bg: "#fff7ed",
+            cardShadow: "0 3px 0 #fed7aa, 0 6px 16px -4px rgba(249,115,22,0.08)",
+            avatarBg: "linear-gradient(135deg, #fb923c, #ea580c)",
+            avatarShadow: "0 3px 0 #c2410c",
+            langBg: "rgba(249,115,22,0.07)",
+            langText: "#f97316",
+            sliderBg: "linear-gradient(135deg, #fb923c, #ea580c)",
+            sliderShadow: "0 3px 0 #c2410c, 0 6px 12px -2px rgba(249,115,22,0.5)",
+          }
+        : {
+            bg: "#f0ecff",
+            cardShadow: "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
+            avatarBg: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+            avatarShadow: "0 3px 0 #5b21b6",
+            langBg: "rgba(124,58,237,0.07)",
+            langText: "#7c3aed",
+            sliderBg: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+            sliderShadow: "0 3px 0 #5b21b6, 0 6px 12px -2px rgba(124,58,237,0.5)",
+          };
   const t = useTranslations("settings");
   const tCommon = useTranslations("common");
   const router = useRouter();
@@ -53,12 +86,12 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
   const [premiumStatus, setPremiumStatus] = useState<PremiumStatus | null>(null);
 
   useEffect(() => {
-    if (isStudent) return;
+    if (!isProf) return;
     fetch("/api/auth/premium")
       .then((r) => r.json())
       .then((data) => setPremiumStatus(data))
       .catch(() => {});
-  }, [isStudent]);
+  }, [isProf]);
 
   function handleSwitchLocale(newLocale: string) {
     if (newLocale === locale) return;
@@ -91,7 +124,8 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
       variants={stagger}
       initial="hidden"
       animate="show"
-      className={`flex min-h-[100dvh] flex-col ${isStudent ? "bg-[#f0fdf4]" : "bg-[#f0ecff]"}`}
+      className="flex min-h-[100dvh] flex-col"
+      style={{ backgroundColor: theme.bg }}
     >
       {/* Header */}
       <motion.div variants={fadeUp} className="px-5 pb-1 pt-10">
@@ -105,19 +139,13 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
         <motion.div
           variants={fadeUp}
           className="flex items-center gap-3 rounded-xl bg-white p-4"
-          style={{
-            boxShadow: isStudent
-              ? "0 3px 0 #bbf7d0, 0 6px 16px -4px rgba(34,197,94,0.08)"
-              : "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
-          }}
+          style={{ boxShadow: theme.cardShadow }}
         >
           <div
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[15px] font-black text-white"
             style={{
-              background: isStudent
-                ? "linear-gradient(135deg, #4ade80, #16a34a)"
-                : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-              boxShadow: isStudent ? "0 3px 0 #15803d" : "0 3px 0 #5b21b6",
+              background: theme.avatarBg,
+              boxShadow: theme.avatarShadow,
             }}
           >
             {initials || "C"}
@@ -133,7 +161,7 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
         </motion.div>
 
         {/* Subscription card (prof only) */}
-        {!isStudent && premiumStatus?.premium && (() => {
+        {isProf && premiumStatus?.premium && (() => {
           const isPro = premiumStatus.plan === "pro";
           return (
             <motion.div variants={fadeUp} className="mt-5">
@@ -231,7 +259,7 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
         })()}
 
         {/* Referral (prof only) */}
-        {!isStudent && <ReferralCard />}
+        {isProf && <ReferralCard />}
 
         {/* Language toggle */}
         <motion.div variants={fadeUp} className="mt-5">
@@ -240,7 +268,7 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
           </p>
           <div
             className="relative grid grid-cols-2 rounded-xl p-1 text-[13px] font-extrabold"
-            style={{ backgroundColor: isStudent ? "rgba(34,197,94,0.07)" : "rgba(124,58,237,0.07)" }}
+            style={{ backgroundColor: theme.langBg }}
           >
             {[
               { id: "fr", label: t("french") },
@@ -250,7 +278,7 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
                 key={lang.id}
                 onClick={() => handleSwitchLocale(lang.id)}
                 className="relative z-10 rounded-lg py-2.5 transition-colors duration-200"
-                style={{ color: locale === lang.id ? "#ffffff" : isStudent ? "#22c55e" : "#7c3aed" }}
+                style={{ color: locale === lang.id ? "#ffffff" : theme.langText }}
               >
                 {lang.label}
               </button>
@@ -259,12 +287,8 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
               className="absolute inset-y-1 w-[calc(50%-0.25rem)] z-0 overflow-hidden rounded-lg transition-[inset-inline-start,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)]"
               style={{
                 insetInlineStart: locale === "fr" ? "0.25rem" : "calc(50%)",
-                background: isStudent
-                  ? "linear-gradient(135deg, #4ade80, #16a34a)"
-                  : "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-                boxShadow: isStudent
-                  ? "0 3px 0 #15803d, 0 6px 12px -2px rgba(34,197,94,0.5)"
-                  : "0 3px 0 #5b21b6, 0 6px 12px -2px rgba(124,58,237,0.5)",
+                background: theme.sliderBg,
+                boxShadow: theme.sliderShadow,
               }}
             />
           </div>
@@ -272,7 +296,7 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
 
         {/* Feedback: bug report / feature idea */}
         <motion.div variants={fadeUp}>
-          <FeedbackCard isStudent={isStudent} />
+          <FeedbackCard role={role} />
         </motion.div>
 
         {/* Logout */}

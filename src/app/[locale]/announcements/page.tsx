@@ -25,6 +25,11 @@ export default async function AnnouncementsPage({
     return <StudentAnnouncements />;
   }
 
+  // Any other non-teacher role (e.g. parent) has no announcements view yet.
+  if (user.user_metadata?.role !== "prof") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   // Teacher: list own announcements + own groups for the multi-select.
   const { data: rawGroups } = await supabase
     .from("groups")

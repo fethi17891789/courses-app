@@ -17,7 +17,7 @@ export default async function CreateGroupPage({
     redirect(`/${locale}/login`);
   }
 
-  if (user.user_metadata?.role === "eleve") {
+  if (user.user_metadata?.role !== "prof") {
     redirect(`/${locale}/dashboard`);
   }
 

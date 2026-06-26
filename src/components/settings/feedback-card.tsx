@@ -24,7 +24,7 @@ const typeStyles: Record<
   },
 };
 
-export function FeedbackCard({ isStudent = false }: { isStudent?: boolean }) {
+export function FeedbackCard({ role = "prof" }: { role?: string }) {
   const t = useTranslations("settings");
   const [type, setType] = useState<FeedbackType | null>(null);
   const [message, setMessage] = useState("");
@@ -33,9 +33,18 @@ export function FeedbackCard({ isStudent = false }: { isStudent?: boolean }) {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const accent = isStudent
-    ? { from: "#4ade80", to: "#16a34a", shadow: "#15803d", glow: "rgba(34,197,94,0.4)" }
-    : { from: "#8b5cf6", to: "#6d28d9", shadow: "#5b21b6", glow: "rgba(124,58,237,0.4)" };
+  const accent =
+    role === "eleve"
+      ? { from: "#4ade80", to: "#16a34a", shadow: "#15803d", glow: "rgba(34,197,94,0.4)" }
+      : role === "parent"
+        ? { from: "#fb923c", to: "#ea580c", shadow: "#c2410c", glow: "rgba(249,115,22,0.4)" }
+        : { from: "#8b5cf6", to: "#6d28d9", shadow: "#5b21b6", glow: "rgba(124,58,237,0.4)" };
+  const cardShadow =
+    role === "eleve"
+      ? "0 3px 0 #bbf7d0, 0 6px 16px -4px rgba(34,197,94,0.08)"
+      : role === "parent"
+        ? "0 3px 0 #fed7aa, 0 6px 16px -4px rgba(249,115,22,0.08)"
+        : "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)";
 
   function selectType(next: FeedbackType) {
     setSent(false);
@@ -78,11 +87,7 @@ export function FeedbackCard({ isStudent = false }: { isStudent?: boolean }) {
       </p>
       <div
         className="rounded-2xl bg-white p-4"
-        style={{
-          boxShadow: isStudent
-            ? "0 3px 0 #bbf7d0, 0 6px 16px -4px rgba(34,197,94,0.08)"
-            : "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
-        }}
+        style={{ boxShadow: cardShadow }}
       >
         <p className="text-[11px] font-semibold leading-snug text-[#1e1b4b]/40">
           {t("feedbackDesc")}

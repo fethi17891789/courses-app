@@ -17,5 +17,9 @@ export default async function StudentDetailPage({
     redirect(`/${locale}/login`);
   }
 
+  if (user.user_metadata?.role !== "prof") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   return <StudentDetail studentId={id} />;
 }

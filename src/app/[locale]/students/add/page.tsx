@@ -20,7 +20,7 @@ export default async function AddStudentPage({
     redirect(`/${locale}/login`);
   }
 
-  if (user.user_metadata?.role === "eleve") {
+  if (user.user_metadata?.role !== "prof") {
     redirect(`/${locale}/dashboard`);
   }
 

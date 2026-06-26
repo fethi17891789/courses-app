@@ -99,7 +99,9 @@
     "schedule": "جدول الحصص",
     "scheduleDesc": "استعرض جدولك",
     "announcements": "الإعلانات",
-    "announcementsDesc": "تواصل مع مجموعاتك"
+    "announcementsDesc": "تواصل مع مجموعاتك",
+    "subjects": "المواضيع",
+    "subjectsDesc": "شارك ملفات PDF مع مجموعاتك"
   },
   "attendance": {
     "title": "تسجيل الحضور",
@@ -344,7 +346,15 @@
     "quizDesc": "انضم إلى اختبار الأستاذ",
     "quizCta": "انضم",
     "announcements": "الإعلانات",
-    "announcementsDesc": "إعلانات أساتذتك"
+    "announcementsDesc": "إعلانات أساتذتك",
+    "subjects": "المواضيع",
+    "subjectsDesc": "ملفات PDF من أساتذتك"
+  },
+  "parentDashboard": {
+    "subtitle": "فضاء الولي",
+    "comingTitle": "فضاء الولي قيد التطوير",
+    "comingDesc": "متابعة حضور وغياب طفلك ومدفوعاته والإشعارات ستكون متوفرة في تحديث قادم.",
+    "comingBadge": "قريبا"
   },
   "announcements": {
     "title": "الإعلانات",
@@ -379,6 +389,44 @@
     "studentEmptyDesc": "ستظهر هنا إعلانات أساتذتك",
     "readMore": "اقرأ المزيد",
     "readLess": "إخفاء"
+  },
+  "subjects": {
+    "title": "المواضيع",
+    "empty": "لا يوجد موضوع",
+    "emptyDesc": "أضف أول ملف PDF لمجموعاتك",
+    "createCta": "إضافة موضوع",
+    "noGroups": "لا توجد مجموعة",
+    "noGroupsDesc": "أنشئ مجموعة أولا لمشاركة موضوع",
+    "newTitle": "موضوع جديد",
+    "editTitle": "تعديل الموضوع",
+    "titleLabel": "العنوان",
+    "titlePlaceholder": "مثال: ملف مراجعة - الفصل 3",
+    "fileLabel": "ملف PDF",
+    "filePick": "اختر ملف PDF",
+    "fileHint": "PDF، 5 ميغابايت كحد أقصى",
+    "targetGroups": "المجموعات المعنية",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "deleteTitle": "حذف الموضوع",
+    "deleteConfirm": "هذا الإجراء لا رجعة فيه. سيتم حذف الملف.",
+    "cancel": "إلغاء",
+    "confirm": "حذف",
+    "publish": "نشر",
+    "uploading": "جار الإرسال...",
+    "save": "حفظ",
+    "close": "إغلاق",
+    "errorMissing": "يرجى إدخال عنوان.",
+    "errorNoGroups": "اختر مجموعة واحدة على الأقل.",
+    "errorNoFile": "يرجى اختيار ملف PDF.",
+    "errorBadType": "يُقبل فقط ملفات PDF.",
+    "errorTooLarge": "الملف كبير جدا (5 ميغابايت كحد أقصى).",
+    "errorGeneric": "حدث خطأ.",
+    "studentSubtitle": "مواضيع أساتذتك",
+    "studentEmpty": "لا يوجد موضوع",
+    "studentEmptyDesc": "ستظهر هنا ملفات PDF من أساتذتك",
+    "viewerLoading": "جار تحميل المستند...",
+    "viewerError": "تعذر عرض المستند",
+    "viewerErrorDesc": "تحقق من اتصالك وحاول مرة أخرى"
   },
   "quiz": {
     "title": "اختباراتي",

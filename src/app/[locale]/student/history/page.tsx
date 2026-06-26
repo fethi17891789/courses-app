@@ -15,5 +15,9 @@ export default async function StudentHistoryPage({
 
   if (!user) redirect(`/${locale}/login`);
 
+  if (user.user_metadata?.role !== "eleve") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   return <StudentHistoryScreen />;
 }

@@ -17,5 +17,9 @@ export default async function SchedulePage({
     redirect(`/${locale}/login`);
   }
 
+  if (user.user_metadata?.role !== "prof") {
+    redirect(`/${locale}/dashboard`);
+  }
+
   return <ScheduleScreen />;
 }
