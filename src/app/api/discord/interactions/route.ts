@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "crypto";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { hashKey } from "@/lib/hash-key";
 
 // Discord interactions must run on Node (WebCrypto Ed25519 + service-role insert).
@@ -67,6 +67,31 @@ function ephemeral(content: string) {
   });
 }
 
+/**
+ * Envoie un message de suivi (ephemeral) ne contenant QUE la cle, sans aucun
+ * texte autour. Sur Discord mobile il n'y a pas de bouton "copier le bloc" :
+ * un appui long fait "Copier le texte" du message entier. En isolant la cle
+ * dans son propre message, ce "Copier le texte" ne renvoie que la cle.
+ */
+async function sendKeyFollowup(
+  applicationId: string,
+  token: string,
+  plainKey: string,
+) {
+  try {
+    await fetch(
+      `https://discord.com/api/v10/webhooks/${applicationId}/${token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: plainKey, flags: FLAG_EPHEMERAL }),
+      },
+    );
+  } catch {
+    // Le message principal contient deja la cle ; un echec ici n'est pas bloquant.
+  }
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get("x-signature-ed25519");
   const timestamp = request.headers.get("x-signature-timestamp");
@@ -123,6 +148,10 @@ export async function POST(request: Request) {
       return ephemeral("Erreur lors de la creation de la cle. Reessaie.");
     }
 
+    // Apres la reponse principale, on envoie la cle seule dans un second
+    // message pour permettre un "Copier le texte" propre sur mobile.
+    after(() => sendKeyFollowup(interaction.application_id, interaction.token, plainKey));
+
     return ephemeral(
       [
         "Cle d'activation creee :",
@@ -133,6 +162,7 @@ export async function POST(request: Request) {
         `Duree : ${dureeLabel} · Plan : ${planLabel}`,
         "",
         "Envoie cette cle au prof apres paiement. Elle ne s'affichera plus.",
+        "Sur mobile : appui long sur le message ci-dessous (la cle seule) puis \"Copier le texte\".",
       ].join("\n"),
     );
   }
