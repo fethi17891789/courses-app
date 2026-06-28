@@ -71,9 +71,9 @@ export async function POST(request: Request) {
       durationDays = keyRow.duration_days;
       plan = keyRow.plan || "starter";
 
-      // Signup = toujours premiere inscription -> annuel 12 mois devient 15 mois (bonus 3 mois)
-      if (durationDays === 365) {
-        durationDays = 456;
+      // Signup = toujours premiere inscription -> annuel 9 mois devient 12 mois (bonus 3 mois)
+      if (durationDays === 270) {
+        durationDays = 360;
       }
     } else {
       // Not an activation key: maybe a referral code from a colleague

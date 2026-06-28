@@ -96,12 +96,18 @@ export async function POST(request: Request) {
     }
 
     const options: { name: string; value: string }[] = interaction.data.options ?? [];
-    const duree = options.find((o) => o.name === "duree")?.value;
+    const duree = options.find((o) => o.name === "duree")?.value ?? "mois";
     const plan = options.find((o) => o.name === "plan")?.value ?? "starter";
 
-    const durationDays = duree === "an" ? 365 : 30;
+    // 1 mois = 30 jours. L'annuel fait 9 mois (270 j) ; il passe a 12 mois
+    // (360 j) automatiquement a la premiere inscription (bonus 3 mois).
+    const DUREES: Record<string, { days: number; label: string }> = {
+      mois: { days: 30, label: "1 mois" },
+      trimestre: { days: 90, label: "3 mois" },
+      annuel: { days: 270, label: "9 mois (12 mois si 1ere inscription)" },
+    };
+    const { days: durationDays, label: dureeLabel } = DUREES[duree] ?? DUREES.mois;
     const planLabel = plan === "pro" ? "Pro (illimite)" : "Starter (45 eleves)";
-    const dureeLabel = duree === "an" ? "1 an" : "1 mois";
 
     const plainKey = generateActivationKey();
 

@@ -5,13 +5,15 @@
  *   node scripts/generate-activation-key.js <plan> <formula>
  *
  * Plans:    starter | pro
- * Formulas: monthly | annual
+ * Formulas: monthly | quarterly | annual
  *
  * Examples:
- *   node scripts/generate-activation-key.js starter monthly  -> Starter 30 jours
- *   node scripts/generate-activation-key.js starter annual   -> Starter 12 mois (ou 15 si premiere inscription)
- *   node scripts/generate-activation-key.js pro monthly      -> Pro 30 jours
- *   node scripts/generate-activation-key.js pro annual       -> Pro 12 mois (ou 15 si premiere inscription)
+ *   node scripts/generate-activation-key.js starter monthly    -> Starter 1 mois (30 jours)
+ *   node scripts/generate-activation-key.js starter quarterly  -> Starter 3 mois (90 jours)
+ *   node scripts/generate-activation-key.js starter annual     -> Starter 9 mois (ou 12 si premiere inscription)
+ *   node scripts/generate-activation-key.js pro monthly        -> Pro 1 mois (30 jours)
+ *   node scripts/generate-activation-key.js pro quarterly      -> Pro 3 mois (90 jours)
+ *   node scripts/generate-activation-key.js pro annual         -> Pro 9 mois (ou 12 si premiere inscription)
  *
  * The plain-text key is shown ONCE in the terminal.
  * Only the SHA-256 hash is stored in the database.
@@ -62,7 +64,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const FORMULAS = {
   monthly: 30,
-  annual: 365, // 12 mois par defaut, 15 mois (456j) si premiere inscription
+  quarterly: 90,
+  annual: 270, // 9 mois par defaut, 12 mois (360j) si premiere inscription
 };
 
 async function run() {
@@ -75,8 +78,8 @@ async function run() {
     process.exit(1);
   }
 
-  if (!formula || !["monthly", "annual"].includes(formula)) {
-    console.error("Formule requise: monthly | annual");
+  if (!formula || !["monthly", "quarterly", "annual"].includes(formula)) {
+    console.error("Formule requise: monthly | quarterly | annual");
     console.error("Usage: node scripts/generate-activation-key.js <plan> <formula>");
     process.exit(1);
   }
@@ -98,7 +101,12 @@ async function run() {
   }
 
   const planLabel = plan === "starter" ? "Starter (45 eleves max)" : "Pro (illimite)";
-  const formulaLabel = formula === "monthly" ? "Mensuel (30 jours)" : "Annuel (12 mois, ou 15 si 1ere inscription)";
+  const formulaLabel =
+    formula === "monthly"
+      ? "Mensuel (1 mois / 30 jours)"
+      : formula === "quarterly"
+        ? "Trimestriel (3 mois / 90 jours)"
+        : "Annuel (9 mois, ou 12 si 1ere inscription)";
 
   console.log("");
   console.log("=".repeat(50));

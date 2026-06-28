@@ -53,14 +53,14 @@ export async function POST(request: Request) {
   let durationDays = keyRow.duration_days;
 
   // Verifier si c'est la premiere inscription annuelle de cet utilisateur -> bonus 3 mois
-  if (durationDays === 365) {
+  if (durationDays === 270) {
     const { count } = await admin
       .from("activation_keys")
       .select("id", { count: "exact", head: true })
       .eq("used_by", user.id);
 
     if ((count ?? 0) === 0) {
-      durationDays = 456;
+      durationDays = 360;
     }
   }
 

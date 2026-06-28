@@ -29,7 +29,8 @@ const commands = [
         required: true,
         choices: [
           { name: "1 mois", value: "mois" },
-          { name: "1 an", value: "an" },
+          { name: "3 mois", value: "trimestre" },
+          { name: "9 mois (12 mois si 1ere inscription)", value: "annuel" },
         ],
       },
       {
