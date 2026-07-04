@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { isOwner } from "@/lib/admin-auth";
 import { redirect } from "next/navigation";
 import { SettingsContent } from "@/components/settings/settings-content";
 
@@ -18,5 +19,5 @@ export default async function SettingsPage({
   }
 
   const role = user.user_metadata?.role || "prof";
-  return <SettingsContent user={user} role={role} />;
+  return <SettingsContent user={user} role={role} owner={isOwner(user)} />;
 }

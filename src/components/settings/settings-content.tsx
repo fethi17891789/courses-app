@@ -31,7 +31,7 @@ const fadeUp = {
   },
 };
 
-export function SettingsContent({ user, role = "prof" }: { user: User; role?: string }) {
+export function SettingsContent({ user, role = "prof", owner = false }: { user: User; role?: string; owner?: boolean }) {
   const isProf = role === "prof";
   const theme =
     role === "eleve"
@@ -82,6 +82,7 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
   const [transitioning, setTransitioning] = useState(false);
   const [langTransitioning, setLangTransitioning] = useState(false);
   const [logoutPressed, setLogoutPressed] = useState(false);
+  const [adminPressed, setAdminPressed] = useState(false);
   const pendingLocale = useState<string | null>(null);
   const [premiumStatus, setPremiumStatus] = useState<PremiumStatus | null>(null);
 
@@ -298,6 +299,36 @@ export function SettingsContent({ user, role = "prof" }: { user: User; role?: st
         <motion.div variants={fadeUp}>
           <FeedbackCard role={role} />
         </motion.div>
+
+        {/* Poste de pilotage (proprietaire uniquement) */}
+        {owner && (
+          <motion.div variants={fadeUp} className="mt-5">
+            <button
+              onClick={() => router.push(`/${locale}/admin`)}
+              onPointerDown={() => setAdminPressed(true)}
+              onPointerUp={() => setAdminPressed(false)}
+              onPointerLeave={() => setAdminPressed(false)}
+              className="flex w-full items-center gap-3 rounded-xl py-3.5 pl-4 pr-3 text-left text-[14px] font-extrabold text-white transition-[transform,box-shadow] duration-[80ms]"
+              style={{
+                background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)",
+                transform: `translateY(${adminPressed ? 3 : 0}px)`,
+                boxShadow: adminPressed
+                  ? "0 0px 0 #0f0e2a"
+                  : "0 3px 0 #0f0e2a, 0 6px 16px -4px rgba(30,27,75,0.3)",
+              }}
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 7.7l5.4-.8L12 2z" fill="#fbbf24" />
+                </svg>
+              </span>
+              <span className="flex-1">Poste de pilotage</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="opacity-50">
+                <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </motion.div>
+        )}
 
         {/* Logout */}
         <motion.div variants={fadeUp} className="mt-5">

@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { randomBytes } from "crypto";
 import { after, NextResponse } from "next/server";
 import { hashKey } from "@/lib/hash-key";
+import { generateActivationKey } from "@/lib/activation-key";
 
 // Discord interactions must run on Node (WebCrypto Ed25519 + service-role insert).
 export const runtime = "nodejs";
@@ -12,8 +12,6 @@ const TYPE_APPLICATION_COMMAND = 2;
 const RESPONSE_PONG = 1;
 const RESPONSE_MESSAGE = 4;
 const FLAG_EPHEMERAL = 64;
-
-const KEY_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no confusable chars
 
 function getSupabaseAdmin() {
   return createClient(
@@ -51,13 +49,6 @@ async function isValidSignature(
   } catch {
     return false;
   }
-}
-
-function generateActivationKey(): string {
-  const bytes = randomBytes(16);
-  let raw = "";
-  for (let i = 0; i < 16; i++) raw += KEY_ALPHABET[bytes[i] % KEY_ALPHABET.length];
-  return raw.match(/.{1,4}/g)!.join("-"); // XXXX-XXXX-XXXX-XXXX
 }
 
 function ephemeral(content: string) {
