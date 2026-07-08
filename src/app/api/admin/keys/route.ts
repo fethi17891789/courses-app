@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireOwner, getSupabaseAdmin } from "@/lib/admin-auth";
 import { generateActivationKey } from "@/lib/activation-key";
 import { hashKey } from "@/lib/hash-key";
-import { DUREES, isPlan, isDuree } from "@/lib/admin-pricing";
+import { isPlan, isDuree, isSchoolPlan, durationDaysFor, SCHOOL_SEATS } from "@/lib/admin-pricing";
 
 export const runtime = "nodejs";
 
@@ -52,7 +52,9 @@ export async function POST(request: Request) {
   }
 
   const isTestKey = isTest === true;
-  const durationDays = DUREES[duree].days;
+  const durationDays = durationDaysFor(plan, duree);
+  // Cle ecole : on fige le nombre de profs autorises (sieges) sur la cle.
+  const seatLimit = isSchoolPlan(plan) ? SCHOOL_SEATS[plan] : null;
 
   // Prix : 0 pour une cle test (jamais comptee dans le CA). Pour une cle
   // officielle, on prend le prix envoye par le formulaire (entier >= 0).
@@ -73,9 +75,10 @@ export async function POST(request: Request) {
     duration_days: durationDays,
     is_test: isTestKey,
     price_da: priceDa,
+    seat_limit: seatLimit,
   });
 
   if (error) return NextResponse.json({ error: "db_error" }, { status: 500 });
 
-  return NextResponse.json({ key: plainKey, plan, duration_days: durationDays, is_test: isTestKey, price_da: priceDa });
+  return NextResponse.json({ key: plainKey, plan, duration_days: durationDays, is_test: isTestKey, price_da: priceDa, seat_limit: seatLimit });
 }

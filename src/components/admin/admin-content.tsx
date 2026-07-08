@@ -288,7 +288,7 @@ function KeysTab() {
 
       {/* Plan */}
       <div className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-[rgba(124,58,237,0.07)] p-1 text-[12px] font-extrabold">
-        {(["starter", "pro"] as Plan[]).map((p) => (
+        {(["starter", "pro", "school_starter", "school_pro"] as Plan[]).map((p) => (
           <button
             key={p}
             onClick={() => selectPlan(p)}
@@ -523,7 +523,7 @@ function SupportTab() {
         <div className="mt-4 rounded-2xl bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
           <p className="text-[14px] font-extrabold text-[#1e1b4b]">{result.email}</p>
           <div className="mt-3 flex flex-col gap-2 text-[13px] font-semibold text-[#1e1b4b]/70">
-            <Row label="Plan" value={result.plan ? (result.plan === "pro" ? "Pro" : "Starter") : "Aucun"} />
+            <Row label="Plan" value={result.plan ? (PLAN_LABELS[result.plan as Plan] ?? result.plan) : "Aucun"} />
             <Row label="Statut" value={result.active ? "Actif" : "Inactif / expire"} color={result.active ? "#22c55e" : "#ef4444"} />
             <Row label="Active le" value={fmtDate(result.activated_at ?? null)} />
             <Row label="Expire le" value={fmtDate(result.expires_at ?? null)} />

@@ -85,20 +85,22 @@ export async function middleware(request: NextRequest) {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (serviceKey && supabaseUrl) {
       try {
+        // Acces actif = sa propre cle OU (prof d'ecole) l'abonnement du
+        // directeur. La fonction has_active_access gere les deux cas.
         const res = await fetch(
-          `${supabaseUrl}/rest/v1/activation_keys?select=expires_at&used_by=eq.${user.id}&order=used_at.desc&limit=1`,
+          `${supabaseUrl}/rest/v1/rpc/has_active_access`,
           {
+            method: "POST",
             headers: {
               apikey: serviceKey,
               Authorization: `Bearer ${serviceKey}`,
+              "Content-Type": "application/json",
             },
+            body: JSON.stringify({ p_user: user.id }),
           }
         );
-        const rows = await res.json();
-        const keyRow = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-
-        const expired = !keyRow
-          || (keyRow.expires_at && new Date(keyRow.expires_at) < new Date());
+        const hasAccess = await res.json();
+        const expired = hasAccess !== true;
 
         if (expired) {
           // Do NOT call supabase.auth.signOut() here — it doesn't reliably

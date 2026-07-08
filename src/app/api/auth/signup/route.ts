@@ -44,6 +44,10 @@ export async function POST(request: Request) {
   let plan: string = "starter";
   let referrerId: string | null = null;
   let referralCode = "";
+  // Ecoles : signup directeur (cle school_*) ou prof rejoignant une ecole
+  let isDirectorSignup = false;
+  let seatLimit: number | null = null;
+  let joinOrgId: string | null = null;
 
   if (role === "prof") {
     if (!activationKey || !activationKey.trim()) {
@@ -56,7 +60,7 @@ export async function POST(request: Request) {
     hashedKey = hashKey(activationKey);
     const { data: keyRow } = await supabaseAdmin
       .from("activation_keys")
-      .select("id, used_by, expires_at, duration_days, plan")
+      .select("id, used_by, expires_at, duration_days, plan, seat_limit")
       .eq("key", hashedKey)
       .single();
 
@@ -71,8 +75,14 @@ export async function POST(request: Request) {
       durationDays = keyRow.duration_days;
       plan = keyRow.plan || "starter";
 
-      // Signup = toujours premiere inscription -> annuel 9 mois devient 12 mois (bonus 3 mois)
-      if (durationDays === 270) {
+      if (plan === "school_starter" || plan === "school_pro") {
+        // Cle ecole : ce compte devient le directeur. On creera l'ecole
+        // apres la creation de l'utilisateur. Duree = telle quelle (l'ecole
+        // est ouverte toute l'annee, pas de bonus 9->12 mois).
+        isDirectorSignup = true;
+        seatLimit = keyRow.seat_limit ?? 1;
+      } else if (durationDays === 270) {
+        // Inde : signup = 1re inscription -> annuel 9 mois devient 12 mois
         durationDays = 360;
       }
     } else {
@@ -91,27 +101,52 @@ export async function POST(request: Request) {
         );
       }
 
-      // One successful referral per cooldown window for the referrer
-      const cooldownStart = new Date(
-        Date.now() - REFERRAL_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
-      ).toISOString();
-      const { count: recentCount } = await supabaseAdmin
-        .from("referrals")
-        .select("id", { count: "exact", head: true })
-        .eq("referrer_id", refRow.user_id)
-        .gte("created_at", cooldownStart);
+      // Le code appartient-il a un directeur d'ecole ? Si oui, on rejoint
+      // l'ecole (pas un parrainage classique) : pas de bonus, pas de cooldown.
+      const { data: orgRow } = await supabaseAdmin
+        .from("organizations")
+        .select("id, seat_limit")
+        .eq("owner_id", refRow.user_id)
+        .single();
 
-      if ((recentCount ?? 0) > 0) {
-        return NextResponse.json(
-          { error: "referral_cooldown" },
-          { status: 400 }
-        );
+      if (orgRow) {
+        const { count: seatsUsed } = await supabaseAdmin
+          .from("organization_members")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgRow.id)
+          .eq("status", "active");
+
+        if ((seatsUsed ?? 0) >= (orgRow.seat_limit ?? 0)) {
+          return NextResponse.json({ error: "school_full" }, { status: 400 });
+        }
+
+        joinOrgId = orgRow.id;
+        hashedKey = "";
+        durationDays = null; // pas de cle perso : l'acces vient de l'ecole
+        plan = "pro"; // prof d'ecole = eleves illimites, pas de limite
+      } else {
+        // Parrainage classique : un succes par fenetre de cooldown
+        const cooldownStart = new Date(
+          Date.now() - REFERRAL_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+        ).toISOString();
+        const { count: recentCount } = await supabaseAdmin
+          .from("referrals")
+          .select("id", { count: "exact", head: true })
+          .eq("referrer_id", refRow.user_id)
+          .gte("created_at", cooldownStart);
+
+        if ((recentCount ?? 0) > 0) {
+          return NextResponse.json(
+            { error: "referral_cooldown" },
+            { status: 400 }
+          );
+        }
+
+        referrerId = refRow.user_id;
+        hashedKey = "";
+        durationDays = REFERRAL_BONUS_DAYS;
+        plan = "starter";
       }
-
-      referrerId = refRow.user_id;
-      hashedKey = "";
-      durationDays = REFERRAL_BONUS_DAYS;
-      plan = "starter";
     }
   }
 
@@ -146,7 +181,29 @@ export async function POST(request: Request) {
       ? new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    if (referrerId) {
+    if (isDirectorSignup) {
+      // Creer l'ecole, puis activer la cle du directeur (son abonnement)
+      await supabaseAdmin.from("organizations").insert({
+        owner_id: authData.user.id,
+        name: fullName?.trim() || email,
+        seat_limit: seatLimit ?? 1,
+      });
+      await supabaseAdmin
+        .from("activation_keys")
+        .update({
+          used_by: authData.user.id,
+          used_at: now.toISOString(),
+          expires_at: expiresAt,
+        })
+        .eq("key", hashedKey);
+    } else if (joinOrgId) {
+      // Prof d'ecole : simple rattachement, aucune cle perso.
+      // Son acces vient de l'abonnement du directeur (has_active_access).
+      await supabaseAdmin.from("organization_members").insert({
+        org_id: joinOrgId,
+        user_id: authData.user.id,
+      });
+    } else if (referrerId) {
       // Track who referred who
       await supabaseAdmin.from("referrals").insert({
         referrer_id: referrerId,
