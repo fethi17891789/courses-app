@@ -299,6 +299,7 @@
     "lookup": "Rechercher",
     "lookingUp": "Recherche...",
     "notFound": "Aucun groupe trouve avec ce code",
+    "networkError": "Erreur de connexion, veuillez reessayer",
     "groupInfo": "Informations du groupe",
     "yourInfo": "Vos informations",
     "teacher": "Professeur",

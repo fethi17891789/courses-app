@@ -380,23 +380,29 @@ export function JoinGroup({
     setFormError(null);
     setRequestStatus(null);
 
-    const res = await fetch(`/api/join/${trimmed}`);
-    if (res.ok) {
-      const data = await res.json();
-      setGroupInfo(data);
-      if (data.schedules?.length > 0) {
-        setSelectedSchedules(data.schedules.map((_: ScheduleSlot, i: number) => i));
-      }
-      if (data.existing_request) {
-        requestIdRef.current = data.existing_request.id;
-        if (data.existing_request.status === "pending") {
-          setError("requestPending");
-        } else if (data.existing_request.status === "accepted") {
-          setError("requestAccepted");
+    try {
+      const res = await fetch(`/api/join/${trimmed}`);
+      if (res.ok) {
+        const data = await res.json();
+        setGroupInfo(data);
+        if (data.schedules?.length > 0) {
+          setSelectedSchedules(data.schedules.map((_: ScheduleSlot, i: number) => i));
         }
+        if (data.existing_request) {
+          requestIdRef.current = data.existing_request.id;
+          if (data.existing_request.status === "pending") {
+            setError("requestPending");
+          } else if (data.existing_request.status === "accepted") {
+            setError("requestAccepted");
+          }
+        }
+      } else if (res.status === 404) {
+        setNotFound(true);
+      } else {
+        setError("networkError");
       }
-    } else {
-      setNotFound(true);
+    } catch {
+      setError("networkError");
     }
     setLookingUp(false);
   }
@@ -588,6 +594,17 @@ export function JoinGroup({
             className="mt-4 rounded-xl bg-red-50 px-3 py-2.5 text-[12px] font-semibold text-red-600"
           >
             {t("notFound")}
+          </motion.p>
+        )}
+
+        {/* Network error */}
+        {error === "networkError" && !groupInfo && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-[12px] font-semibold text-amber-700"
+          >
+            {t("networkError")}
           </motion.p>
         )}
 

@@ -35,11 +35,16 @@ export async function GET(
 
   const admin = getSupabaseAdmin();
 
-  const { data: group } = await admin
+  const { data: group, error: groupError } = await admin
     .from("groups")
     .select("id, name, level, section, capacity, price, payment_mode, schedules, group_members(count)")
     .eq("join_code", code.toUpperCase())
     .maybeSingle();
+
+  if (groupError) {
+    console.error("[join GET] Supabase error:", groupError);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
