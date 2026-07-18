@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { rateLimitByIp } from "@/lib/rate-limit";
+import { sendPushNotification } from "@/lib/onesignal";
 
 // Service-role client: the join-by-code flow must not depend on group/join_request
 // RLS policies (which have historically vanished from the live DB). Authorization is
@@ -92,7 +93,7 @@ export async function POST(
 
   const { data: group } = await admin
     .from("groups")
-    .select("id, capacity, teacher_id")
+    .select("id, name, capacity, teacher_id")
     .eq("join_code", code.toUpperCase())
     .maybeSingle();
 
@@ -146,6 +147,12 @@ export async function POST(
     if (error) {
       return NextResponse.json({ error: "server_error" }, { status: 500 });
     }
+    sendPushNotification({
+      title: "Nouvelle demande",
+      message: `${full_name.trim()} veut rejoindre ${group.name}`,
+      userIds: [group.teacher_id],
+      data: { type: "join_request", group_id: group.id },
+    }).catch(() => {});
     return NextResponse.json({ id: existing.id, status: "pending" });
   }
 
@@ -170,6 +177,13 @@ export async function POST(
   if (error) {
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
+
+  sendPushNotification({
+    title: "Nouvelle demande",
+    message: `${full_name.trim()} veut rejoindre ${group.name}`,
+    userIds: [group.teacher_id],
+    data: { type: "join_request", group_id: group.id },
+  }).catch(() => {});
 
   return NextResponse.json({ id: requestId, status: "pending" });
 }
