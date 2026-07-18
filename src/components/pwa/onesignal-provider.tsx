@@ -4,18 +4,29 @@ import { useEffect } from "react";
 import { createClient } from "@/lib/supabase";
 
 const APP_ID = "152972fd-8970-4ab5-a777-19ee800fea9f";
+const SDK_URL = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
 
 let sdkLoaded = false;
 let loggedInUserId = "";
 
-function loadSdk() {
+function loadSdk(attempt = 1) {
   if (sdkLoaded) return;
   sdkLoaded = true;
   window.OneSignalDeferred = window.OneSignalDeferred || [];
+
   const script = document.createElement("script");
-  script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+  script.src = SDK_URL;
   script.defer = true;
+  script.onerror = () => {
+    console.warn("[OS] SDK failed to load (attempt", attempt + ")");
+    sdkLoaded = false;
+    script.remove();
+    if (attempt < 3) {
+      setTimeout(() => loadSdk(attempt + 1), 3000 * attempt);
+    }
+  };
   document.head.appendChild(script);
+
   window.OneSignalDeferred.push(async (OneSignal: any) => {
     console.log("[OS] SDK init start");
     await OneSignal.init({
