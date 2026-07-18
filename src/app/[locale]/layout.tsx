@@ -5,6 +5,7 @@ import { PremiumGuard } from "@/components/auth/premium-guard";
 import { ThemeColorUpdater } from "@/components/pwa/theme-color-updater";
 import { OfflineBanner } from "@/components/pwa/offline-banner";
 import { PersistentNav } from "@/components/dashboard/persistent-nav";
+import { OneSignalProvider } from "@/components/pwa/onesignal-provider";
 
 export default async function LocaleLayout({
   children,
@@ -27,6 +28,7 @@ export default async function LocaleLayout({
       <ThemeColorUpdater />
       <OfflineBanner />
       <PremiumGuard />
+      <OneSignalProvider />
       <div dir={dir} className={`min-h-dvh flex flex-col ${locale === "ar" ? "font-[family-name:var(--font-arabic)]" : "font-[family-name:var(--font-sans)]"}`}>
         {children}
         <PersistentNav />
