@@ -51,7 +51,16 @@ function loginUser(userId: string, role: string) {
       console.error("[OS] login() error:", e);
     }
     OneSignal.User.addTags({ role, user_id: userId });
-    if (!OneSignal.Notifications.permission) {
+
+    const hasPermission = OneSignal.Notifications.permission;
+    const isOptedIn = OneSignal.User.PushSubscription.optedIn;
+    console.log("[OS] permission:", hasPermission, "optedIn:", isOptedIn);
+
+    if (hasPermission && !isOptedIn) {
+      console.log("[OS] permission granted but not subscribed, opting in...");
+      await OneSignal.User.PushSubscription.optIn();
+      console.log("[OS] optIn() done");
+    } else if (!hasPermission) {
       console.log("[OS] requesting permission...");
       OneSignal.Notifications.requestPermission();
     }
