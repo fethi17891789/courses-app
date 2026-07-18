@@ -17,30 +17,43 @@ function loadSdk() {
   script.defer = true;
   document.head.appendChild(script);
   window.OneSignalDeferred.push(async (OneSignal: any) => {
+    console.log("[OS] SDK init start");
     await OneSignal.init({
       appId: APP_ID,
       allowLocalhostAsSecureOrigin: true,
     });
+    console.log("[OS] SDK init done, permission:", OneSignal.Notifications.permission);
   });
 }
 
 function loginUser(userId: string, role: string) {
+  console.log("[OS] loginUser called, userId:", userId, "already:", loggedInUserId);
   if (loggedInUserId === userId) return;
   loggedInUserId = userId;
 
   const doLogin = async (OneSignal: any) => {
-    await OneSignal.login(userId);
+    console.log("[OS] doLogin executing for", userId);
+    try {
+      await OneSignal.login(userId);
+      console.log("[OS] login() success for", userId);
+    } catch (e) {
+      console.error("[OS] login() error:", e);
+    }
     OneSignal.User.addTags({ role, user_id: userId });
     if (!OneSignal.Notifications.permission) {
+      console.log("[OS] requesting permission...");
       OneSignal.Notifications.requestPermission();
     }
   };
 
-  if ((window as any).OneSignal) {
-    doLogin((window as any).OneSignal).catch(() => {});
+  const os = (window as any).OneSignal;
+  console.log("[OS] window.OneSignal exists?", !!os);
+  if (os) {
+    doLogin(os).catch((e: any) => console.error("[OS] doLogin catch:", e));
   } else {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(doLogin);
+    console.log("[OS] pushed to deferred queue, length:", window.OneSignalDeferred.length);
   }
 }
 
