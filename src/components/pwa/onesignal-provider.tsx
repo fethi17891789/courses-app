@@ -27,14 +27,21 @@ function loadSdk() {
 function loginUser(userId: string, role: string) {
   if (loggedInUserId === userId) return;
   loggedInUserId = userId;
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  window.OneSignalDeferred.push(async (OneSignal: any) => {
+
+  const doLogin = async (OneSignal: any) => {
     await OneSignal.login(userId);
     OneSignal.User.addTags({ role, user_id: userId });
     if (!OneSignal.Notifications.permission) {
       OneSignal.Notifications.requestPermission();
     }
-  });
+  };
+
+  if ((window as any).OneSignal) {
+    doLogin((window as any).OneSignal).catch(() => {});
+  } else {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(doLogin);
+  }
 }
 
 export function OneSignalProvider() {
