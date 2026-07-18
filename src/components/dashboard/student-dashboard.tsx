@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { User } from "@supabase/supabase-js";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -404,7 +403,6 @@ export function StudentDashboard({ user }: { user: User }) {
         <div className="h-28" />
       </div>
 
-      <BottomNav active="home" role="eleve" />
     </motion.main>
   );
 }

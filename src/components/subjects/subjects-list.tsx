@@ -6,7 +6,6 @@ import { useTranslations, useLocale } from "next-intl";
 import dynamic from "next/dynamic";
 import { getLevelDef } from "@/lib/levels";
 import { createClient } from "@/lib/supabase";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { MAX_SUBJECT_SIZE, SUBJECTS_BUCKET } from "@/lib/subjects";
 import type { Subject } from "@/types/subjects";
 import type { Group } from "@/types/groups";
@@ -739,7 +738,6 @@ export function SubjectsList({
         )}
       </AnimatePresence>
 
-      <BottomNav active="subjects" />
     </motion.main>
   );
 }

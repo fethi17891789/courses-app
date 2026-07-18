@@ -4,7 +4,6 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from "next-intl";
 import { getLevelDef } from "@/lib/levels";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { Announcement } from "@/types/announcements";
 import type { Group } from "@/types/groups";
 
@@ -673,7 +672,6 @@ export function AnnouncementsList({
         )}
       </AnimatePresence>
 
-      <BottomNav active="announcements" />
     </motion.main>
   );
 }

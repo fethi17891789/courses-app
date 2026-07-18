@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 import { computeDebt } from "@/lib/debt";
 
@@ -19,31 +21,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
 
-  // Verify group belongs to teacher
-  const { data: group } = await supabase
+  // Directeur : peut encaisser sur tout groupe de l'ecole. Le paiement reste
+  // rattache au prof proprietaire (ownerId). Prof : ses groupes uniquement.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: group } = await db
     .from("groups")
-    .select("id, price, payment_mode, refund_absences, schedules")
+    .select("id, price, payment_mode, refund_absences, schedules, teacher_id")
     .eq("id", group_id)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
+  const ownerId = group.teacher_id;
+
   // A manual payment only makes sense to clear an existing debt. Block it when
   // the student owes nothing for this group.
   const [{ data: att }, { data: pays }] = await Promise.all([
-    supabase
+    db
       .from("attendance")
       .select("status, session_date")
-      .eq("teacher_id", user.id)
+      .eq("teacher_id", ownerId)
       .eq("group_id", group_id)
       .eq("student_id", student_id),
-    supabase
+    db
       .from("payments")
       .select("session_date")
-      .eq("teacher_id", user.id)
+      .eq("teacher_id", ownerId)
       .eq("group_id", group_id)
       .eq("student_id", student_id),
   ]);
@@ -57,7 +66,7 @@ export async function POST(request: Request) {
 
   // Anti-doublon : verifie si un paiement identique existe dans les 60 dernieres secondes
   const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
-  const { data: duplicate } = await supabase
+  const { data: duplicate } = await db
     .from("payments")
     .select("id")
     .eq("group_id", group_id)
@@ -71,12 +80,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "duplicate_payment" }, { status: 409 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("payments")
     .insert({
       group_id,
       student_id,
-      teacher_id: user.id,
+      teacher_id: ownerId,
       amount,
       session_date: today,
       method: "manual",

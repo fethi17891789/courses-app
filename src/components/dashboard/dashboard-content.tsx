@@ -5,7 +5,6 @@ import { getCache, setCache } from "@/lib/page-cache";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { User } from "@supabase/supabase-js";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -245,6 +244,15 @@ export function DashboardContent({ user }: { user: User }) {
   const [stats, setStats] = useState(() => getCache<{ students: number; groups: number; sessionsToday: number; unpaid: number }>("dashboard") ?? { students: 0, groups: 0, sessionsToday: 0, unpaid: 0 });
 
   const greetingKey = useMemo(() => getGreetingKey(), []);
+
+  // Precharge les destinations des cartes d'action des le chargement du
+  // dashboard -> au clic, la sortie de page est instantanee (pas d'aller-retour
+  // serveur avant de bouger).
+  useEffect(() => {
+    for (const r of ["/groups/create", "/attendance", "/announcements", "/subjects", "/schedule", "/quiz", "/groups", "/students", "/payments"]) {
+      router.prefetch(`/${locale}${r}`);
+    }
+  }, [locale, router]);
 
   useEffect(() => {
     Promise.all([
@@ -513,7 +521,6 @@ export function DashboardContent({ user }: { user: User }) {
         <div className="h-28" />
       </div>
 
-      <BottomNav active="home" />
     </motion.main>
   );
 }

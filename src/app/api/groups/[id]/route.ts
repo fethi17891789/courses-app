@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 import { hasInternalConflict, findCrossGroupConflict } from "@/lib/schedule-conflict";
 
@@ -17,24 +19,29 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { data: group, error } = await supabase
+  // Directeur : acces a tout groupe de son ecole. Prof : le sien.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: group, error } = await db
     .from("groups")
     .select("*")
     .eq("id", id)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (error || !group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const { data: members } = await supabase
+  const { data: members } = await db
     .from("group_members")
     .select("*")
     .eq("group_id", id)
     .order("joined_at", { ascending: true });
 
-  const { data: requests } = await supabase
+  const { data: requests } = await db
     .from("join_requests")
     .select("*")
     .eq("group_id", id)
@@ -62,7 +69,21 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
 
+  // Le groupe doit appartenir a la portee (soi-meme, ou l'ecole pour un directeur).
+  const { data: target } = await db
+    .from("groups")
+    .select("teacher_id")
+    .eq("id", id)
+    .in("teacher_id", teacherIds)
+    .single();
+
+  if (!target) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
 
   const body = await request.json();
   const updates: Record<string, unknown> = {};
@@ -80,10 +101,11 @@ export async function PATCH(
     if (hasInternalConflict(body.schedules)) {
       return NextResponse.json({ error: "schedule_conflict" }, { status: 400 });
     }
-    const { data: others } = await supabase
+    // Conflit verifie parmi les autres groupes du proprietaire du groupe.
+    const { data: others } = await db
       .from("groups")
       .select("name, schedules")
-      .eq("teacher_id", user.id)
+      .eq("teacher_id", target.teacher_id)
       .neq("id", id);
     const conflictWith = findCrossGroupConflict(body.schedules, others || []);
     if (conflictWith) {
@@ -94,11 +116,11 @@ export async function PATCH(
     }
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("groups")
     .update(updates)
     .eq("id", id)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .select()
     .single();
 
@@ -123,13 +145,15 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
 
-
-  const { error } = await supabase
+  const { error } = await db
     .from("groups")
     .delete()
     .eq("id", id)
-    .eq("teacher_id", user.id);
+    .in("teacher_id", teacherIds);
 
   if (error) {
     return NextResponse.json({ error: "server_error" }, { status: 500 });

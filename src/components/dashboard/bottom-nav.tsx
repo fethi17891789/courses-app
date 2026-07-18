@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 
@@ -139,9 +140,13 @@ type NavPalette = {
   container: string;
   activeBg: string;
   inactiveBg: string;
-  activeShadow: string;
-  pressedShadow: string;
+  // Actif AU REPOS : bouton colore mais RELEVE (ombre 3D dessous).
+  activeRestShadow: string;
+  // Actif ENFONCE (pendant l'appui) : ombre ecrasee.
+  activePressedShadow: string;
+  // Inactif au repos (releve) / enfonce (ecrase).
   restShadow: string;
+  pressedShadow: string;
 };
 
 const palettes: Record<string, NavPalette> = {
@@ -149,25 +154,28 @@ const palettes: Record<string, NavPalette> = {
     container: "0 5px 0 #ddd6fe, 0 16px 48px -12px rgba(30,27,75,0.15)",
     activeBg: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
     inactiveBg: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-    activeShadow: "0 0px 0 #5b21b6, 0 1px 3px -1px rgba(124,58,237,0.5)",
-    pressedShadow: "0 0px 0 #c4b5fd, 0 1px 3px -1px rgba(124,58,237,0.2)",
+    activeRestShadow: "0 3px 0 #5b21b6, 0 6px 16px -4px rgba(124,58,237,0.4)",
+    activePressedShadow: "0 0px 0 #5b21b6, 0 1px 3px -1px rgba(124,58,237,0.5)",
     restShadow: "0 3px 0 #ddd6fe, 0 6px 16px -4px rgba(124,58,237,0.15)",
+    pressedShadow: "0 0px 0 #c4b5fd, 0 1px 3px -1px rgba(124,58,237,0.2)",
   },
   eleve: {
     container: "0 5px 0 #bbf7d0, 0 16px 48px -12px rgba(34,197,94,0.15)",
     activeBg: "linear-gradient(135deg, #4ade80, #16a34a)",
     inactiveBg: "linear-gradient(135deg, #f0fdf4, #dcfce7)",
-    activeShadow: "0 0px 0 #15803d, 0 1px 3px -1px rgba(34,197,94,0.5)",
-    pressedShadow: "0 0px 0 #86efac, 0 1px 3px -1px rgba(34,197,94,0.2)",
+    activeRestShadow: "0 3px 0 #15803d, 0 6px 16px -4px rgba(34,197,94,0.4)",
+    activePressedShadow: "0 0px 0 #15803d, 0 1px 3px -1px rgba(34,197,94,0.5)",
     restShadow: "0 3px 0 #bbf7d0, 0 6px 16px -4px rgba(34,197,94,0.15)",
+    pressedShadow: "0 0px 0 #86efac, 0 1px 3px -1px rgba(34,197,94,0.2)",
   },
   parent: {
     container: "0 5px 0 #fed7aa, 0 16px 48px -12px rgba(249,115,22,0.15)",
     activeBg: "linear-gradient(135deg, #fb923c, #ea580c)",
     inactiveBg: "linear-gradient(135deg, #fff7ed, #ffedd5)",
-    activeShadow: "0 0px 0 #c2410c, 0 1px 3px -1px rgba(249,115,22,0.5)",
-    pressedShadow: "0 0px 0 #fdba74, 0 1px 3px -1px rgba(249,115,22,0.2)",
+    activeRestShadow: "0 3px 0 #c2410c, 0 6px 16px -4px rgba(249,115,22,0.4)",
+    activePressedShadow: "0 0px 0 #c2410c, 0 1px 3px -1px rgba(249,115,22,0.5)",
     restShadow: "0 3px 0 #fed7aa, 0 6px 16px -4px rgba(249,115,22,0.15)",
+    pressedShadow: "0 0px 0 #fdba74, 0 1px 3px -1px rgba(249,115,22,0.2)",
   },
 };
 
@@ -179,6 +187,7 @@ export function BottomNav({
   role?: string;
 }) {
   const [pressedId, setPressedId] = useState<string | null>(null);
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const router = useRouter();
   const locale = useLocale();
@@ -193,6 +202,12 @@ export function BottomNav({
     }
   }, [locale, router, items]);
 
+  useEffect(() => {
+    if (navigatingTo && active === navigatingTo) {
+      setNavigatingTo(null);
+    }
+  }, [active, navigatingTo]);
+
   // Unread announcements badge (students only).
   useEffect(() => {
     if (role !== "eleve") return;
@@ -204,6 +219,7 @@ export function BottomNav({
 
   function handleNavigate(item: NavItem) {
     if (item.id === active) return;
+    setNavigatingTo(item.id);
     router.push(`/${locale}${item.route}`);
   }
 
@@ -215,7 +231,9 @@ export function BottomNav({
       >
         {items.map((item) => {
           const isActive = active === item.id;
+          const isNavigating = navigatingTo === item.id;
           const isPressed = pressedId === item.id;
+          const isDown = isActive || isNavigating;
 
           const badge = item.id === "announcements" && unread > 0;
 
@@ -232,30 +250,39 @@ export function BottomNav({
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
-            <button
-              onPointerDown={() => {
-                setPressedId(item.id);
+            <motion.button
+              onPointerDown={() => setPressedId(item.id)}
+              onPointerUp={() => {
+                setPressedId(null);
                 handleNavigate(item);
               }}
-              onPointerUp={() => setPressedId(null)}
               onPointerLeave={() => setPressedId(null)}
-              className="relative overflow-hidden flex h-12 w-12 items-center justify-center rounded-xl transition-[transform,box-shadow] duration-[80ms] ease-out focus-visible:outline-none"
-              style={{
-                background: isActive ? palette.activeBg : palette.inactiveBg,
-                color: isActive ? "#ffffff" : "#1e1b4b80",
-                transform: `translateY(${
-                  isActive || isPressed ? 3 : 0
-                }px)`,
-                boxShadow:
-                  isActive || isPressed
-                    ? isActive
-                      ? palette.activeShadow
-                      : palette.pressedShadow
+              onPointerCancel={() => setPressedId(null)}
+              className="relative overflow-hidden flex h-12 w-12 items-center justify-center rounded-xl focus-visible:outline-none"
+              animate={{
+                y: isDown
+                  ? isPressed ? 5 : 4
+                  : isPressed ? 4 : 0,
+                scale: isDown ? 0.92 : isPressed ? 0.95 : 1,
+                boxShadow: isDown
+                  ? palette.activePressedShadow
+                  : isPressed
+                    ? palette.pressedShadow
                     : palette.restShadow,
+              }}
+              transition={{
+                y: { type: "spring", stiffness: 400, damping: 12, mass: 0.8 },
+                scale: { type: "spring", stiffness: 400, damping: 12, mass: 0.8 },
+                boxShadow: { duration: 0.15 },
+              }}
+              style={{
+                background: isDown ? palette.activeBg : palette.inactiveBg,
+                color: isDown ? "#ffffff" : "#1e1b4b80",
+                transition: "background 250ms ease-out, color 250ms ease-out",
               }}
             >
               {item.icon()}
-            </button>
+            </motion.button>
             </div>
           );
         })}

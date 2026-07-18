@@ -33,6 +33,7 @@ export type TodaySession = {
   payment_mode: string;
   completed: boolean;
   called_student_ids: string[];
+  teacher_id: string;
   students: {
     id: string;
     full_name: string;

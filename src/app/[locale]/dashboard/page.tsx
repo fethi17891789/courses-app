@@ -29,5 +29,7 @@ export default async function DashboardPage({
     return <ParentDashboard user={user} />;
   }
 
+  // Le directeur d'ecole reste un prof normal (il enseigne aussi). Son
+  // tableau de bord est identique ; la carte "Ecole" est ajoutee cote client.
   return <DashboardContent user={user} />;
 }

@@ -5,7 +5,7 @@ import { getCache, setCache } from "@/lib/page-cache";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { useSchoolTeachers, TeacherFilter } from "@/components/dashboard/teacher-scope";
 import { levels, hasSections, getLevelDef, categoryLabels, type LevelCategory } from "@/lib/levels";
 import { ListSkeleton } from "@/components/ui/skeleton";
 import type { Student } from "@/types/students";
@@ -138,11 +138,13 @@ function ToggleGroup({
 function StudentCard({
   student,
   onTap,
+  onPrefetch,
   wiggling,
   onLongPress,
 }: {
   student: Student;
   onTap: () => void;
+  onPrefetch?: () => void;
   wiggling: boolean;
   onLongPress: () => void;
 }) {
@@ -157,12 +159,13 @@ function StudentCard({
   const handlePointerDown = useCallback(() => {
     didLongPress.current = false;
     setPressed(true);
+    onPrefetch?.();
     timerRef.current = setTimeout(() => {
       didLongPress.current = true;
       if (navigator.vibrate) navigator.vibrate(10);
       onLongPress();
     }, 500);
-  }, [onLongPress]);
+  }, [onLongPress, onPrefetch]);
 
   const handlePointerUp = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -240,6 +243,14 @@ export function StudentsList() {
   const [students, setStudents] = useState<Student[]>(() => getCache<Student[]>("students") ?? []);
   const [loading, setLoading] = useState(() => getCache<Student[]>("students") === null);
   const [search, setSearch] = useState("");
+
+  // Vue directeur : profs de l'ecole (badge + filtre). Vide pour un prof normal.
+  const teachers = useSchoolTeachers();
+  const isDirector = teachers.length > 1;
+  const [teacherFilter, setTeacherFilter] = useState<string | null>(null);
+  const visibleStudents = teacherFilter
+    ? students.filter((s) => (s.teacher_ids ?? [s.teacher_id]).includes(teacherFilter))
+    : students;
   const [addPressed, setAddPressed] = useState(false);
   const [createPressed, setCreatePressed] = useState(false);
 
@@ -482,6 +493,12 @@ export function StudentsList() {
         />
       </motion.div>
 
+      {isDirector && (
+        <motion.div variants={fadeUp} className="px-5 pt-3">
+          <TeacherFilter teachers={teachers} value={teacherFilter} onChange={setTeacherFilter} />
+        </motion.div>
+      )}
+
       <div
         className="flex-1 overflow-y-auto px-5 pt-4 pb-2 scrollbar-hide"
         onClick={() => { if (wiggleId) setWiggleId(null); }}
@@ -551,11 +568,12 @@ export function StudentsList() {
           </motion.div>
         ) : (
           <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            {students.map((student) => (
+            {visibleStudents.map((student) => (
               <div key={student.id} className="relative">
                 <StudentCard
                   student={student}
                   onTap={() => router.push(`/${locale}/students/${student.id}`)}
+                  onPrefetch={() => router.prefetch(`/${locale}/students/${student.id}`)}
                   wiggling={wiggleId === student.id}
                   onLongPress={() => setWiggleId(student.id)}
                 />
@@ -966,7 +984,6 @@ export function StudentsList() {
         )}
       </AnimatePresence>
 
-      <BottomNav active="students" />
     </motion.main>
   );
 }

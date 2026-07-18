@@ -4,6 +4,7 @@ import { routing } from "@/i18n/routing";
 import { PremiumGuard } from "@/components/auth/premium-guard";
 import { ThemeColorUpdater } from "@/components/pwa/theme-color-updater";
 import { OfflineBanner } from "@/components/pwa/offline-banner";
+import { PersistentNav } from "@/components/dashboard/persistent-nav";
 
 export default async function LocaleLayout({
   children,
@@ -28,6 +29,7 @@ export default async function LocaleLayout({
       <PremiumGuard />
       <div dir={dir} className={`min-h-dvh flex flex-col ${locale === "ar" ? "font-[family-name:var(--font-arabic)]" : "font-[family-name:var(--font-sans)]"}`}>
         {children}
+        <PersistentNav />
       </div>
     </NextIntlClientProvider>
   );

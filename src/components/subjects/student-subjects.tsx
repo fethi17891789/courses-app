@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from "next-intl";
 import dynamic from "next/dynamic";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { StudentSubject } from "@/types/subjects";
 
 const PdfViewer = dynamic(
@@ -151,7 +150,6 @@ export function StudentSubjects() {
         )}
       </AnimatePresence>
 
-      <BottomNav active="subjects" role="eleve" />
     </motion.main>
   );
 }

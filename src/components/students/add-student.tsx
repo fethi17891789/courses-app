@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { levels, hasSections, getLevelDef, categoryLabels, type LevelCategory } from "@/lib/levels";
 import type { Group } from "@/types/groups";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -534,7 +533,6 @@ export function AddStudent({ preselectedGroupId }: { preselectedGroupId?: string
         </motion.div>
       </div>
       <div className="h-24 shrink-0" />
-      <BottomNav active="students" />
     </motion.main>
   );
 }

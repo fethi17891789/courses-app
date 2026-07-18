@@ -4,7 +4,6 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { Quiz } from "@/types/quiz";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -333,7 +332,6 @@ export function QuizList({ quizzes: initial }: { quizzes: Quiz[] }) {
         )}
       </AnimatePresence>
 
-      <BottomNav active="quiz" />
     </motion.main>
   );
 }

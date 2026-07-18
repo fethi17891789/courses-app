@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 import { validateString, validateNumber, validateSchedules, firstError } from "@/lib/validate";
 import { hasInternalConflict, findCrossGroupConflict } from "@/lib/schedule-conflict";
@@ -14,10 +16,16 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { data: groups, error } = await supabase
+  // Directeur d'ecole : lecture agregee de tous ses profs (service-role).
+  // Prof normal : ses propres groupes via RLS.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: groups, error } = await db
     .from("groups")
     .select("*, group_members(count)")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .order("created_at", { ascending: false });
 
   if (error) {

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 import { validateString } from "@/lib/validate";
 import { SUBJECTS_BUCKET } from "@/lib/subjects";
@@ -57,18 +58,25 @@ export async function PATCH(
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
-    const { data: ownGroups } = await supabase
+    // Directeur : peut cibler tout groupe de l'ecole (via service-role, la RLS
+    // de subject_groups exigeant sinon que le groupe lui appartienne). Prof
+    // salarie : ses propres groupes uniquement.
+    const scope = await getSchoolScope(user.id);
+    const scopeTeacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+    const writeDb = scope.isDirector ? getSupabaseAdmin() : supabase;
+
+    const { data: ownGroups } = await writeDb
       .from("groups")
       .select("id")
-      .eq("teacher_id", user.id)
+      .in("teacher_id", scopeTeacherIds)
       .in("id", body.group_ids);
     const validGroupIds = (ownGroups || []).map((g) => g.id);
     if (validGroupIds.length === 0) {
       return NextResponse.json({ error: "no_groups" }, { status: 400 });
     }
 
-    await supabase.from("subject_groups").delete().eq("subject_id", id);
-    await supabase.from("subject_groups").insert(
+    await writeDb.from("subject_groups").delete().eq("subject_id", id);
+    await writeDb.from("subject_groups").insert(
       validGroupIds.map((gid) => ({ subject_id: id, group_id: gid })),
     );
   }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { useSchoolTeachers, TeacherFilter, TeacherBadge, type SchoolTeacher } from "@/components/dashboard/teacher-scope";
 import { getLevelDef, levels, hasSections, categoryLabels, type LevelCategory } from "@/lib/levels";
 import type { Group, PaymentMode, Schedule } from "@/types/groups";
 
@@ -127,11 +127,13 @@ function ToggleGroup({
 
 function GroupCard({
   group,
+  teacher,
   onTap,
   wiggling,
   onLongPress,
 }: {
   group: Group;
+  teacher?: SchoolTeacher | null;
   onTap: () => void;
   wiggling: boolean;
   onLongPress: () => void;
@@ -213,6 +215,7 @@ function GroupCard({
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
+        {teacher && <TeacherBadge name={teacher.name} self={teacher.is_self} />}
         <span className="rounded-lg bg-[#f0ecff] px-2 py-0.5 text-[10px] font-bold text-[#7c3aed]">
           {group.price} DA
         </span>
@@ -248,6 +251,21 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
   const [createPressed, setCreatePressed] = useState(false);
 
   const [groups, setGroups] = useState(initialGroups);
+  const [teacherFilter, setTeacherFilter] = useState<string | null>(null);
+
+  // Noms des profs charges cote client (directeur only) -> la page ne bloque
+  // pas dessus, elle s'affiche instantanement et les badges arrivent apres.
+  const teachers = useSchoolTeachers();
+  const isDirector = teachers.length > 1;
+
+  // Precharge la fiche de chaque groupe -> ouverture instantanee au clic.
+  useEffect(() => {
+    for (const g of groups) router.prefetch(`/${locale}/groups/${g.id}`);
+  }, [groups, router, locale]);
+  const teacherMap = new Map(teachers.map((tc) => [tc.id, tc]));
+  const visibleGroups = teacherFilter
+    ? groups.filter((g) => g.teacher_id === teacherFilter)
+    : groups;
   const [wiggleId, setWiggleId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -368,6 +386,12 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
         </button>
       </motion.div>
 
+      {isDirector && (
+        <motion.div variants={fadeUp} className="px-5 pt-3">
+          <TeacherFilter teachers={teachers} value={teacherFilter} onChange={setTeacherFilter} />
+        </motion.div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-2 scrollbar-hide">
         {groups.length === 0 ? (
           <motion.div
@@ -415,10 +439,11 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
           </motion.div>
         ) : (
           <motion.div variants={fadeUp} className="flex flex-col gap-3">
-            {groups.map((group) => (
+            {visibleGroups.map((group) => (
               <div key={group.id} className="relative">
                 <GroupCard
                   group={group}
+                  teacher={isDirector ? teacherMap.get(group.teacher_id) : null}
                   onTap={() => router.push(`/${locale}/groups/${group.id}`)}
                   wiggling={wiggleId === group.id}
                   onLongPress={() => setWiggleId(group.id)}
@@ -808,7 +833,6 @@ export function GroupsList({ groups: initialGroups }: { groups: Group[] }) {
         )}
       </AnimatePresence>
 
-      <BottomNav active="groups" />
     </motion.main>
   );
 }

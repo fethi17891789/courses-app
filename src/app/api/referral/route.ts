@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { generateReferralCode, REFERRAL_COOLDOWN_DAYS } from "@/lib/referral";
+import { hashKey } from "@/lib/hash-key";
 
 function getSupabaseAdmin() {
   return createAdmin(
@@ -25,6 +26,36 @@ export async function GET() {
   }
 
   const admin = getSupabaseAdmin();
+
+  // Prof salarie (ecole) : aucun acces au parrainage ni a l'invitation
+  const { data: membership } = await admin
+    .from("organization_members")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  const { data: ownedOrg } = await admin
+    .from("organizations")
+    .select("id")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (membership && !ownedOrg) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  // Filleul : peut inviter des profs (ECO-) s'il est directeur, mais pas parrainer
+  const referralKeyHash = hashKey(`referral-${user.id}`);
+  const { data: activeKey } = await admin
+    .from("activation_keys")
+    .select("key")
+    .eq("used_by", user.id)
+    .order("used_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const canRefer = !(activeKey && activeKey.key === referralKeyHash);
 
   let { data: codeRow } = await admin
     .from("referral_codes")
@@ -69,5 +100,6 @@ export async function GET() {
     count: referrals?.length ?? 0,
     referrals: referrals ?? [],
     next_available_at: nextAvailableAt,
+    can_refer: canRefer,
   });
 }

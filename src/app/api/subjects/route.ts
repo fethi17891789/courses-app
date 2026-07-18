@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 import { validateString } from "@/lib/validate";
 import { MAX_SUBJECT_SIZE, SUBJECTS_BUCKET } from "@/lib/subjects";
@@ -86,11 +87,20 @@ export async function POST(request: Request) {
     await admin.storage.from(SUBJECTS_BUCKET).remove([file_path]);
   }
 
-  // Only keep groups that actually belong to this teacher.
-  const { data: ownGroups } = await supabase
+  // Directeur : peut cibler tout groupe de l'ecole (le PDF reste son dossier).
+  // Prof salarie : uniquement ses propres groupes. On ecrit via service-role
+  // pour le directeur, car la RLS de subject_groups exige que le groupe lui
+  // appartienne (or ce sont ceux d'autres profs).
+  const scope = await getSchoolScope(user.id);
+  const scopeTeacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+  const writeDb = scope.isDirector ? admin : supabase;
+
+  // Only keep groups that belong to the scope (own groups, or the whole school
+  // for a director).
+  const { data: ownGroups } = await writeDb
     .from("groups")
     .select("id")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", scopeTeacherIds)
     .in("id", group_ids);
 
   const validGroupIds = (ownGroups || []).map((g) => g.id);
@@ -104,7 +114,7 @@ export async function POST(request: Request) {
     user.email?.split("@")[0] ||
     "";
 
-  const { data: subject, error } = await supabase
+  const { data: subject, error } = await writeDb
     .from("subjects")
     .insert({
       teacher_id: user.id,
@@ -125,13 +135,13 @@ export async function POST(request: Request) {
     subject_id: subject.id,
     group_id: gid,
   }));
-  const { error: linkError } = await supabase
+  const { error: linkError } = await writeDb
     .from("subject_groups")
     .insert(links);
 
   if (linkError) {
     // Roll back the orphan subject and its file.
-    await supabase.from("subjects").delete().eq("id", subject.id);
+    await writeDb.from("subjects").delete().eq("id", subject.id);
     await cleanupFile();
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }

@@ -30,28 +30,73 @@ export async function GET() {
     .eq("used_by", user.id)
     .order("used_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (!keyRow) {
-    return NextResponse.json({ premium: false, reason: "expired" });
-  }
+  // Ce compte possede-t-il une ecole (directeur) ?
+  const { data: ownedOrg } = await admin
+    .from("organizations")
+    .select("seat_limit, name")
+    .eq("owner_id", user.id)
+    .maybeSingle();
 
-  if (keyRow.expires_at && new Date(keyRow.expires_at) < new Date()) {
+  const keyActive =
+    keyRow && (!keyRow.expires_at || new Date(keyRow.expires_at) >= new Date());
+
+  if (keyActive) {
+    const plan = keyRow!.plan || "starter";
     return NextResponse.json({
-      premium: false,
-      reason: "expired",
-      expired_at: keyRow.expires_at,
+      premium: true,
+      plan,
+      role_kind: ownedOrg ? "director" : "prof",
+      seat_limit: ownedOrg?.seat_limit ?? null,
+      max_students: plan === "starter" ? 45 : null,
+      key: keyRow!.key,
+      expires_at: keyRow!.expires_at,
+      activated_at: keyRow!.used_at,
     });
   }
 
-  const plan = keyRow.plan || "starter";
+  // Pas de cle active : peut-etre un prof d'ecole -> il herite de
+  // l'abonnement du directeur de son ecole.
+  const { data: membership } = await admin
+    .from("organization_members")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (membership) {
+    const { data: org } = await admin
+      .from("organizations")
+      .select("owner_id, name")
+      .eq("id", membership.org_id)
+      .maybeSingle();
+    if (org) {
+      const { data: dirKey } = await admin
+        .from("activation_keys")
+        .select("expires_at")
+        .eq("used_by", org.owner_id)
+        .order("used_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const dirActive =
+        dirKey && (!dirKey.expires_at || new Date(dirKey.expires_at) >= new Date());
+      if (dirActive) {
+        return NextResponse.json({
+          premium: true,
+          plan: "pro",
+          role_kind: "school_teacher",
+          school_name: org.name,
+          max_students: null,
+          expires_at: dirKey!.expires_at,
+        });
+      }
+    }
+  }
 
   return NextResponse.json({
-    premium: true,
-    plan,
-    max_students: plan === "starter" ? 45 : null,
-    key: keyRow.key,
-    expires_at: keyRow.expires_at,
-    activated_at: keyRow.used_at,
+    premium: false,
+    reason: "expired",
+    expired_at: keyRow?.expires_at ?? null,
   });
 }

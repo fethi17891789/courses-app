@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -486,7 +485,6 @@ export function StudentDetail({ studentId }: { studentId: string }) {
       </AnimatePresence>
 
       <div className="h-24 shrink-0" />
-      <BottomNav active="students" />
     </motion.main>
   );
 }

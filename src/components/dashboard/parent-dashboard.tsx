@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { User } from "@supabase/supabase-js";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -151,7 +150,6 @@ export function ParentDashboard({ user }: { user: User }) {
         </motion.div>
       </div>
 
-      <BottomNav active="home" role="parent" />
     </motion.main>
   );
 }

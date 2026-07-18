@@ -11,4 +11,7 @@ export type Student = {
   status: "active" | "inactive";
   created_at: string;
   group_count?: number;
+  // Profs associes a l'eleve (proprietaire + profs des groupes ou il est
+  // inscrit). Sert au filtre "par prof" cote directeur.
+  teacher_ids?: string[];
 };

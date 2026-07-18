@@ -5,8 +5,8 @@ import { getCache, setCache } from "@/lib/page-cache";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { SwipeCard } from "@/components/attendance/swipe-card";
+import { useSchoolTeachers, TeacherBadge } from "@/components/dashboard/teacher-scope";
 import { ListSkeleton } from "@/components/ui/skeleton";
 import type { TodaySession } from "@/types/attendance";
 
@@ -46,6 +46,11 @@ export function AttendanceScreen() {
 
   const [sessions, setSessions] = useState<TodaySession[]>(() => getCache<TodaySession[]>("attendance:today") ?? []);
   const [loading, setLoading] = useState(() => getCache<TodaySession[]>("attendance:today") === null);
+
+  // Vue directeur : badge du prof qui enseigne chaque seance.
+  const teachers = useSchoolTeachers();
+  const isDirector = teachers.length > 1;
+  const teacherMap = new Map(teachers.map((tc) => [tc.id, tc]));
   const [activeSession, setActiveSession] = useState<TodaySession | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [results, setResults] = useState<SwipeResult[]>([]);
@@ -196,6 +201,7 @@ export function AttendanceScreen() {
               {sessions.map((session, i) => {
                 const empty = session.students.length === 0;
                 const disabled = empty || session.completed;
+                const owner = isDirector ? teacherMap.get(session.teacher_id) : null;
                 return (
                 <button
                   key={`${session.group_id}-${session.day}-${i}`}
@@ -227,6 +233,11 @@ export function AttendanceScreen() {
                       <p className="text-[11px] font-semibold text-[#1e1b4b]/40">
                         {tGroups(`day${session.day}`)} {session.start_time} - {session.end_time}
                       </p>
+                      {owner && (
+                        <div className="mt-1.5">
+                          <TeacherBadge name={owner.name} self={owner.is_self} />
+                        </div>
+                      )}
                     </div>
                     <span className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${disabled ? "bg-zinc-100 text-zinc-400" : "bg-[#f0ecff] text-[#7c3aed]"}`}>
                       {session.completed ? t("done") : t("students", { count: session.students.length })}
@@ -374,7 +385,6 @@ export function AttendanceScreen() {
       </div>
 
       <div className="h-24 shrink-0" />
-      <BottomNav active="home" />
     </motion.main>
   );
 }

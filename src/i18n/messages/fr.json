@@ -70,7 +70,12 @@
     "redirecting": "Redirection...",
     "activationKeyOrReferral": "Cle d'activation ou code parrain",
     "errorReferralCooldown": "Ce code parrain a deja ete utilise recemment. Reessayez dans quelques jours.",
-    "referralApplied": "Code parrain detecte : 2 semaines offertes a l'inscription"
+    "referralApplied": "Code parrain detecte : 2 semaines offertes a l'inscription",
+    "errorSchoolFull": "Cette ecole a atteint son nombre maximum de profs. Contactez le directeur."
+  },
+  "director": {
+    "me": "Moi",
+    "allTeachers": "Tous"
   },
   "dashboard": {
     "welcome": "Bienvenue, {name}",
@@ -540,6 +545,16 @@
     "planPro": "Pro",
     "planStarterDesc": "45 eleves maximum",
     "planProDesc": "Eleves illimites",
+    "planSchoolStarter": "Ecole Starter",
+    "planSchoolPro": "Ecole Pro",
+    "planSchoolDirectorDesc": "Jusqu'a {seats} profs - eleves illimites",
+    "planSchoolTeacher": "Compte ecole",
+    "planSchoolTeacherDesc": "Rattache a {school} - eleves illimites",
+    "planSchoolStarter": "Ecole Starter",
+    "planSchoolPro": "Ecole Pro",
+    "planSchoolDesc": "Jusqu'a {seats} profs",
+    "schoolTeacherPlan": "Compte ecole",
+    "schoolTeacherDesc": "Rattache a {school}",
     "expiresAt": "Expire le {date}",
     "subscriptionPaused": "Abonnement en pause (compteur gele)",
     "pauseSubscription": "Mettre en pause (ete)",
@@ -567,6 +582,12 @@
     "feedbackTooShort": "Quelques mots de plus ? (10 caracteres minimum)",
     "feedbackTooMany": "Trop de messages envoyes. Reessaye plus tard.",
     "referralShareLink": "Partager le lien d'invitation",
-    "referralShareHint": "Rejoins-moi sur Courses, l'appli de gestion de cours de soutien. Inscris-toi avec mon code, on gagne chacun 2 semaines gratuites :"
+    "referralShareHint": "Rejoins-moi sur Courses, l'appli de gestion de cours de soutien. Inscris-toi avec mon code, on gagne chacun 2 semaines gratuites :",
+    "schoolInviteSection": "Inviter un enseignant",
+    "schoolInviteTitle": "Ajouter un prof a votre ecole",
+    "schoolInviteDesc": "Il rejoint votre ecole et beneficie de votre abonnement. Aucune cle necessaire de son cote.",
+    "schoolInviteCode": "Code d'invitation ecole",
+    "schoolInviteShareLink": "Partager le lien d'invitation",
+    "schoolInviteShareHint": "Rejoins mon ecole sur Courses ! Inscris-toi avec ce code pour devenir enseignant dans mon etablissement :"
   }
 }

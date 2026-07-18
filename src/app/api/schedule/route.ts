@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -11,6 +13,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // Directeur : emploi du temps UNIFIE de toute l'ecole. Prof salarie : le sien.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
   const { searchParams } = new URL(request.url);
   const dateParam = searchParams.get("date");
 
@@ -22,10 +29,10 @@ export async function GET(request: Request) {
   const targetYear = targetDate.getFullYear();
   const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
 
-  const { data: groups, error } = await supabase
+  const { data: groups, error } = await db
     .from("groups")
-    .select("id, name, level, section, schedules, price, payment_mode, refund_absences, group_members(count)")
-    .eq("teacher_id", user.id);
+    .select("id, name, level, section, schedules, price, payment_mode, refund_absences, teacher_id, group_members(count)")
+    .in("teacher_id", teacherIds);
 
   if (error) {
     return NextResponse.json({ error: "server_error" }, { status: 500 });
@@ -82,6 +89,7 @@ export async function GET(request: Request) {
         payment_mode: group.payment_mode,
         member_count: memberCount,
         is_payment_session: isPaymentSession,
+        teacher_id: group.teacher_id,
       });
     }
   }

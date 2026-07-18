@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
 import { getHoliday } from "@/lib/holidays";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -265,7 +264,6 @@ export function StudentScheduleScreen() {
       </div>
 
       <div className="h-24 shrink-0" />
-      <BottomNav active="home" role="eleve" />
     </motion.main>
   );
 }

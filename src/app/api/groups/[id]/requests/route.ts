@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 
 
@@ -16,18 +18,22 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { data: group } = await supabase
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: group } = await db
     .from("groups")
     .select("id")
     .eq("id", groupId)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("join_requests")
     .select("*")
     .eq("group_id", groupId)
@@ -55,6 +61,10 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
   const body = await request.json();
   const { requestId, action } = body;
 
@@ -62,18 +72,21 @@ export async function PATCH(
     return NextResponse.json({ error: "invalid" }, { status: 400 });
   }
 
-  const { data: group } = await supabase
+  const { data: group } = await db
     .from("groups")
-    .select("id, level, section")
+    .select("id, level, section, teacher_id")
     .eq("id", groupId)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const { data: req } = await supabase
+  // L'eleve cree est rattache au prof proprietaire du groupe (pas au directeur).
+  const ownerId = group.teacher_id;
+
+  const { data: req } = await db
     .from("join_requests")
     .select("*")
     .eq("id", requestId)
@@ -85,7 +98,7 @@ export async function PATCH(
     return NextResponse.json({ error: "request_not_found" }, { status: 404 });
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await db
     .from("join_requests")
     .update({
       status: action === "accept" ? "accepted" : "rejected",
@@ -98,12 +111,14 @@ export async function PATCH(
   }
 
   if (action === "accept") {
+    // Limite gratuite (45 eleves) : uniquement pour un prof inde en starter.
+    // Un compte ecole (directeur ou prof salarie) n'est jamais limite.
     const plan = user.user_metadata?.plan || "starter";
-    if (plan === "starter") {
-      const { count } = await supabase
+    if (!scope.isDirector && plan === "starter") {
+      const { count } = await db
         .from("students")
         .select("id", { count: "exact", head: true })
-        .eq("teacher_id", user.id);
+        .eq("teacher_id", ownerId);
 
       if ((count ?? 0) >= 45) {
         return NextResponse.json({ error: "student_limit_reached" }, { status: 403 });
@@ -118,10 +133,10 @@ export async function PATCH(
 
     const authUserId = req.student_id;
 
-    let studentRecord = await supabase
+    const studentRecord = await db
       .from("students")
       .select("id")
-      .eq("teacher_id", user.id)
+      .eq("teacher_id", ownerId)
       .eq("full_name", studentName)
       .single();
 
@@ -129,15 +144,15 @@ export async function PATCH(
 
     if (studentRecord.data) {
       studentId = studentRecord.data.id;
-      await supabase
+      await db
         .from("students")
         .update({ auth_user_id: authUserId })
         .eq("id", studentId);
     } else {
-      const { data: newStudent, error: studentError } = await supabase
+      const { data: newStudent, error: studentError } = await db
         .from("students")
         .insert({
-          teacher_id: user.id,
+          teacher_id: ownerId,
           full_name: studentName,
           phone: studentPhone,
           parent_phone: studentParentPhone,
@@ -159,7 +174,7 @@ export async function PATCH(
       ? req.selected_schedules
       : null;
 
-    const { error: memberError } = await supabase
+    const { error: memberError } = await db
       .from("group_members")
       .insert({
         group_id: groupId,

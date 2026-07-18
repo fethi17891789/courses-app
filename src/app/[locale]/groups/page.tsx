@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { redirect } from "next/navigation";
 import { GroupsList } from "@/components/groups/groups-list";
 import type { Group } from "@/types/groups";
@@ -22,10 +24,16 @@ export default async function GroupsPage({
     redirect(`/${locale}/dashboard`);
   }
 
-  const { data: groups } = await supabase
+  // Directeur : agrege les groupes de toute l'ecole (service-role). Prof
+  // normal : ses propres groupes via RLS.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: groups } = await db
     .from("groups")
     .select("*, group_members(count)")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .order("created_at", { ascending: false });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

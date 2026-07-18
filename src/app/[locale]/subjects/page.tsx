@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { redirect } from "next/navigation";
 import { SubjectsList } from "@/components/subjects/subjects-list";
 import { StudentSubjects } from "@/components/subjects/student-subjects";
@@ -30,10 +32,16 @@ export default async function SubjectsPage({
     redirect(`/${locale}/dashboard`);
   }
 
-  const { data: rawGroups } = await supabase
+  // Directeur : peut cibler tout groupe de l'ecole (picker = groupes ecole).
+  // Prof salarie : uniquement ses propres groupes.
+  const scope = await getSchoolScope(user.id);
+  const groupsDb = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const groupTeacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: rawGroups } = await groupsDb
     .from("groups")
     .select("id, name, level, section")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", groupTeacherIds)
     .order("created_at", { ascending: false });
 
   const groups = (rawGroups || []) as Pick<

@@ -6,13 +6,24 @@ import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { PageTransition } from "@/components/auth/page-transition";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { ReferralCard } from "@/components/settings/referral-card";
 import { FeedbackCard } from "@/components/settings/feedback-card";
 import type { User } from "@supabase/supabase-js";
 
 type PremiumStatus =
-  | { premium: true; plan: string; max_students: number | null; key: string; expires_at: string | null; activated_at: string | null }
+  | {
+      premium: true;
+      plan: string;
+      max_students: number | null;
+      key?: string;
+      expires_at: string | null;
+      activated_at?: string | null;
+      // Contexte ecole (renvoye par /api/auth/premium)
+      role_kind?: "prof" | "director" | "school_teacher";
+      seat_limit?: number | null;
+      school_name?: string;
+      skip?: boolean;
+    }
   | { premium: false; reason: string };
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -163,7 +174,30 @@ export function SettingsContent({ user, role = "prof", owner = false }: { user: 
 
         {/* Subscription card (prof only) */}
         {isProf && premiumStatus?.premium && (() => {
-          const isPro = premiumStatus.plan === "pro";
+          const roleKind = premiumStatus.role_kind;
+          const isDirector = roleKind === "director";
+          const isSchoolTeacher = roleKind === "school_teacher";
+          const isSchool = isDirector || isSchoolTeacher;
+          // Offre payante / illimitee -> carte "premium" foncee.
+          const isPro = !isSchool && premiumStatus.plan === "pro";
+          const dark = isPro || isSchool;
+          const badgeText = isSchool ? "E" : isPro ? "PRO" : "S";
+          const planTitle = isDirector
+            ? premiumStatus.plan === "school_pro"
+              ? t("planSchoolPro")
+              : t("planSchoolStarter")
+            : isSchoolTeacher
+              ? t("planSchoolTeacher")
+              : isPro
+                ? t("planPro")
+                : t("planStarter");
+          const planDesc = isDirector
+            ? t("planSchoolDirectorDesc", { seats: premiumStatus.seat_limit ?? 0 })
+            : isSchoolTeacher
+              ? t("planSchoolTeacherDesc", { school: premiumStatus.school_name ?? "" })
+              : isPro
+                ? t("planProDesc")
+                : t("planStarterDesc");
           return (
             <motion.div variants={fadeUp} className="mt-5">
               <p className="mb-2 text-[12px] font-bold uppercase text-[#1e1b4b]/30">
@@ -172,15 +206,15 @@ export function SettingsContent({ user, role = "prof", owner = false }: { user: 
               <div
                 className="relative overflow-hidden rounded-2xl p-4"
                 style={{
-                  background: isPro
+                  background: dark
                     ? "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)"
                     : "#ffffff",
-                  boxShadow: isPro
+                  boxShadow: dark
                     ? "0 4px 0 #0f0e2a, 0 8px 24px -4px rgba(30,27,75,0.3)"
                     : "0 3px 0 #e9e5f5, 0 6px 16px -4px rgba(30,27,75,0.08)",
                 }}
               >
-                {isPro && (
+                {dark && (
                   <>
                     <div
                       className="absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-15"
@@ -204,15 +238,15 @@ export function SettingsContent({ user, role = "prof", owner = false }: { user: 
                         : "0 3px 0 #5b21b6, 0 6px 12px -2px rgba(124,58,237,0.3)",
                     }}
                   >
-                    {isPro ? "PRO" : "S"}
+                    {badgeText}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p
                         className="text-[15px] font-extrabold"
-                        style={{ color: isPro ? "#ffffff" : "#1e1b4b" }}
+                        style={{ color: dark ? "#ffffff" : "#1e1b4b" }}
                       >
-                        {isPro ? t("planPro") : t("planStarter")}
+                        {planTitle}
                       </p>
                       {isPro && (
                         <span
@@ -228,21 +262,21 @@ export function SettingsContent({ user, role = "prof", owner = false }: { user: 
                     </div>
                     <p
                       className="mt-0.5 text-[11px] font-semibold"
-                      style={{ color: isPro ? "rgba(255,255,255,0.5)" : "rgba(30,27,75,0.4)" }}
+                      style={{ color: dark ? "rgba(255,255,255,0.5)" : "rgba(30,27,75,0.4)" }}
                     >
-                      {isPro ? t("planProDesc") : t("planStarterDesc")}
+                      {planDesc}
                     </p>
                   </div>
                 </div>
                 <div
                   className="relative mt-3 rounded-lg px-3 py-2"
                   style={{
-                    background: isPro ? "rgba(255,255,255,0.08)" : "rgba(124,58,237,0.05)",
+                    background: dark ? "rgba(255,255,255,0.08)" : "rgba(124,58,237,0.05)",
                   }}
                 >
                   <p
                     className="text-[11px] font-semibold"
-                    style={{ color: isPro ? "rgba(255,255,255,0.6)" : "rgba(30,27,75,0.4)" }}
+                    style={{ color: dark ? "rgba(255,255,255,0.6)" : "rgba(30,27,75,0.4)" }}
                   >
                     {premiumStatus.expires_at
                       ? t("expiresAt", {
@@ -259,8 +293,10 @@ export function SettingsContent({ user, role = "prof", owner = false }: { user: 
           );
         })()}
 
-        {/* Referral (prof only) */}
-        {isProf && <ReferralCard />}
+        {/* Referral (prof only, pas les salaries d'ecole) */}
+        {isProf && !(premiumStatus?.premium && premiumStatus.role_kind === "school_teacher") && (
+          <ReferralCard roleKind={premiumStatus?.premium ? premiumStatus.role_kind : undefined} />
+        )}
 
         {/* Language toggle */}
         <motion.div variants={fadeUp} className="mt-5">
@@ -352,7 +388,6 @@ export function SettingsContent({ user, role = "prof", owner = false }: { user: 
         <div className="h-28" />
       </div>
 
-      <BottomNav active="settings" role={role} />
 
       <PageTransition
         active={transitioning}

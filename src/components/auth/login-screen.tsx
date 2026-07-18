@@ -611,6 +611,7 @@ function LoginScreenInner({
             email_taken: t("errorEmailTaken"),
             invalid_key: t("errorInvalidKey"),
             referral_cooldown: t("errorReferralCooldown"),
+            school_full: t("errorSchoolFull"),
             key_already_used: t("errorKeyUsed"),
             key_expired: t("errorKeyExpired"),
             missing_key: t("errorMissingKey"),

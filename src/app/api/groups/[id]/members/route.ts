@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 import { validateEnrolledSessions } from "@/lib/validate";
 
@@ -17,18 +19,22 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { data: group } = await supabase
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: group } = await db
     .from("groups")
     .select("id")
     .eq("id", groupId)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("group_members")
     .select("*, student:students(full_name, phone, level)")
     .eq("group_id", groupId)
@@ -55,6 +61,9 @@ export async function POST(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
 
   const { student_id, enrolled_sessions } = await request.json();
 
@@ -62,18 +71,18 @@ export async function POST(
     return NextResponse.json({ error: "missing_student_id" }, { status: 400 });
   }
 
-  const { data: group } = await supabase
+  const { data: group } = await db
     .from("groups")
     .select("id, capacity")
     .eq("id", groupId)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const { count } = await supabase
+  const { count } = await db
     .from("group_members")
     .select("*", { count: "exact", head: true })
     .eq("group_id", groupId);
@@ -87,7 +96,7 @@ export async function POST(
     insertData.enrolled_sessions = enrolled_sessions;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("group_members")
     .insert(insertData)
     .select("*, student:students(full_name, phone, level)")
@@ -117,12 +126,15 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
 
-  const { data: group } = await supabase
+  const { data: group } = await db
     .from("groups")
     .select("id")
     .eq("id", groupId)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (!group) {
@@ -140,7 +152,7 @@ export async function PATCH(
     return NextResponse.json({ error: sessionsError }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("group_members")
     .update({
       enrolled_sessions: Array.isArray(enrolled_sessions) && enrolled_sessions.length > 0
@@ -173,6 +185,9 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
 
   const { searchParams } = new URL(request.url);
   const memberId = searchParams.get("memberId");
@@ -181,18 +196,18 @@ export async function DELETE(
     return NextResponse.json({ error: "missing_member_id" }, { status: 400 });
   }
 
-  const { data: group } = await supabase
+  const { data: group } = await db
     .from("groups")
     .select("id")
     .eq("id", groupId)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (!group) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const { data: deleted, error } = await supabase
+  const { data: deleted, error } = await db
     .from("group_members")
     .delete()
     .eq("id", memberId)
@@ -209,14 +224,14 @@ export async function DELETE(
 
   const studentId = deleted[0].student_id;
   if (studentId) {
-    const { data: student } = await supabase
+    const { data: student } = await db
       .from("students")
       .select("auth_user_id")
       .eq("id", studentId)
       .single();
 
     if (student?.auth_user_id) {
-      await supabase
+      await db
         .from("join_requests")
         .delete()
         .eq("group_id", groupId)

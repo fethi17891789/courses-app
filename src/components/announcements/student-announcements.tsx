@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from "next-intl";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import type { StudentAnnouncement } from "@/types/announcements";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -246,7 +245,6 @@ export function StudentAnnouncements() {
         )}
       </AnimatePresence>
 
-      <BottomNav active="announcements" role="eleve" />
     </motion.main>
   );
 }

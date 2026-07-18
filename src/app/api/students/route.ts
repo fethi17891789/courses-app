@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 import { validateString, validatePhone, validateEnrolledSessions, firstError } from "@/lib/validate";
 
@@ -25,31 +26,83 @@ export async function GET(request: Request) {
   const search = searchParams.get("search")?.trim();
   const level = searchParams.get("level")?.trim();
 
-  let query = supabase
-    .from("students")
-    .select("*, group_members(count)")
-    .eq("teacher_id", user.id)
-    .order("created_at", { ascending: false });
+  // Portee : un prof voit les eleves qu'il possede ET ceux inscrits dans l'un de
+  // SES groupes (meme si le dossier eleve appartient a un autre prof de l'ecole).
+  // Un directeur : tous les profs de l'ecole. On calcule aussi, par eleve, la
+  // liste des profs associes (teacher_ids) pour le filtre "par prof".
+  const scope = await getSchoolScope(user.id);
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+  const admin = getSupabaseAdmin();
 
-  if (search && search.length <= 100) {
-    query = query.ilike("full_name", `%${search}%`);
+  // Groupes de la portee + leur proprietaire.
+  const { data: scopeGroups } = await admin
+    .from("groups")
+    .select("id, teacher_id")
+    .in("teacher_id", teacherIds);
+  const groupOwner = new Map((scopeGroups || []).map((g) => [g.id, g.teacher_id]));
+  const groupIds = (scopeGroups || []).map((g) => g.id);
+
+  // Inscriptions dans ces groupes -> par eleve, l'ensemble des profs concernes.
+  const memberProfIds = new Map<string, Set<string>>();
+  if (groupIds.length > 0) {
+    const { data: memberships } = await admin
+      .from("group_members")
+      .select("student_id, group_id")
+      .in("group_id", groupIds);
+    for (const m of memberships || []) {
+      const owner = groupOwner.get(m.group_id);
+      if (!owner) continue;
+      if (!memberProfIds.has(m.student_id)) memberProfIds.set(m.student_id, new Set());
+      memberProfIds.get(m.student_id)!.add(owner);
+    }
   }
+  const memberStudentIds = [...memberProfIds.keys()];
 
-  if (level) {
-    query = query.eq("level", level);
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applyFilters = (q: any) => {
+    if (search && search.length <= 100) q = q.ilike("full_name", `%${search}%`);
+    if (level) q = q.eq("level", level);
+    return q;
+  };
 
-  const { data, error } = await query;
+  // Eleves possedes par la portee + eleves inscrits dans les groupes de la portee.
+  const ownedReq = applyFilters(
+    admin.from("students").select("*, group_members(count)").in("teacher_id", teacherIds),
+  );
+  const sharedReq = memberStudentIds.length
+    ? applyFilters(admin.from("students").select("*, group_members(count)").in("id", memberStudentIds))
+    : Promise.resolve({ data: [] as unknown[] });
 
-  if (error) {
+  const [ownedRes, sharedRes] = await Promise.all([ownedReq, sharedReq]);
+  if ((ownedRes as { error?: unknown }).error) {
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
-  const formatted = (data || []).map((s) => ({
-    ...s,
-    group_count: s.group_members?.[0]?.count ?? 0,
-    group_members: undefined,
-  }));
+  // Fusion + dedoublonnage par id.
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const s of [...(ownedRes.data || []), ...((sharedRes as { data?: unknown[] }).data || [])]) {
+    const st = s as Record<string, unknown>;
+    byId.set(st.id as string, st);
+  }
+
+  const formatted = [...byId.values()]
+    .map((s) => {
+      const ownerId = s.teacher_id as string;
+      const profs = new Set(memberProfIds.get(s.id as string) ?? []);
+      profs.add(ownerId); // le proprietaire du dossier compte aussi
+      return {
+        ...s,
+        teacher_ids: [...profs],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        group_count: (s.group_members as any)?.[0]?.count ?? 0,
+        group_members: undefined,
+      };
+    })
+    .sort((a, b) =>
+      String((b as Record<string, unknown>).created_at).localeCompare(
+        String((a as Record<string, unknown>).created_at),
+      ),
+    );
 
   return NextResponse.json(formatted);
 }

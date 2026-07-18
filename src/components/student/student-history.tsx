@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { ListSkeleton } from "@/components/ui/skeleton";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -218,7 +217,6 @@ export function StudentHistoryScreen() {
       </div>
 
       <div className="h-24 shrink-0" />
-      <BottomNav active="settings" role="eleve" />
     </motion.main>
   );
 }

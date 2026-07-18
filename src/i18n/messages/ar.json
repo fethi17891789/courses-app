@@ -70,7 +70,12 @@
     "redirecting": "جاري التوجيه...",
     "activationKeyOrReferral": "مفتاح التفعيل أو رمز الإحالة",
     "errorReferralCooldown": "تم استخدام رمز الإحالة هذا مؤخرا. حاول مجددا بعد أيام.",
-    "referralApplied": "تم اكتشاف رمز الإحالة : أسبوعان مجانا عند التسجيل"
+    "referralApplied": "تم اكتشاف رمز الإحالة : أسبوعان مجانا عند التسجيل",
+    "errorSchoolFull": "بلغت هذه المدرسة الحد الأقصى لعدد الأساتذة. يرجى الاتصال بالمدير."
+  },
+  "director": {
+    "me": "أنا",
+    "allTeachers": "الكل"
   },
   "dashboard": {
     "welcome": "مرحبا، {name}",
@@ -540,6 +545,16 @@
     "planPro": "Pro",
     "planStarterDesc": "45 طالب كحد أقصى",
     "planProDesc": "طلاب غير محدودين",
+    "planSchoolStarter": "مدرسة Starter",
+    "planSchoolPro": "مدرسة Pro",
+    "planSchoolDirectorDesc": "حتى {seats} أساتذة - طلاب غير محدودين",
+    "planSchoolTeacher": "حساب مدرسة",
+    "planSchoolTeacherDesc": "تابع لـ {school} - طلاب غير محدودين",
+    "planSchoolStarter": "مدرسة Starter",
+    "planSchoolPro": "مدرسة Pro",
+    "planSchoolDesc": "حتى {seats} أساتذة",
+    "schoolTeacherPlan": "حساب مدرسة",
+    "schoolTeacherDesc": "تابع لـ {school}",
     "expiresAt": "ينتهي في {date}",
     "subscriptionPaused": "الاشتراك متوقف مؤقتا (العداد مجمد)",
     "pauseSubscription": "إيقاف مؤقت (الصيف)",
@@ -567,6 +582,12 @@
     "feedbackTooShort": "بضع كلمات إضافية ؟ (10 أحرف على الأقل)",
     "feedbackTooMany": "تم إرسال رسائل كثيرة. حاول لاحقا.",
     "referralShareLink": "مشاركة رابط الدعوة",
-    "referralShareHint": "انضم إلي في تطبيق Courses لتسيير الدروس الخصوصية. سجل برمزي ونربح معا أسبوعين مجانا :"
+    "referralShareHint": "انضم إلي في تطبيق Courses لتسيير الدروس الخصوصية. سجل برمزي ونربح معا أسبوعين مجانا :",
+    "schoolInviteSection": "دعوة أستاذ",
+    "schoolInviteTitle": "اضافة أستاذ لمدرستك",
+    "schoolInviteDesc": "ينضم لمدرستك ويستفيد من اشتراكك. لا يحتاج مفتاح تفعيل خاص.",
+    "schoolInviteCode": "رمز دعوة المدرسة",
+    "schoolInviteShareLink": "مشاركة رابط الدعوة",
+    "schoolInviteShareHint": "انضم لمدرستي في تطبيق Courses ! سجل بهذا الرمز لتصبح أستاذا في مؤسستي :"
   }
 }

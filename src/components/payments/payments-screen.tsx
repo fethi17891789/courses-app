@@ -5,7 +5,7 @@ import { getCache, setCache } from "@/lib/page-cache";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { useSchoolTeachers, TeacherBadge, type SchoolTeacher } from "@/components/dashboard/teacher-scope";
 import { getLevelDef } from "@/lib/levels";
 import { ListSkeleton } from "@/components/ui/skeleton";
 
@@ -35,6 +35,7 @@ type DebtEntry = {
   student_level: string;
   group_id: string;
   group_name: string;
+  teacher_id: string;
   total_due: number;
   total_paid: number;
   debt: number;
@@ -49,11 +50,13 @@ type PaymentsData = {
 
 function DebtCard({
   entry,
+  teacher,
   onTap,
   onLongPress,
   wiggling,
 }: {
   entry: DebtEntry;
+  teacher?: SchoolTeacher | null;
   onTap: () => void;
   onLongPress: () => void;
   wiggling: boolean;
@@ -108,6 +111,11 @@ function DebtCard({
           <p className="text-[10px] font-semibold text-[#1e1b4b]/40">
             {entry.group_name} - {getLevelDef(entry.student_level)?.label || entry.student_level}
           </p>
+          {teacher && (
+            <div className="mt-1">
+              <TeacherBadge name={teacher.name} self={teacher.is_self} />
+            </div>
+          )}
         </div>
         <div className="text-right">
           <p className="text-[14px] font-extrabold text-[#ef4444]">
@@ -132,6 +140,11 @@ export function PaymentsScreen() {
   const [data, setData] = useState<PaymentsData | null>(() => getCache<PaymentsData>("payments:all"));
   const [loading, setLoading] = useState(() => getCache<PaymentsData>("payments:all") === null);
   const [selectedGroup, setSelectedGroup] = useState("");
+
+  // Vue directeur : badge du prof proprietaire de chaque dette.
+  const teachers = useSchoolTeachers();
+  const isDirector = teachers.length > 1;
+  const teacherMap = new Map(teachers.map((tc) => [tc.id, tc]));
   const [activeDebt, setActiveDebt] = useState<DebtEntry | null>(null);
   const [wiggleId, setWiggleId] = useState<string | null>(null);
   const [paying, setPaying] = useState<string | null>(null);
@@ -155,6 +168,12 @@ export function PaymentsScreen() {
   useEffect(() => {
     fetchData();
   }, [selectedGroup]);
+
+  // Precharge la fiche eleve de chaque dette -> ouverture instantanee.
+  useEffect(() => {
+    if (!data) return;
+    for (const d of data.debts) router.prefetch(`/${locale}/students/${d.student_id}`);
+  }, [data, router, locale]);
 
   function handleLongPress(entry: DebtEntry) {
     const key = `${entry.student_id}-${entry.group_id}`;
@@ -276,6 +295,7 @@ export function PaymentsScreen() {
                       <DebtCard
                         key={`${key}-${i}`}
                         entry={d}
+                        teacher={isDirector ? teacherMap.get(d.teacher_id) : null}
                         onTap={() => router.push(`/${locale}/students/${d.student_id}`)}
                         onLongPress={() => handleLongPress(d)}
                         wiggling={wiggleId === key}
@@ -378,7 +398,6 @@ export function PaymentsScreen() {
       </AnimatePresence>
 
       <div className="h-24 shrink-0" />
-      <BottomNav active="payments" />
     </motion.main>
   );
 }

@@ -7,6 +7,7 @@ import {
   REFERRAL_BONUS_DAYS,
   REFERRAL_COOLDOWN_DAYS,
 } from "@/lib/referral";
+import { SCHOOL_SEATS, type SchoolPlan } from "@/lib/admin-pricing";
 
 function getSupabaseAdmin() {
   return createClient(
@@ -86,8 +87,13 @@ export async function POST(request: Request) {
         durationDays = 360;
       }
     } else {
-      // Not an activation key: maybe a referral code from a colleague
-      referralCode = normalizeReferralCode(activationKey);
+      // Not an activation key: maybe a referral/school code.
+      // Prefixe ECO- = invitation ecole ; sinon = parrainage classique.
+      const trimmed = activationKey.trim();
+      const isSchoolInvite = /^ECO-/i.test(trimmed);
+      const rawCode = isSchoolInvite ? trimmed.replace(/^ECO-/i, "") : trimmed;
+
+      referralCode = normalizeReferralCode(rawCode);
       const { data: refRow } = await supabaseAdmin
         .from("referral_codes")
         .select("user_id, code")
@@ -101,15 +107,20 @@ export async function POST(request: Request) {
         );
       }
 
-      // Le code appartient-il a un directeur d'ecole ? Si oui, on rejoint
-      // l'ecole (pas un parrainage classique) : pas de bonus, pas de cooldown.
-      const { data: orgRow } = await supabaseAdmin
-        .from("organizations")
-        .select("id, seat_limit")
-        .eq("owner_id", refRow.user_id)
-        .single();
+      if (isSchoolInvite) {
+        const { data: orgRow } = await supabaseAdmin
+          .from("organizations")
+          .select("id, seat_limit")
+          .eq("owner_id", refRow.user_id)
+          .single();
 
-      if (orgRow) {
+        if (!orgRow) {
+          return NextResponse.json(
+            { error: "invalid_key" },
+            { status: 400 }
+          );
+        }
+
         const { count: seatsUsed } = await supabaseAdmin
           .from("organization_members")
           .select("id", { count: "exact", head: true })
@@ -122,8 +133,8 @@ export async function POST(request: Request) {
 
         joinOrgId = orgRow.id;
         hashedKey = "";
-        durationDays = null; // pas de cle perso : l'acces vient de l'ecole
-        plan = "pro"; // prof d'ecole = eleves illimites, pas de limite
+        durationDays = null;
+        plan = "pro";
       } else {
         // Parrainage classique : un succes par fenetre de cooldown
         const cooldownStart = new Date(
@@ -145,7 +156,15 @@ export async function POST(request: Request) {
         referrerId = refRow.user_id;
         hashedKey = "";
         durationDays = REFERRAL_BONUS_DAYS;
-        plan = "starter";
+
+        const { data: referrerKey } = await supabaseAdmin
+          .from("activation_keys")
+          .select("plan")
+          .eq("used_by", refRow.user_id)
+          .order("used_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        plan = referrerKey?.plan || "starter";
       }
     }
   }
@@ -212,15 +231,25 @@ export async function POST(request: Request) {
         code: referralCode,
       });
 
-      // Free trial for the new prof (synthetic activation key, one per user)
+      const isSchoolReferral = plan === "school_starter" || plan === "school_pro";
+
       await supabaseAdmin.from("activation_keys").insert({
         key: hashKey(`referral-${authData.user.id}`),
-        plan: "starter",
+        plan,
         duration_days: REFERRAL_BONUS_DAYS,
         used_by: authData.user.id,
         used_at: now.toISOString(),
         expires_at: expiresAt,
+        ...(isSchoolReferral ? { seat_limit: SCHOOL_SEATS[plan as SchoolPlan] } : {}),
       });
+
+      if (isSchoolReferral) {
+        await supabaseAdmin.from("organizations").insert({
+          owner_id: authData.user.id,
+          name: fullName?.trim() || email,
+          seat_limit: SCHOOL_SEATS[plan as SchoolPlan],
+        });
+      }
 
       // Bonus for the referrer: extend the current subscription
       const { data: referrerKey } = await supabaseAdmin

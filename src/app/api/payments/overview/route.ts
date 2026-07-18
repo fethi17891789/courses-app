@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -14,17 +16,26 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const groupFilter = searchParams.get("group") || null;
 
+  // Directeur : suivi des paiements UNIFIE de toute l'ecole. Prof salarie : le
+  // sien. Lecture via service-role (scope par teacherIds) pour resoudre les
+  // eleves partages dans l'embed group_members -> students.
+  const scope = await getSchoolScope(user.id);
+  const db = getSupabaseAdmin();
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
   // Get all groups for filter dropdown
-  const { data: groups } = await supabase
+  const { data: groups } = await db
     .from("groups")
-    .select("id, name, price, payment_mode, refund_absences, schedules")
-    .eq("teacher_id", user.id);
+    .select("id, name, price, payment_mode, refund_absences, schedules, teacher_id")
+    .in("teacher_id", teacherIds);
+
+  const scopeGroupIds = (groups || []).map((g: { id: string }) => g.id);
 
   // Get all attendance records (to know which sessions have been called)
-  let attendanceQuery = supabase
+  let attendanceQuery = db
     .from("attendance")
     .select("id, group_id, student_id, session_day, session_date, status")
-    .eq("teacher_id", user.id);
+    .in("teacher_id", teacherIds);
 
   if (groupFilter) {
     attendanceQuery = attendanceQuery.eq("group_id", groupFilter);
@@ -33,10 +44,10 @@ export async function GET(request: Request) {
   const { data: attendance } = await attendanceQuery;
 
   // Get all payments
-  let paymentsQuery = supabase
+  let paymentsQuery = db
     .from("payments")
     .select("id, group_id, student_id, amount, session_date")
-    .eq("teacher_id", user.id);
+    .in("teacher_id", teacherIds);
 
   if (groupFilter) {
     paymentsQuery = paymentsQuery.eq("group_id", groupFilter);
@@ -44,14 +55,11 @@ export async function GET(request: Request) {
 
   const { data: payments } = await paymentsQuery;
 
-  // Get all members with student info
-  let membersQuery = supabase
+  // Get all members with student info (scoped to the groups in range).
+  const membersQuery = db
     .from("group_members")
-    .select("group_id, student_id, student:students(id, full_name, phone, level)");
-
-  if (groupFilter) {
-    membersQuery = membersQuery.eq("group_id", groupFilter);
-  }
+    .select("group_id, student_id, student:students(id, full_name, phone, level)")
+    .in("group_id", groupFilter ? [groupFilter] : scopeGroupIds);
 
   const { data: members } = await membersQuery;
 
@@ -185,6 +193,7 @@ export async function GET(request: Request) {
         student_level: student.level,
         group_id: m.group_id,
         group_name: group.name,
+        teacher_id: group.teacher_id,
         total_due: totalPaid + debt,
         total_paid: totalPaid,
         debt,

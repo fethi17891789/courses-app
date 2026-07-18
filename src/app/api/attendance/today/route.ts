@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -11,15 +13,24 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // Directeur : appel du jour UNIFIE de toute l'ecole. Prof salarie : le sien.
+  // On lit toujours via service-role (scope par teacherIds) pour que les eleves
+  // PARTAGES (dossier appartenant a un autre prof mais inscrit dans un groupe de
+  // la portee) soient bien resolus dans l'embed (sinon la RLS les masque et la
+  // seance apparait vide/absente).
+  const scope = await getSchoolScope(user.id);
+  const db = getSupabaseAdmin();
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
   // Use Algeria timezone (UTC+1) to get the correct day
   const now = new Date();
   const algeriaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Algiers" }));
   const dayOfWeek = algeriaTime.getDay();
 
-  const { data: groups, error } = await supabase
+  const { data: groups, error } = await db
     .from("groups")
-    .select("id, name, schedules, price, payment_mode, refund_absences, group_members(id, student_id, enrolled_sessions, student:students(id, full_name, phone, level))")
-    .eq("teacher_id", user.id);
+    .select("id, name, schedules, price, payment_mode, refund_absences, teacher_id, group_members(id, student_id, enrolled_sessions, student:students(id, full_name, phone, level))")
+    .in("teacher_id", teacherIds);
 
   if (error) {
     return NextResponse.json({ error: "server_error" }, { status: 500 });
@@ -27,10 +38,10 @@ export async function GET() {
 
   const today = algeriaTime.toISOString().split("T")[0];
 
-  const { data: attendanceToday } = await supabase
+  const { data: attendanceToday } = await db
     .from("attendance")
     .select("group_id, session_day, session_time, student_id")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .eq("session_date", today);
 
   // Map: "groupId-day-time" -> Set of student_ids already called.
@@ -48,10 +59,10 @@ export async function GET() {
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
   const weekStartStr = weekStart.toISOString().split("T")[0];
 
-  const { data: recentPayments } = await supabase
+  const { data: recentPayments } = await db
     .from("payments")
     .select("group_id, student_id, session_date")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .gte("session_date", `${currentMonth}-01`);
 
   // Map: "groupId-studentId" -> payment dates
@@ -63,10 +74,10 @@ export async function GET() {
   }
 
   // Get attendance for current period (month) to count presences for refund calculation
-  const { data: periodAttendance } = await supabase
+  const { data: periodAttendance } = await db
     .from("attendance")
     .select("group_id, student_id, session_day, session_date, status")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .gte("session_date", `${currentMonth}-01`);
 
   // Map: "groupId-studentId" -> { present: number, total: number }
@@ -232,6 +243,7 @@ export async function GET() {
         students,
         completed,
         called_student_ids: calledStudentIds,
+        teacher_id: group.teacher_id,
       });
     }
   }

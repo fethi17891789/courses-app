@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { getLevelDef } from "@/lib/levels";
 import { getHoliday } from "@/lib/holidays";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { useSchoolTeachers, TeacherBadge } from "@/components/dashboard/teacher-scope";
 import { ListSkeleton } from "@/components/ui/skeleton";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -32,6 +32,7 @@ type SessionEntry = {
   payment_mode: string;
   member_count: number;
   is_payment_session: boolean;
+  teacher_id: string;
 };
 
 function getDaysOfWeek(baseDate: Date): { date: Date; day: number }[] {
@@ -60,6 +61,16 @@ export function ScheduleScreen() {
 
   const [sessions, setSessions] = useState<SessionEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Vue directeur : profs de l'ecole, pour afficher qui enseigne chaque seance.
+  const teachers = useSchoolTeachers();
+  const isDirector = teachers.length > 1;
+  const teacherMap = new Map(teachers.map((tc) => [tc.id, tc]));
+
+  // Precharge la fiche groupe de chaque seance affichee -> clic instantane.
+  useEffect(() => {
+    for (const s of sessions) router.prefetch(`/${locale}/groups/${s.group_id}`);
+  }, [sessions, router, locale]);
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [selectedDayIndex, setSelectedDayIndex] = useState(new Date().getDay());
   const [hasSessions, setHasSessions] = useState<Record<number, boolean>>({});
@@ -268,6 +279,7 @@ export function ScheduleScreen() {
               {sessions.map((session, i) => {
                 const levelDef = getLevelDef(session.level);
                 const isPayment = session.is_payment_session;
+                const owner = isDirector ? teacherMap.get(session.teacher_id) : null;
 
                 return (
                   <button
@@ -299,6 +311,11 @@ export function ScheduleScreen() {
                           {session.section ? ` - ${session.section}` : ""}
                           {" - "}{session.member_count} {tGroups("students", { count: session.member_count }).split(" ").pop()}
                         </p>
+                        {owner && (
+                          <div className="mt-1.5">
+                            <TeacherBadge name={owner.name} self={owner.is_self} />
+                          </div>
+                        )}
                       </div>
                       {isPayment && (
                         <span
@@ -318,7 +335,6 @@ export function ScheduleScreen() {
       </div>
 
       <div className="h-24 shrink-0" />
-      <BottomNav active="home" />
     </motion.main>
   );
 }
