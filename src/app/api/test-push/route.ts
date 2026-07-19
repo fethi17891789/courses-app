@@ -17,9 +17,32 @@ export async function GET() {
   });
   const userData = await userResp.json();
 
+  const activeSubscriptions = (userData.subscriptions || []).filter(
+    (s: any) => s.enabled && s.token
+  );
+
+  const notifBody = {
+    app_id: ONESIGNAL_APP_ID,
+    target_channel: "push",
+    include_aliases: { external_id: [user.id] },
+    headings: { en: "Test", fr: "Test" },
+    contents: { en: "Si tu vois ca, les notifications marchent!", fr: "Si tu vois ca, les notifications marchent!" },
+  };
+
+  const notifResp = await fetch("https://api.onesignal.com/notifications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Authorization: `Key ${apiKey}`,
+    },
+    body: JSON.stringify(notifBody),
+  });
+  const notifResult = await notifResp.json();
+
   return NextResponse.json({
     userId: user.id,
-    onesignal_user_status: userResp.status,
-    onesignal_user: userData,
+    active_subscriptions: activeSubscriptions.length,
+    total_subscriptions: (userData.subscriptions || []).length,
+    notification_response: notifResult,
   });
 }
