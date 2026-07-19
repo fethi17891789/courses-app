@@ -11,29 +11,15 @@ export async function GET() {
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "ONESIGNAL_REST_API_KEY not set" });
 
-  const body = {
-    app_id: ONESIGNAL_APP_ID,
-    target_channel: "push",
-    include_aliases: { external_id: [user.id] },
-    headings: { en: "Test notification", fr: "Test notification" },
-    contents: { en: "Si tu vois ca, les notifications marchent!", fr: "Si tu vois ca, les notifications marchent!" },
-  };
-
-  const resp = await fetch("https://api.onesignal.com/notifications", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      Authorization: `Key ${apiKey}`,
-    },
-    body: JSON.stringify(body),
+  const userUrl = `https://api.onesignal.com/apps/${ONESIGNAL_APP_ID}/users/by/external_id/${user.id}`;
+  const userResp = await fetch(userUrl, {
+    headers: { Authorization: `Key ${apiKey}` },
   });
-
-  const result = await resp.json();
+  const userData = await userResp.json();
 
   return NextResponse.json({
-    status: resp.status,
     userId: user.id,
-    onesignal_response: result,
-    request_body: body,
+    onesignal_user_status: userResp.status,
+    onesignal_user: userData,
   });
 }
