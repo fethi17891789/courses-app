@@ -18,27 +18,31 @@ export async function sendPushNotification({
   const body = {
     app_id: ONESIGNAL_APP_ID,
     target_channel: "push",
+    include_aliases: { external_id: userIds },
     headings: { en: title, fr: title },
     contents: { en: message, fr: message },
-    include_aliases: { external_id: userIds },
     data,
   };
 
-  console.log("[OneSignal] Sending push to", userIds.length, "users");
+  console.log("[OneSignal] Sending push to external_ids:", userIds);
 
-  const resp = await fetch(ONESIGNAL_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      Authorization: `Key ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  try {
+    const resp = await fetch(ONESIGNAL_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Authorization: `Key ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
 
-  const text = await resp.text();
-  if (!resp.ok) {
-    console.error("[OneSignal] Push failed:", resp.status, text);
-  } else {
-    console.log("[OneSignal] Push sent:", text);
+    const text = await resp.text();
+    if (!resp.ok) {
+      console.error("[OneSignal] Push failed:", resp.status, text);
+    } else {
+      console.log("[OneSignal] Push sent:", text);
+    }
+  } catch (e) {
+    console.error("[OneSignal] Push error:", e);
   }
 }
