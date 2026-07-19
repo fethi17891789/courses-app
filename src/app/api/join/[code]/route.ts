@@ -152,12 +152,12 @@ export async function POST(
     if (error) {
       return NextResponse.json({ error: "server_error" }, { status: 500 });
     }
-    sendPushNotification({
+    await sendPushNotification({
       title: "Nouvelle demande",
       message: `${full_name.trim()} veut rejoindre ${group.name}`,
       userIds: [group.teacher_id],
       data: { type: "join_request", group_id: group.id },
-    }).catch(() => {});
+    });
     return NextResponse.json({ id: existing.id, status: "pending" });
   }
 
@@ -183,12 +183,12 @@ export async function POST(
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 
-  sendPushNotification({
+  await sendPushNotification({
     title: "Nouvelle demande",
     message: `${full_name.trim()} veut rejoindre ${group.name}`,
     userIds: [group.teacher_id],
     data: { type: "join_request", group_id: group.id },
-  }).catch(() => {});
+  });
 
   return NextResponse.json({ id: requestId, status: "pending" });
 }

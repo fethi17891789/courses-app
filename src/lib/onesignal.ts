@@ -13,6 +13,7 @@ export async function sendPushNotification({
   data?: Record<string, string>;
 }) {
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
+  console.log("[OneSignal] apiKey present:", !!apiKey, "userIds:", userIds);
   if (!apiKey || userIds.length === 0) return;
 
   const body = {
