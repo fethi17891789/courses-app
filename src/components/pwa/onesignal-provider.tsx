@@ -32,6 +32,8 @@ function loadSdk(attempt = 1) {
     await OneSignal.init({
       appId: APP_ID,
       allowLocalhostAsSecureOrigin: true,
+      serviceWorkerParam: { scope: "/" },
+      serviceWorkerPath: "/sw.js",
     });
     console.log("[OS] SDK init done, permission:", OneSignal.Notifications.permission);
   });

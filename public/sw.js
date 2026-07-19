@@ -1,3 +1,5 @@
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
 const CACHE_NAME = "courses-v5";
 // Separate, long-lived cache for subject PDFs + the PDF.js worker. Kept across app
 // shell version bumps so a PDF a student already viewed is served for free (no egress).
