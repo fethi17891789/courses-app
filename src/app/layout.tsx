@@ -58,7 +58,7 @@ export default function RootLayout({
         <Analytics />
         <PWAInstallPrompt />
         <Script id="sw-register" strategy="afterInteractive">
-          {`if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(sw){sw.unregister()})})}`}
+          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/OneSignalSDKWorker.js',{scope:'/'})}`}
         </Script>
       </body>
     </html>
