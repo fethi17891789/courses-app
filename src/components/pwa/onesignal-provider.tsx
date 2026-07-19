@@ -54,15 +54,19 @@ function loginUser(userId: string, role: string) {
 
     const hasPermission = OneSignal.Notifications.permission;
     const isOptedIn = OneSignal.User.PushSubscription.optedIn;
-    console.log("[OS] permission:", hasPermission, "optedIn:", isOptedIn);
+    const token = OneSignal.User.PushSubscription.token;
+    console.log("[OS] permission:", hasPermission, "optedIn:", isOptedIn, "token:", token ? "yes" : "no");
 
-    if (hasPermission && !isOptedIn) {
-      console.log("[OS] permission granted but not subscribed, opting in...");
-      await OneSignal.User.PushSubscription.optIn();
-      console.log("[OS] optIn() done");
-    } else if (!hasPermission) {
+    if (!hasPermission) {
       console.log("[OS] requesting permission...");
-      OneSignal.Notifications.requestPermission();
+      await OneSignal.Notifications.requestPermission();
+    }
+
+    if (!isOptedIn || !token) {
+      console.log("[OS] no subscription or missing token, opting in...");
+      await OneSignal.User.PushSubscription.optIn();
+      const newToken = OneSignal.User.PushSubscription.token;
+      console.log("[OS] optIn() done, token:", newToken ? "yes" : "no");
     }
   };
 
