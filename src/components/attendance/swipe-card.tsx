@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { StudentAvatar } from "@/components/students/student-avatar";
 import { motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import { getLevelDef } from "@/lib/levels";
 
@@ -44,13 +45,6 @@ export function SwipeCard({
   const rightOpacity = useTransform(x, [0, 80], [0, 1]);
   const leftOpacity = useTransform(x, [-80, 0], [1, 0]);
   const upOpacity = useTransform(y, [-80, 0], [1, 0]);
-
-  const initials = student.full_name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 
   const levelDef = getLevelDef(student.level);
 
@@ -152,14 +146,17 @@ export function SwipeCard({
 
         {/* Card content */}
         <div className="relative z-10 flex h-full flex-col items-center justify-center">
+          {/* L'ombre portee et l'arrondi sont sur l'enveloppe : l'avatar SVG
+              porte deja son propre arrondi, on l'accorde ici pour garder le
+              relief des cartes de l'application. */}
           <div
-            className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl text-[24px] font-black text-white"
+            className="mb-4 overflow-hidden"
             style={{
-              background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+              borderRadius: "26%",
               boxShadow: "0 4px 0 #5b21b6, 0 8px 20px -6px rgba(124,58,237,0.4)",
             }}
           >
-            {initials}
+            <StudentAvatar seed={student.id} size={80} />
           </div>
           <h2 className="text-center text-[18px] font-extrabold text-[#1e1b4b]">
             {student.full_name}

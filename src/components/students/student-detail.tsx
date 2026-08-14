@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { StudentAvatar } from "@/components/students/student-avatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -126,13 +127,6 @@ export function StudentDetail({ studentId }: { studentId: string }) {
   if (!student) return null;
 
   const levelDef = getLevelDef(student.level);
-  const initials = student.full_name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-
   const totalPaid = student.payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const selectedDebt = debtByGroup[payGroupId] ?? 0;
 
@@ -177,14 +171,13 @@ export function StudentDetail({ studentId }: { studentId: string }) {
           style={{ boxShadow: "0 4px 0 #e9e5f5, 0 12px 32px -8px rgba(30,27,75,0.12)" }}
         >
           <div className="flex items-center gap-4">
+            {/* Ombre portee et arrondi sur l'enveloppe : l'avatar SVG a deja
+                son propre arrondi, on l'accorde pour garder le relief. */}
             <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-[18px] font-black text-white"
-              style={{
-                background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-                boxShadow: "0 3px 0 #5b21b6",
-              }}
+              className="shrink-0 overflow-hidden"
+              style={{ borderRadius: "26%", boxShadow: "0 3px 0 #ddd6fe" }}
             >
-              {initials}
+              <StudentAvatar seed={student.id} size={56} />
             </div>
             <div className="min-w-0 flex-1">
               {student.phone && (

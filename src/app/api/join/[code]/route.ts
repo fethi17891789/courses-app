@@ -1,7 +1,7 @@
 import { getAuthUser } from "@/lib/auth-user";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { rateLimitByIp } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 import { sendPushNotification } from "@/lib/onesignal";
 
 // Service-role client: the join-by-code flow must not depend on group/join_request
@@ -18,16 +18,25 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ code: string }> }
 ) {
-  const { allowed } = rateLimitByIp(_request, "join", 10, 15 * 60 * 1000);
-  if (!allowed) {
-    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
-  }
-
   const { code } = await params;
   const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  // Limitation PAR COMPTE, pas par adresse IP.
+  //
+  // C'est une simple lecture, appelee par le bouton "Rechercher" ET par le
+  // suivi de statut de l'ecran eleve. L'ancienne limite (10 par IP toutes les
+  // 15 min) etait grillee en moins d'une minute par ce suivi : le bouton
+  // renvoyait alors "erreur de connexion" pendant un quart d'heure.
+  //
+  // Par IP, c'etait pire encore : dans une ecole, tous les eleves partagent la
+  // meme connexion, donc un seul suffisait a bloquer les autres.
+  const { allowed } = rateLimit(`join:${user.id}`, 100, 15 * 60 * 1000);
+  if (!allowed) {
+    return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
   }
 
   const admin = getSupabaseAdmin();

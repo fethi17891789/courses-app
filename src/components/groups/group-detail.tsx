@@ -382,14 +382,7 @@ export function GroupDetail({
                     style={{ boxShadow: "0 2px 0 #e9e5f5" }}
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
-                        style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}
-                      >
-                        {(m.student?.full_name || m.student_id)
-                          .charAt(0)
-                          .toUpperCase()}
-                      </div>
+                      <StudentAvatar seed={m.student_id} size={32} className="shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
                           {m.student?.full_name || m.student_id.slice(0, 8)}
@@ -466,14 +459,11 @@ export function GroupDetail({
                   className="flex items-center gap-3 rounded-xl bg-white px-4 py-3"
                   style={{ boxShadow: "0 2px 0 #e9e5f5" }}
                 >
-                  <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
-                    style={{ background: "linear-gradient(135deg, #fbbf24, #f59e0b)" }}
-                  >
-                    {(r.student_name || r.student_email || r.student_id)
-                      .charAt(0)
-                      .toUpperCase()}
-                  </div>
+                  {/* Demande en attente : `student_id` est ici l'identifiant du
+                      COMPTE de l'eleve, pas encore celui de sa fiche -- elle
+                      n'existe qu'apres acceptation. Le personnage differe donc
+                      de celui qu'il aura une fois inscrit. */}
+                  <StudentAvatar seed={r.student_id} size={32} className="shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
                       {r.student_name || r.student_email || r.student_id.slice(0, 8)}
