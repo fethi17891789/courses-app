@@ -1,6 +1,14 @@
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+// Le SDK OneSignal vient de leur CDN. importScripts() est SYNCHRONE et FATAL :
+// si le CDN repond une erreur, TOUT le script echoue a s evaluer et le service
+// worker meurt -- on perd alors le cache hors ligne et le mode PWA en plus des
+// notifications. On isole donc cette dependance tierce.
+try {
+  importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+} catch (e) {
+  console.error("[SW] SDK OneSignal indisponible, notifications inactives", e);
+}
 
-const CACHE_NAME = "courses-v5";
+const CACHE_NAME = "courses-v6";
 // Separate, long-lived cache for subject PDFs + the PDF.js worker. Kept across app
 // shell version bumps so a PDF a student already viewed is served for free (no egress).
 const PDF_CACHE = "subjects-pdf-v1";
@@ -76,6 +84,23 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
+        // Une reponse issue d une redirection ne peut pas etre renvoyee telle
+        // quelle a une navigation : le navigateur la refuse ("a redirected
+        // response was used for a request whose redirect mode is not follow")
+        // et affiche une erreur reseau a la place de l application.
+        //
+        // Or le middleware redirige en permanence ("/" -> "/fr", non connecte
+        // -> "/login"), et "/" est le start_url du manifeste : c est donc le
+        // lancement de la PWA installee qui cassait. On reconstruit une reponse
+        // equivalente, debarrassee du marqueur de redirection.
+        if (isNavigate && response.redirected) {
+          return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+          });
+        }
+
         if (response.ok && response.type === "basic") {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
