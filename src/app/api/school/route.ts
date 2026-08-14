@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase-server";
 import { getSchoolTeachers } from "@/lib/school-scope";
+import { getAuthUser } from "@/lib/auth-user";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -8,10 +8,7 @@ export const runtime = "nodejs";
 // "par prof" et au mapping teacher_id -> nom des badges cote client.
 // - Non-directeur : { is_director: false, teachers: [] } (aucune vue ecole).
 export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const scope = await getSchoolTeachers(user.id);

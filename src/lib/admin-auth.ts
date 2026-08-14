@@ -1,6 +1,5 @@
-import { createClient } from "@/lib/supabase-server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import type { User } from "@supabase/supabase-js";
+import { getAuthUser, type AuthUser } from "@/lib/auth-user";
 
 /**
  * Verrou d'acces au poste de pilotage (/admin).
@@ -18,7 +17,7 @@ export function isOwnerEmail(email: string | null | undefined): boolean {
   return email.trim().toLowerCase() === owner;
 }
 
-export function isOwner(user: User | null | undefined): boolean {
+export function isOwner(user: AuthUser | null | undefined): boolean {
   return isOwnerEmail(user?.email);
 }
 
@@ -26,11 +25,8 @@ export function isOwner(user: User | null | undefined): boolean {
  * A utiliser au debut de chaque route API admin. Retourne l'utilisateur si
  * (et seulement si) c'est le proprietaire connecte, sinon null.
  */
-export async function requireOwner(): Promise<User | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export async function requireOwner(): Promise<AuthUser | null> {
+  const user = await getAuthUser();
   return isOwner(user) ? user : null;
 }
 

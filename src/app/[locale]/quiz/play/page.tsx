@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth-user";
 import { QuizJoin } from "@/components/quiz/quiz-join";
 
 export default async function QuizPlayPage({
@@ -11,8 +11,7 @@ export default async function QuizPlayPage({
 }) {
   const { locale } = await params;
   const { code } = await searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect(`/${locale}/login`);
 
   if (user.user_metadata?.role !== "eleve") {

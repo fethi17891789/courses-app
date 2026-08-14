@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import type { AuthUser } from "@/lib/auth-user";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -92,7 +92,7 @@ function ActionCard({
   );
 }
 
-export function StudentDashboard({ user }: { user: User }) {
+export function StudentDashboard({ user }: { user: AuthUser }) {
   const t = useTranslations("studentDashboard");
   const tDash = useTranslations("dashboard");
   const router = useRouter();

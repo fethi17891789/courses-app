@@ -44,7 +44,11 @@ export async function sendPushNotification({
   data?: Record<string, string>;
 }) {
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
-  console.log("[OneSignal] apiKey present:", !!apiKey, "userIds:", userIds);
+  // Le titre identifie l'appelant : "Nouvelle demande" (join), "Demande
+  // acceptee/refusee" (traitement d'une demande), "Absence enregistree"
+  // (appel), ou le nom du prof (annonce). Indispensable pour retrouver quelle
+  // route declenche un envoi quand il s'en produit plusieurs.
+  console.log(`[OneSignal] "${title}" -> ${userIds.length} user(s)`, userIds);
   if (!apiKey || userIds.length === 0) return;
 
   const subscriptionIds = await getSubscriptionIds(apiKey, userIds);

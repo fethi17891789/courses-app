@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { redirect } from "next/navigation";
 import { QuizHost } from "@/components/quiz/quiz-host";
 
@@ -9,7 +10,7 @@ export default async function QuizHostPage({
 }) {
   const { locale, sessionId } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect(`/${locale}/login`);
   if (user.user_metadata?.role !== "prof") redirect(`/${locale}/dashboard`);
 

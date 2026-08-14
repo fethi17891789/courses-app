@@ -1,51 +1,31 @@
 import { createClient } from "@/lib/supabase-server";
-import { getSupabaseAdmin } from "@/lib/admin-auth";
-import { getSchoolScope } from "@/lib/school-scope";
+import { fetchGroups, QueryError } from "@/lib/dashboard-queries";
+import { getAuthUser } from "@/lib/auth-user";
 import { NextResponse } from "next/server";
 import { validateString, validateNumber, validateSchedules, firstError } from "@/lib/validate";
 import { hasInternalConflict, findCrossGroupConflict } from "@/lib/schedule-conflict";
 
 
 export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Directeur d'ecole : lecture agregee de tous ses profs (service-role).
-  // Prof normal : ses propres groupes via RLS.
-  const scope = await getSchoolScope(user.id);
-  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
-  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
-
-  const { data: groups, error } = await db
-    .from("groups")
-    .select("*, group_members(count)")
-    .in("teacher_id", teacherIds)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  try {
+    return NextResponse.json(await fetchGroups(user));
+  } catch (e) {
+    if (e instanceof QueryError) {
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
+    }
+    throw e;
   }
-
-  const formatted = (groups || []).map((g) => ({
-    ...g,
-    member_count: g.group_members?.[0]?.count ?? 0,
-    group_members: undefined,
-  }));
-
-  return NextResponse.json(formatted);
 }
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

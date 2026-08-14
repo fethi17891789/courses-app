@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getSupabaseAdmin } from "@/lib/admin-auth";
 
 // Portee de lecture "ecole" pour un utilisateur.
@@ -26,7 +27,9 @@ const NOT_DIRECTOR: SchoolScope = { isDirector: false, teacherIds: [] };
 
 // Identifiants uniquement (rapide). A utiliser partout ou l'on n'affiche pas les
 // noms des profs.
-export async function getSchoolScope(userId: string): Promise<SchoolScope> {
+export const getSchoolScope = cache(async function getSchoolScope(
+  userId: string,
+): Promise<SchoolScope> {
   const admin = getSupabaseAdmin();
 
   const { data: org } = await admin
@@ -46,7 +49,7 @@ export async function getSchoolScope(userId: string): Promise<SchoolScope> {
 
   const ids = [userId, ...(members ?? []).map((m) => m.user_id)];
   return { isDirector: true, teacherIds: ids };
-}
+});
 
 // Portee + noms des profs (pour les badges + le filtre "par prof"). Les appels
 // getUserById sont faits EN PARALLELE (Promise.all) pour eviter le N+1 sequentiel.

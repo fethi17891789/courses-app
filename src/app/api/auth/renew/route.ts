@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { createClient as createServerClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { NextResponse } from "next/server";
 import { rateLimitByIp } from "@/lib/rate-limit";
 import { hashKey } from "@/lib/hash-key";
@@ -17,10 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "too_many_requests" }, { status: 429 });
   }
 
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

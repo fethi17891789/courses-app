@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth-user";
 import { StudentDetail } from "@/components/students/student-detail";
 
 export default async function StudentDetailPage({
@@ -8,10 +8,7 @@ export default async function StudentDetailPage({
   params: Promise<{ locale: string; id: string }>;
 }) {
   const { locale, id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect(`/${locale}/login`);

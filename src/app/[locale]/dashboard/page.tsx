@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth-user";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
 import { StudentDashboard } from "@/components/dashboard/student-dashboard";
 import { ParentDashboard } from "@/components/dashboard/parent-dashboard";
@@ -10,10 +10,7 @@ export default async function DashboardPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect(`/${locale}/login`);

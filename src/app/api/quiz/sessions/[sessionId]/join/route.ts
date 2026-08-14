@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { AVATAR_COLORS } from "@/types/quiz";
@@ -9,8 +9,7 @@ export async function POST(request: Request, { params }: Params) {
   const { sessionId } = await params;
 
   // Verify the user's identity with the authenticated client (JWT check)
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   // Use service role for all writes — the INSERT policy on session_players is

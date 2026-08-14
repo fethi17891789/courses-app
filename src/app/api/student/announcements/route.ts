@@ -1,13 +1,12 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { NextResponse } from "next/server";
 
 // Student feed: announcements for the groups this student belongs to.
 // Uses the student_announcements() security-definer function (migration 025).
 export async function GET() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase-server";
 import { isOwner } from "@/lib/admin-auth";
+import { getAuthUser } from "@/lib/auth-user";
 import { redirect } from "next/navigation";
 import { SettingsContent } from "@/components/settings/settings-content";
 
@@ -9,10 +9,7 @@ export default async function SettingsPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect(`/${locale}/login`);

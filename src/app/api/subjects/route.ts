@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
@@ -15,9 +16,7 @@ function getSupabaseAdmin() {
 // List the teacher's own subjects with the groups each one targets.
 export async function GET() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -50,9 +49,7 @@ export async function GET() {
 // Create a subject row after the browser uploaded the PDF straight to Storage.
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

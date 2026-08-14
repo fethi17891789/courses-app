@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { rateLimitByIp } from "@/lib/rate-limit";
@@ -24,10 +24,7 @@ export async function GET(
   }
 
   const { code } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -78,10 +75,7 @@ export async function POST(
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

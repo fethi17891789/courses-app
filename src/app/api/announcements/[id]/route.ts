@@ -1,4 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 import { validateString } from "@/lib/validate";
 
@@ -9,13 +12,17 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  // Directeur : il gere les annonces de toute son ecole, comme sur les autres
+  // ecrans. Prof normal : uniquement les siennes, via RLS.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
 
   const body = await request.json();
   const updates: Record<string, unknown> = {};
@@ -34,11 +41,11 @@ export async function PATCH(
   if (Object.keys(updates).length > 0) updates.updated_at = new Date().toISOString();
 
   if (Object.keys(updates).length > 0) {
-    const { error } = await supabase
+    const { error } = await db
       .from("announcements")
       .update(updates)
       .eq("id", id)
-      .eq("teacher_id", user.id);
+      .in("teacher_id", teacherIds);
     if (error) {
       return NextResponse.json({ error: "server_error" }, { status: 500 });
     }
@@ -50,37 +57,37 @@ export async function PATCH(
       return NextResponse.json({ error: "no_groups" }, { status: 400 });
     }
     // Confirm ownership of both the announcement and the groups.
-    const { data: owned } = await supabase
+    const { data: owned } = await db
       .from("announcements")
       .select("id")
       .eq("id", id)
-      .eq("teacher_id", user.id)
+      .in("teacher_id", teacherIds)
       .single();
     if (!owned) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
-    const { data: ownGroups } = await supabase
+    const { data: ownGroups } = await db
       .from("groups")
       .select("id")
-      .eq("teacher_id", user.id)
+      .in("teacher_id", teacherIds)
       .in("id", body.group_ids);
     const validGroupIds = (ownGroups || []).map((g) => g.id);
     if (validGroupIds.length === 0) {
       return NextResponse.json({ error: "no_groups" }, { status: 400 });
     }
 
-    await supabase.from("announcement_groups").delete().eq("announcement_id", id);
-    await supabase.from("announcement_groups").insert(
+    await db.from("announcement_groups").delete().eq("announcement_id", id);
+    await db.from("announcement_groups").insert(
       validGroupIds.map((gid) => ({ announcement_id: id, group_id: gid })),
     );
   }
 
-  const { data: updated } = await supabase
+  const { data: updated } = await db
     .from("announcements")
     .select("*, announcement_groups(group_id)")
     .eq("id", id)
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .single();
 
   if (!updated) {
@@ -102,19 +109,23 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { error } = await supabase
+  // Directeur : il gere les annonces de toute son ecole, comme sur les autres
+  // ecrans. Prof normal : uniquement les siennes, via RLS.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { error } = await db
     .from("announcements")
     .delete()
     .eq("id", id)
-    .eq("teacher_id", user.id);
+    .in("teacher_id", teacherIds);
 
   if (error) {
     return NextResponse.json({ error: "server_error" }, { status: 500 });

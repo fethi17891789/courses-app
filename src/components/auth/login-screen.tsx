@@ -6,63 +6,16 @@ import { NextIntlClientProvider, useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { PageTransition } from "@/components/auth/page-transition";
+import { LegalConsentModal } from "@/components/legal/legal-consent-modal";
+import { themes, type Role, type Theme } from "@/lib/role-theme";
 import frMessages from "@/i18n/messages/fr.json";
 import arMessages from "@/i18n/messages/ar.json";
 
 type Mode = "login" | "signup" | "forgot";
-type Role = "prof" | "eleve" | "parent";
 type Locale = "fr" | "ar";
 
 const allRoles: Role[] = ["prof", "eleve", "parent"];
 const allMessages = { fr: frMessages, ar: arMessages };
-
-type Theme = {
-  primary: string;
-  gradientFrom: string;
-  gradientTo: string;
-  shadow3d: string;
-  shadowGlow: string;
-  bgTint: string;
-  inputBorder: string;
-  inputBg: string;
-  focusRing: string;
-};
-
-const themes: Record<Role, Theme> = {
-  prof: {
-    primary: "#7c3aed",
-    gradientFrom: "#8b5cf6",
-    gradientTo: "#6d28d9",
-    shadow3d: "#5b21b6",
-    shadowGlow: "rgba(124,58,237,0.5)",
-    bgTint: "#f5f3ff",
-    inputBorder: "#ddd6fe",
-    inputBg: "#f9f7ff",
-    focusRing: "rgba(124,58,237,0.12)",
-  },
-  eleve: {
-    primary: "#22c55e",
-    gradientFrom: "#4ade80",
-    gradientTo: "#16a34a",
-    shadow3d: "#15803d",
-    shadowGlow: "rgba(34,197,94,0.5)",
-    bgTint: "#f0fdf4",
-    inputBorder: "#bbf7d0",
-    inputBg: "#f7fef9",
-    focusRing: "rgba(34,197,94,0.12)",
-  },
-  parent: {
-    primary: "#f97316",
-    gradientFrom: "#fb923c",
-    gradientTo: "#ea580c",
-    shadow3d: "#c2410c",
-    shadowGlow: "rgba(249,115,22,0.5)",
-    bgTint: "#fff7ed",
-    inputBorder: "#fed7aa",
-    inputBg: "#fffaf5",
-    focusRing: "rgba(249,115,22,0.12)",
-  },
-};
 
 const roleDisplay: Record<Role, { shadow: string }> = {
   prof: { shadow: "#5b21b6" },
@@ -436,6 +389,7 @@ function LoginScreenInner({
   const [submitPressed, setSubmitPressed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
   const [expiredMessage, setExpiredMessage] = useState(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "true") {
       return true;
@@ -540,6 +494,11 @@ function LoginScreenInner({
         setError(t("errorPasswordWeak"));
         return;
       }
+      // Les champs sont valides : on demande le consentement explicite aux CGU
+      // et a la politique de confidentialite. Le compte n'est cree qu'apres
+      // acceptation, dans performSignup().
+      setConsentOpen(true);
+      return;
     }
 
     setLoading(true);
@@ -590,53 +549,79 @@ function LoginScreenInner({
 
         pendingNav.current = `/${activeLocale}/dashboard`;
         setTransitioning(true);
-      } else {
-        const res = await fetch("/api/auth/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: trimmedEmail,
-            password,
-            fullName: fullName.trim(),
-            phone: phone.trim(),
-            role,
-            activationKey: role === "prof" ? activationKey.trim() : undefined,
-          }),
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          const errorMap: Record<string, string> = {
-            email_taken: t("errorEmailTaken"),
-            invalid_key: t("errorInvalidKey"),
-            referral_cooldown: t("errorReferralCooldown"),
-            school_full: t("errorSchoolFull"),
-            key_already_used: t("errorKeyUsed"),
-            key_expired: t("errorKeyExpired"),
-            missing_key: t("errorMissingKey"),
-            too_many_requests: t("errorTooManyRequests"),
-            weak_password: t("errorPasswordWeak"),
-          };
-          setError(errorMap[data.error] || t("errorGeneric"));
-          return;
-        }
-
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email: trimmedEmail,
-          password,
-        });
-
-        if (loginError) {
-          setSuccess(t("signupSuccess"));
-          return;
-        }
-
-        pendingNav.current = `/${activeLocale}/dashboard`;
-        setTransitioning(true);
       }
     } catch {
       setError(t("errorGeneric"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /**
+   * Creation effective du compte. Appelee UNIQUEMENT depuis la modale de
+   * consentement, une fois les CGU acceptees : sans acceptation, aucune requete
+   * d'inscription n'est envoyee. Le serveur revalide ce consentement.
+   */
+  async function performSignup() {
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    const trimmedEmail = email.trim();
+    const supabase = createClient();
+
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password,
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          role,
+          activationKey: role === "prof" ? activationKey.trim() : undefined,
+          acceptedTerms: true,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const errorMap: Record<string, string> = {
+          email_taken: t("errorEmailTaken"),
+          invalid_key: t("errorInvalidKey"),
+          referral_cooldown: t("errorReferralCooldown"),
+          school_full: t("errorSchoolFull"),
+          key_already_used: t("errorKeyUsed"),
+          key_expired: t("errorKeyExpired"),
+          missing_key: t("errorMissingKey"),
+          too_many_requests: t("errorTooManyRequests"),
+          weak_password: t("errorPasswordWeak"),
+          terms_not_accepted: t("errorTermsNotAccepted"),
+        };
+        setError(errorMap[data.error] || t("errorGeneric"));
+        setConsentOpen(false);
+        return;
+      }
+
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      });
+
+      setConsentOpen(false);
+
+      if (loginError) {
+        setSuccess(t("signupSuccess"));
+        return;
+      }
+
+      pendingNav.current = `/${activeLocale}/dashboard`;
+      setTransitioning(true);
+    } catch {
+      setError(t("errorGeneric"));
+      setConsentOpen(false);
     } finally {
       setLoading(false);
     }
@@ -1024,7 +1009,42 @@ function LoginScreenInner({
           </span>
         </PushButton>
 
+        {mode === "signup" && (
+          <p className="mt-3 text-center text-[11px] font-semibold leading-relaxed" style={{ color: "rgba(30,27,75,0.4)" }}>
+            {t("legalConsent")}{" "}
+            <a
+              href={`/${activeLocale}/legal?role=${role}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+              style={{ color: theme.primary }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {t("legalTerms")}
+            </a>{" "}
+            {t("legalAnd")}{" "}
+            <a
+              href={`/${activeLocale}/legal?role=${role}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+              style={{ color: theme.primary }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {t("legalPrivacy")}
+            </a>
+          </p>
+        )}
+
       </motion.div>
+
+      <LegalConsentModal
+        open={consentOpen}
+        loading={loading}
+        theme={theme}
+        onAccept={performSignup}
+        onClose={() => setConsentOpen(false)}
+      />
 
       <PageTransition
         active={transitioning}

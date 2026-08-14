@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import type { AuthUser } from "@/lib/auth-user";
 import { getCache, setCache } from "@/lib/page-cache";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -227,7 +227,7 @@ function QuizCard({
   );
 }
 
-export function DashboardContent({ user }: { user: User }) {
+export function DashboardContent({ user }: { user: AuthUser }) {
   const t = useTranslations("dashboard");
   const router = useRouter();
   const pathname = usePathname();
@@ -255,19 +255,12 @@ export function DashboardContent({ user }: { user: User }) {
   }, [locale, router]);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/groups").then((r) => r.json()),
-      fetch("/api/students").then((r) => r.json()),
-      fetch("/api/attendance/today").then((r) => r.json()),
-      fetch("/api/payments/overview").then((r) => r.json()),
-    ])
-      .then(([groups, students, sessions, payments]) => {
-        const next = {
-          groups: Array.isArray(groups) ? groups.length : 0,
-          students: Array.isArray(students) ? students.length : 0,
-          sessionsToday: Array.isArray(sessions) ? sessions.filter((s: any) => s.students.length > 0).length : 0,
-          unpaid: payments?.unpaid_count || 0,
-        };
+    // Une seule requete : /api/dashboard regroupe groupes, eleves, seances du
+    // jour et paiements, et renvoie directement les compteurs.
+    fetch("/api/dashboard")
+      .then((r) => r.json())
+      .then((next) => {
+        if (!next || typeof next.groups !== "number") return;
         setCache("dashboard", next);
         setStats(next);
       })

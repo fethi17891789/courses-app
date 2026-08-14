@@ -1,4 +1,5 @@
 {
+  "regions": ["dub1"],
   "git": {
     "deploymentEnabled": {
       "feature/ecoles": false

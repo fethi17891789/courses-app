@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
+import { getSchoolScope } from "@/lib/school-scope";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { validateString, firstError } from "@/lib/validate";
@@ -14,18 +16,21 @@ function getSupabaseAdmin() {
 // List the teacher's own announcements with the groups each one targets.
 export async function GET() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { data: announcements, error } = await supabase
+  // Directeur : annonces de toute l'ecole. Prof normal : les siennes via RLS.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: announcements, error } = await db
     .from("announcements")
     .select("*, announcement_groups(group_id)")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -47,9 +52,7 @@ export async function GET() {
 // Create an announcement targeting one or more of the teacher's own groups.
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -70,11 +73,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "no_groups" }, { status: 400 });
   }
 
-  // Only keep groups that actually belong to this teacher.
-  const { data: ownGroups } = await supabase
+  // Groupes autorises : les siens, ou ceux de toute l'ecole si directeur.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: ownGroups } = await db
     .from("groups")
     .select("id")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .in("id", group_ids);
 
   const validGroupIds = (ownGroups || []).map((g) => g.id);
@@ -87,7 +94,7 @@ export async function POST(request: Request) {
     user.email?.split("@")[0] ||
     "";
 
-  const { data: announcement, error } = await supabase
+  const { data: announcement, error } = await db
     .from("announcements")
     .insert({
       teacher_id: user.id,
@@ -106,13 +113,13 @@ export async function POST(request: Request) {
     announcement_id: announcement.id,
     group_id: gid,
   }));
-  const { error: linkError } = await supabase
+  const { error: linkError } = await db
     .from("announcement_groups")
     .insert(links);
 
   if (linkError) {
     // Roll back the orphan announcement so we never leave one without groups.
-    await supabase.from("announcements").delete().eq("id", announcement.id);
+    await db.from("announcements").delete().eq("id", announcement.id);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 

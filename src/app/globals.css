@@ -175,6 +175,59 @@
   50% { transform: rotate(1.5deg); }
 }
 
+/* ---------------------------------------------------------------------------
+   Avatars eleves.
+
+   Seuls les YEUX bougent : un clignement bref, et de temps en temps un regard
+   qui part a gauche puis a droite. Les illustrations sont volontairement tres
+   epurees -- deformer la bouche ou le visage les rendait inquietants, alors on
+   s en tient a ce qui suffit a les rendre vivants.
+
+   Les deux boucles ont des durees non multiples (4.2 s et 9 s) : elles se
+   dephasent en permanence, donc la sequence ne se repete jamais a l identique.
+   Le decalage --av-delay vient de l identifiant de l eleve, pour que la liste
+   ne cligne pas a l unisson.
+
+   Tout passe par transform -> carte graphique, aucun recalcul de mise en page.
+--------------------------------------------------------------------------- */
+
+.av-eye,
+.av-eye-look {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-delay: var(--av-delay, 0s);
+  animation-iteration-count: infinite;
+}
+
+/* Clignement : bref et net. */
+.av-eye {
+  animation-name: av-blink;
+  animation-duration: 4.2s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes av-blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  94%           { transform: scaleY(0.06); }
+}
+
+/* Regard : deux coups d oeil rapides, gauche puis droite, puis retour au
+   centre. Les transitions durent ~180 ms, comme un vrai mouvement oculaire. */
+.av-eye-look {
+  animation-name: av-look;
+  animation-duration: 9s;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes av-look {
+  0%, 30%   { transform: translateX(0); }
+  32%, 44%  { transform: translateX(-28%); }
+  46%, 60%  { transform: translateX(28%); }
+  62%, 100% { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .av-eye, .av-eye-look { animation: none; }
+}
+
 @keyframes spin-slow {
   to {
     transform: rotate(360deg);

@@ -1,6 +1,12 @@
 import createIntlMiddleware from "next-intl/middleware";
 import { createServerClient } from "@supabase/ssr";
 import { routing } from "./i18n/routing";
+import {
+  ACCESS_COOKIE,
+  ACCESS_COOKIE_OPTIONS,
+  buildAccessCookie,
+  readAccessCookie,
+} from "./lib/access-cookie";
 import { NextResponse, type NextRequest } from "next/server";
 
 const intlMiddleware = createIntlMiddleware(routing);
@@ -32,6 +38,7 @@ export async function middleware(request: NextRequest) {
 
   const isLoginPage = pathname.startsWith(`/${locale}/login`);
   const isResetPage = pathname.startsWith(`/${locale}/reset-password`);
+  const isLegalPage = pathname.startsWith(`/${locale}/legal`);
   const isRootPage =
     pathname === "/" ||
     pathname === `/${locale}` ||
@@ -69,21 +76,35 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // PERF : `getClaims()` verifie la signature du JWT localement (WebCrypto)
+  // quand le projet utilise des cles asymetriques, la ou `getUser()` faisait un
+  // aller-retour vers le serveur Auth (~180 ms) sur chaque navigation.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const user = claims?.sub
+    ? { id: claims.sub, user_metadata: claims.user_metadata ?? {} }
+    : null;
 
   // Redirect logic
-  if (!user && !isLoginPage && !isResetPage && !isRootPage) {
+  if (!user && !isLoginPage && !isResetPage && !isLegalPage && !isRootPage) {
     const url = request.nextUrl.clone();
     const targetLocale = preferredLocale || locale;
     url.pathname = `/${targetLocale}/login`;
     return NextResponse.redirect(url);
   }
 
+  let accessCookieToSet: string | null = null;
+
   if (user && !isLoginPage && !isResetPage && user.user_metadata?.role === "prof") {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (serviceKey && supabaseUrl) {
+    // Verification deja faite il y a moins de 10 minutes pour ce compte : on
+    // saute l'aller-retour RPC (voir lib/access-cookie.ts).
+    const cached = await readAccessCookie(
+      request.cookies.get(ACCESS_COOKIE)?.value,
+      user.id,
+    );
+
+    if (!cached && serviceKey && supabaseUrl) {
       try {
         // Acces actif = sa propre cle OU (prof d'ecole) l'abonnement du
         // directeur. La fonction has_active_access gere les deux cas.
@@ -120,10 +141,15 @@ export async function middleware(request: NextRequest) {
               redirectResponse.cookies.delete(name);
             }
           });
+          redirectResponse.cookies.delete(ACCESS_COOKIE);
           return redirectResponse;
         }
+
+        // Acces confirme : on memorise le resultat pour 10 minutes.
+        accessCookieToSet = await buildAccessCookie(user.id);
       } catch {
-        // Si la verification echoue, on laisse passer
+        // Si la verification echoue, on laisse passer (sans rien memoriser,
+        // pour que la prochaine navigation retente la verification).
       }
     }
   }
@@ -136,6 +162,10 @@ export async function middleware(request: NextRequest) {
       url.pathname = `/${targetLocale}/dashboard`;
       return NextResponse.redirect(url);
     }
+  }
+
+  if (accessCookieToSet) {
+    response.cookies.set(ACCESS_COOKIE, accessCookieToSet, ACCESS_COOKIE_OPTIONS);
   }
 
   // Copy intl headers (locale, etc.) onto the response

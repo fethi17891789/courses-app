@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { StudentAvatar } from "@/components/students/student-avatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
@@ -589,12 +590,7 @@ export function GroupDetail({
                         className="btn-push flex items-center gap-3 rounded-xl bg-[#f9f7ff] px-3 py-2.5 text-left disabled:opacity-50"
                         style={{ "--push-shadow": "#e9e5f5", "--push-glow": "rgba(124,58,237,0.1)", "--push-depth": "2px" } as React.CSSProperties}
                       >
-                        <div
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
-                          style={{ background: "linear-gradient(135deg, #8b5cf6, #6d28d9)" }}
-                        >
-                          {s.full_name.charAt(0).toUpperCase()}
-                        </div>
+                        <StudentAvatar seed={s.id} size={32} className="shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
                             {s.full_name}

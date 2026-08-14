@@ -1,4 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
+import { getSupabaseAdmin } from "@/lib/admin-auth";
+import { getSchoolScope } from "@/lib/school-scope";
 import { redirect } from "next/navigation";
 import { AnnouncementsList } from "@/components/announcements/announcements-list";
 import { StudentAnnouncements } from "@/components/announcements/student-announcements";
@@ -12,9 +15,7 @@ export default async function AnnouncementsPage({
 }) {
   const { locale } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect(`/${locale}/login`);
@@ -30,11 +31,17 @@ export default async function AnnouncementsPage({
     redirect(`/${locale}/dashboard`);
   }
 
-  // Teacher: list own announcements + own groups for the multi-select.
-  const { data: rawGroups } = await supabase
+  // Directeur : il enseigne aussi, mais ses groupes peuvent appartenir aux
+  // profs de son ecole. Il doit voir et cibler toute l'ecole, comme sur les
+  // autres ecrans. Prof normal : ses propres groupes via RLS.
+  const scope = await getSchoolScope(user.id);
+  const db = scope.isDirector ? getSupabaseAdmin() : supabase;
+  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
+
+  const { data: rawGroups } = await db
     .from("groups")
     .select("id, name, level, section")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .order("created_at", { ascending: false });
 
   const groups = (rawGroups || []) as Pick<
@@ -42,10 +49,10 @@ export default async function AnnouncementsPage({
     "id" | "name" | "level" | "section"
   >[];
 
-  const { data: rawAnnouncements } = await supabase
+  const { data: rawAnnouncements } = await db
     .from("announcements")
     .select("*, announcement_groups(group_id)")
-    .eq("teacher_id", user.id)
+    .in("teacher_id", teacherIds)
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false });
 

@@ -6,6 +6,28 @@ import { createClient } from "@/lib/supabase";
 const APP_ID = "152972fd-8970-4ab5-a777-19ee800fea9f";
 const SDK_URL = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
 
+/**
+ * Surface du SDK OneSignal reellement utilisee ici. Le SDK est charge par
+ * balise script depuis leur CDN, sans paquet npm : il n'apporte donc aucun
+ * type. On decrit le minimum plutot que de manipuler du `any`.
+ */
+type OneSignalSdk = {
+  init: (options: {
+    appId: string;
+    allowLocalhostAsSecureOrigin: boolean;
+  }) => Promise<void>;
+  login: (externalId: string) => Promise<void>;
+  logout: () => Promise<void>;
+  Notifications: {
+    permission: boolean;
+    requestPermission: () => Promise<void>;
+    addEventListener: (
+      event: "foregroundWillDisplay",
+      handler: (event: { notification?: { title?: string } }) => void,
+    ) => void;
+  };
+};
+
 let sdkLoaded = false;
 let loggedInUserId = "";
 
@@ -27,14 +49,57 @@ function loadSdk(attempt = 1) {
   };
   document.head.appendChild(script);
 
-  window.OneSignalDeferred.push(async (OneSignal: any) => {
+  window.OneSignalDeferred.push(async (OneSignal: OneSignalSdk) => {
     console.log("[OS] SDK init start");
     await OneSignal.init({
       appId: APP_ID,
       allowLocalhostAsSecureOrigin: true,
     });
     console.log("[OS] SDK init done, permission:", OneSignal.Notifications.permission);
+
+    // Application au premier plan : on laisse la notification s'afficher.
+    // Sans cet ecouteur, selon le navigateur, une notification recue pendant
+    // que l'utilisateur regarde l'application peut etre avalee silencieusement.
+    // On n'appelle deliberement PAS event.preventDefault().
+    OneSignal.Notifications.addEventListener(
+      "foregroundWillDisplay",
+      (event) => {
+        console.log("[OS] notification au premier plan:", event?.notification?.title);
+      },
+    );
   });
+}
+
+/**
+ * Detache l'abonnement du compte qui vient de se deconnecter.
+ *
+ * Un abonnement push appartient au NAVIGATEUR, pas au compte. Sans ce logout,
+ * il restait colle au compte precedent : sur un poste partage -- une salle des
+ * profs -- le prof suivant recevait les notifications du precedent, avec les
+ * noms de ses eleves. C'est aussi ce qui embrouillait les tests quand on
+ * alternait entre un compte prof et un compte eleve sur le meme appareil.
+ */
+function logoutUser() {
+  if (!loggedInUserId) return;
+  console.log("[OS] logout de", loggedInUserId);
+  loggedInUserId = "";
+
+  const run = async (OneSignal: OneSignalSdk) => {
+    try {
+      await OneSignal.logout();
+      console.log("[OS] logout() success");
+    } catch (e) {
+      console.error("[OS] logout() error:", e);
+    }
+  };
+
+  const os = (window as unknown as { OneSignal?: OneSignalSdk }).OneSignal;
+  if (os) {
+    run(os).catch(() => {});
+  } else {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(run);
+  }
 }
 
 function loginUser(userId: string, role: string) {
@@ -68,6 +133,19 @@ function loginUser(userId: string, role: string) {
       const newToken = OneSignal.User.PushSubscription.token;
       console.log("[OS] optIn() done, token:", newToken ? "yes" : "no");
     }
+
+    // ETAT FINAL. La ligne "[OS] permission:" plus haut decrit l'etat AVANT
+    // la demande d'autorisation : a la premiere connexion elle affiche
+    // forcement false, ce qui prete a confusion. C'est CETTE ligne qui dit si
+    // l'appareil est reellement capable de recevoir des notifications.
+    console.log(
+      "[OS] etat final -> permission:",
+      OneSignal.Notifications.permission,
+      "optedIn:",
+      OneSignal.User.PushSubscription.optedIn,
+      "token:",
+      OneSignal.User.PushSubscription.token ? "yes" : "no",
+    );
   };
 
   const os = (window as any).OneSignal;
@@ -96,6 +174,10 @@ export function OneSignalProvider() {
       (_event, session) => {
         if (session?.user) {
           loginUser(session.user.id, session.user.user_metadata?.role || "");
+        } else {
+          // Deconnexion : on detache l'abonnement du compte precedent, sinon il
+          // lui reste rattache et le compte suivant recoit ses notifications.
+          logoutUser();
         }
       }
     );

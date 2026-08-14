@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { NextResponse } from "next/server";
 
 // Mark an announcement as read for the current user (idempotent upsert).
@@ -8,9 +9,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

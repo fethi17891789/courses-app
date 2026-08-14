@@ -224,7 +224,7 @@ export function BottomNav({
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 bg-[#f0ecff] px-5 pt-2" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
+    <div className="fixed inset-x-0 bottom-0 z-50 px-5 pt-2" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
       <div
         className="relative mx-auto flex max-w-md items-center justify-around rounded-xl bg-white px-3 py-3"
         style={{ boxShadow: palette.container }}

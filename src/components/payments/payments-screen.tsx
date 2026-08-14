@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { StudentAvatar } from "@/components/students/student-avatar";
 import { getCache, setCache } from "@/lib/page-cache";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
@@ -98,12 +99,7 @@ function DebtCard({
       } as React.CSSProperties}
     >
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white"
-          style={{ background: "linear-gradient(135deg, #f97316, #ea580c)", boxShadow: "0 2px 0 #c2410c" }}
-        >
-          {entry.student_name.charAt(0).toUpperCase()}
-        </div>
+        <StudentAvatar seed={entry.student_id} size={40} className="shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-bold text-[#1e1b4b]">
             {entry.student_name}

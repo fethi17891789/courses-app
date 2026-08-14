@@ -1,11 +1,12 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { NextResponse } from "next/server";
 import { validateString, firstError } from "@/lib/validate";
 import { normalizeType, buildChoices } from "@/lib/quiz-save";
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user || user.user_metadata?.role !== "prof") {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
@@ -21,7 +22,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user || user.user_metadata?.role !== "prof") {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

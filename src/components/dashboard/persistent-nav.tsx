@@ -21,7 +21,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   "/student/history": "settings",
 };
 
-const HIDDEN_ROUTES = ["/login", "/reset-password"];
+const HIDDEN_ROUTES = ["/login", "/reset-password", "/legal"];
 
 function deriveActive(pathname: string): string {
   const withoutLocale = pathname.replace(/^\/(fr|ar)/, "") || "/";
@@ -45,15 +45,18 @@ function shouldHide(pathname: string): boolean {
   );
 }
 
-export function PersistentNav() {
+export function PersistentNav({
+  initialRole = null,
+}: {
+  initialRole?: string | null;
+}) {
   const pathname = usePathname();
-  const [role, setRole] = useState<string | null>(null);
+  // Le role vient du serveur (claims du JWT) : plus de `getUser()` client au
+  // montage, et la barre est peinte des le premier rendu au lieu de clignoter.
+  const [role, setRole] = useState<string | null>(initialRole);
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setRole(user.user_metadata?.role || "prof");
-    });
 
     const {
       data: { subscription },

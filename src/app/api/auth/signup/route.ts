@@ -24,11 +24,20 @@ export async function POST(request: Request) {
 
   const supabaseAdmin = getSupabaseAdmin();
   const body = await request.json();
-  const { email, password, fullName, phone, role, activationKey } = body;
+  const { email, password, fullName, phone, role, activationKey, acceptedTerms } = body;
 
   if (!email || !password) {
     return NextResponse.json(
       { error: "missing_fields" },
+      { status: 400 }
+    );
+  }
+
+  // Consentement aux CGU : exige cote serveur, pas seulement dans l'interface.
+  // Sans lui, aucun compte n'est cree, meme si la requete est forgee a la main.
+  if (acceptedTerms !== true) {
+    return NextResponse.json(
+      { error: "terms_not_accepted" },
       { status: 400 }
     );
   }
@@ -178,6 +187,9 @@ export async function POST(request: Request) {
       phone: phone?.trim() || "",
       role,
       plan: role === "prof" ? plan : undefined,
+      // Trace du consentement : date d'acceptation des CGU et de la politique
+      // de confidentialite, conservee pour pouvoir en justifier.
+      terms_accepted_at: new Date().toISOString(),
     },
   });
 

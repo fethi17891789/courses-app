@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { getSupabaseAdmin } from "@/lib/admin-auth";
 import { getSchoolScope } from "@/lib/school-scope";
 import { redirect } from "next/navigation";
@@ -12,9 +13,7 @@ export default async function GroupsPage({
 }) {
   const { locale } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect(`/${locale}/login`);

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { SessionStatus } from "@/types/quiz";
@@ -8,8 +9,7 @@ type Params = { params: Promise<{ sessionId: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
   const { sessionId } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   // Use admin client for reads: the quizzes table has no student SELECT policy, so a
@@ -90,7 +90,7 @@ export async function GET(_req: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const { sessionId } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user || user.user_metadata?.role !== "prof") {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

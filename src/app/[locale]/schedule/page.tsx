@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth-user";
 import { ScheduleScreen } from "@/components/schedule/schedule-screen";
 
 export default async function SchedulePage({
@@ -8,10 +8,7 @@ export default async function SchedulePage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect(`/${locale}/login`);

@@ -1,13 +1,12 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAuthUser } from "@/lib/auth-user";
 import { getSupabaseAdmin } from "@/lib/admin-auth";
 import { getSchoolScope } from "@/lib/school-scope";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

@@ -1,22 +1,13 @@
 import { createClient } from "@/lib/supabase-server";
-import { createClient as createAdmin } from "@supabase/supabase-js";
-import { getSchoolScope } from "@/lib/school-scope";
+import { fetchStudents, QueryError } from "@/lib/dashboard-queries";
+import { getAuthUser } from "@/lib/auth-user";
 import { NextResponse } from "next/server";
 import { validateString, validatePhone, validateEnrolledSessions, firstError } from "@/lib/validate";
 
 
-function getSupabaseAdmin() {
-  return createAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -26,92 +17,19 @@ export async function GET(request: Request) {
   const search = searchParams.get("search")?.trim();
   const level = searchParams.get("level")?.trim();
 
-  // Portee : un prof voit les eleves qu'il possede ET ceux inscrits dans l'un de
-  // SES groupes (meme si le dossier eleve appartient a un autre prof de l'ecole).
-  // Un directeur : tous les profs de l'ecole. On calcule aussi, par eleve, la
-  // liste des profs associes (teacher_ids) pour le filtre "par prof".
-  const scope = await getSchoolScope(user.id);
-  const teacherIds = scope.isDirector ? scope.teacherIds : [user.id];
-  const admin = getSupabaseAdmin();
-
-  // Groupes de la portee + leur proprietaire.
-  const { data: scopeGroups } = await admin
-    .from("groups")
-    .select("id, teacher_id")
-    .in("teacher_id", teacherIds);
-  const groupOwner = new Map((scopeGroups || []).map((g) => [g.id, g.teacher_id]));
-  const groupIds = (scopeGroups || []).map((g) => g.id);
-
-  // Inscriptions dans ces groupes -> par eleve, l'ensemble des profs concernes.
-  const memberProfIds = new Map<string, Set<string>>();
-  if (groupIds.length > 0) {
-    const { data: memberships } = await admin
-      .from("group_members")
-      .select("student_id, group_id")
-      .in("group_id", groupIds);
-    for (const m of memberships || []) {
-      const owner = groupOwner.get(m.group_id);
-      if (!owner) continue;
-      if (!memberProfIds.has(m.student_id)) memberProfIds.set(m.student_id, new Set());
-      memberProfIds.get(m.student_id)!.add(owner);
+  try {
+    return NextResponse.json(await fetchStudents(user, search, level));
+  } catch (e) {
+    if (e instanceof QueryError) {
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
     }
+    throw e;
   }
-  const memberStudentIds = [...memberProfIds.keys()];
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const applyFilters = (q: any) => {
-    if (search && search.length <= 100) q = q.ilike("full_name", `%${search}%`);
-    if (level) q = q.eq("level", level);
-    return q;
-  };
-
-  // Eleves possedes par la portee + eleves inscrits dans les groupes de la portee.
-  const ownedReq = applyFilters(
-    admin.from("students").select("*, group_members(count)").in("teacher_id", teacherIds),
-  );
-  const sharedReq = memberStudentIds.length
-    ? applyFilters(admin.from("students").select("*, group_members(count)").in("id", memberStudentIds))
-    : Promise.resolve({ data: [] as unknown[] });
-
-  const [ownedRes, sharedRes] = await Promise.all([ownedReq, sharedReq]);
-  if ((ownedRes as { error?: unknown }).error) {
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
-  }
-
-  // Fusion + dedoublonnage par id.
-  const byId = new Map<string, Record<string, unknown>>();
-  for (const s of [...(ownedRes.data || []), ...((sharedRes as { data?: unknown[] }).data || [])]) {
-    const st = s as Record<string, unknown>;
-    byId.set(st.id as string, st);
-  }
-
-  const formatted = [...byId.values()]
-    .map((s) => {
-      const ownerId = s.teacher_id as string;
-      const profs = new Set(memberProfIds.get(s.id as string) ?? []);
-      profs.add(ownerId); // le proprietaire du dossier compte aussi
-      return {
-        ...s,
-        teacher_ids: [...profs],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        group_count: (s.group_members as any)?.[0]?.count ?? 0,
-        group_members: undefined,
-      };
-    })
-    .sort((a, b) =>
-      String((b as Record<string, unknown>).created_at).localeCompare(
-        String((a as Record<string, unknown>).created_at),
-      ),
-    );
-
-  return NextResponse.json(formatted);
 }
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import type { AuthUser } from "@/lib/auth-user";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import type { User } from "@supabase/supabase-js";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -24,7 +24,7 @@ function getGreetingKey(): "goodMorning" | "goodAfternoon" | "goodEvening" {
   return "goodEvening";
 }
 
-export function ParentDashboard({ user }: { user: User }) {
+export function ParentDashboard({ user }: { user: AuthUser }) {
   const t = useTranslations("parentDashboard");
   const tDash = useTranslations("dashboard");
   const fullName =

@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth-user";
 import { AddStudent } from "@/components/students/add-student";
 
 export default async function AddStudentPage({
@@ -11,10 +11,7 @@ export default async function AddStudentPage({
 }) {
   const { locale } = await params;
   const { group } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect(`/${locale}/login`);
