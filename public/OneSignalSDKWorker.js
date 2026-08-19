@@ -8,9 +8,37 @@ try {
   console.error("[SW] SDK OneSignal indisponible, notifications inactives", e);
 }
 
-const CACHE_NAME = "courses-v6";
+const CACHE_NAME = "courses-v7";
 const PDF_CACHE = "subjects-pdf-v1";
 const OFFLINE_URL = "/offline.html";
+// Filet de securite ultime : si meme /offline.html n a pas pu etre mis en cache,
+// on sert cet ecran minimal plutot que de laisser respondWith() sans reponse
+// (ce qui affiche la page d erreur du navigateur).
+const FALLBACK_HTML = [
+  '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">',
+  '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">',
+  '<meta name="theme-color" content="#7c3aed"><title>Courses &mdash; Hors ligne</title><style>',
+  '*{margin:0;padding:0;box-sizing:border-box}',
+  'body{font-family:system-ui,sans-serif;background:#f0ecff;color:#1e1b4b;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px}',
+  '.card{background:#fff;border-radius:32px;padding:48px 32px;max-width:360px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(124,58,237,.08)}',
+  'h1{font-size:22px;font-weight:800;margin-bottom:12px}',
+  'p{font-size:15px;color:#64748b;line-height:1.5;margin-bottom:32px}',
+  'button{font:700 16px system-ui,sans-serif;color:#fff;background:#7c3aed;border:0;border-radius:16px;padding:14px 32px;box-shadow:0 4px 0 #5b21b6}',
+  '</style></head><body><div class="card"><h1>Pas de connexion</h1>',
+  '<p>Verifiez votre connexion internet puis reessayez.</p>',
+  '<button onclick="location.reload()">Reessayer</button></div></body></html>',
+].join("");
+
+function offlineResponse() {
+  return caches.match(OFFLINE_URL).then(
+    (cached) =>
+      cached ||
+      new Response(FALLBACK_HTML, {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      })
+  );
+}
 const SHELL_URLS = [
   OFFLINE_URL,
   "/",
@@ -24,9 +52,17 @@ const SHELL_URLS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      Promise.allSettled(SHELL_URLS.map((url) => cache.add(url)))
-    )
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // La page hors ligne est la seule ressource vraiment critique : on la met
+      // en cache a part, avec cache-buster, pour ne pas dependre du reste.
+      try {
+        const resp = await fetch(OFFLINE_URL, { cache: "reload" });
+        if (resp.ok) await cache.put(OFFLINE_URL, resp);
+      } catch (e) {
+        console.error("[SW] mise en cache de la page hors ligne impossible", e);
+      }
+      await Promise.allSettled(SHELL_URLS.map((url) => cache.add(url)));
+    })
   );
   self.skipWaiting();
 });
@@ -39,7 +75,16 @@ self.addEventListener("activate", (event) => {
           .filter((key) => key !== CACHE_NAME && key !== PDF_CACHE)
           .map((key) => caches.delete(key))
       )
-    ).then(() => clients.claim())
+    )
+      .then(async () => {
+        // Rattrapage si l install s est faite sans reseau.
+        try {
+          const cache = await caches.open(CACHE_NAME);
+          const resp = await fetch(OFFLINE_URL, { cache: "reload" });
+          if (resp.ok) await cache.put(OFFLINE_URL, resp);
+        } catch {}
+      })
+      .then(() => clients.claim())
   );
 });
 
@@ -104,12 +149,13 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() =>
-        caches.match(event.request).then((cached) => {
-          if (cached) return cached;
-          if (isNavigate) return caches.match(OFFLINE_URL);
-          return new Response("", { status: 503 });
-        })
-      )
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        // Sans reponse ici, le navigateur affiche SA page d erreur : on garantit
+        // donc toujours un ecran hors ligne pour les navigations.
+        if (isNavigate) return offlineResponse();
+        return new Response("", { status: 503 });
+      })
   );
 });
